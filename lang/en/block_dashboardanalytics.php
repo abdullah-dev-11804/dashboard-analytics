@@ -3,7 +3,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['pluginname'] = 'Dashboard analytics';
+$string['pluginname'] = '';
 $string['dashboardanalytics:addinstance'] = 'Add a dashboard analytics block';
 $string['dashboardanalytics:myaddinstance'] = 'Add a dashboard analytics block to Dashboard';
 $string['dashboardanalytics:view'] = 'View dashboard analytics';
