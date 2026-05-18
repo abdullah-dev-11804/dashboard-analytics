@@ -1,0 +1,14 @@
+{{!
+    @template block_dashboardanalytics/filter_bar
+}}
+{{#groups}}
+    <label class="da-field">
+        <span>{{label}}</span>
+        <select data-filter-group="{{key}}" {{#multiple}}multiple{{/multiple}}>
+            {{#options}}
+                <option value="{{value}}">{{label}}</option>
+            {{/options}}
+        </select>
+    </label>
+{{/groups}}
+

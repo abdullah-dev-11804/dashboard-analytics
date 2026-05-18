@@ -1,0 +1,9 @@
+{{!
+    @template block_dashboardanalytics/kpi_card
+}}
+<button type="button" class="da-kpi da-kpi-{{status}}" data-drilldown="{{drilldownkey}}">
+    <span class="da-kpi-label">{{label}}</span>
+    <span class="da-kpi-value">{{value}}{{#unit}} <small>{{unit}}</small>{{/unit}}</span>
+    {{#trend}}<span class="da-kpi-trend">{{trend}}</span>{{/trend}}
+</button>
+

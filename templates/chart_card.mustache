@@ -1,0 +1,12 @@
+{{!
+    @template block_dashboardanalytics/chart_card
+}}
+<article class="da-chart-card" data-chart="{{key}}">
+    <button type="button" class="da-chart-card-header" aria-expanded="false">
+        <span>{{title}}</span>
+    </button>
+    <div class="da-chart-card-body" hidden>
+        <div class="da-chart-placeholder">{{#str}}nodata, block_dashboardanalytics{{/str}}</div>
+    </div>
+</article>
+

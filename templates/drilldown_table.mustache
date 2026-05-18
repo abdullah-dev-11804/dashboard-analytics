@@ -1,0 +1,18 @@
+{{!
+    @template block_dashboardanalytics/drilldown_table
+}}
+<table class="da-table">
+    <thead>
+        <tr>
+            {{#columns}}<th scope="col">{{label}}</th>{{/columns}}
+        </tr>
+    </thead>
+    <tbody>
+        {{#rows}}
+            <tr>
+                {{#cells}}<td>{{value}}</td>{{/cells}}
+            </tr>
+        {{/rows}}
+    </tbody>
+</table>
+

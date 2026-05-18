@@ -1,0 +1,69 @@
+{{!
+    @template block_dashboardanalytics/dashboard
+}}
+<div class="block-dashboardanalytics"
+     data-region="dashboardanalytics"
+     data-contextid="{{contextid}}"
+     data-dashboardkey="{{dashboardkey}}"
+     aria-label="{{#str}}aria:dashboard, block_dashboardanalytics{{/str}}">
+    {{#hasaccess}}
+        <div class="da-header">
+            <div>
+                <h3 class="da-title">{{dashboardname}}</h3>
+                <div class="da-subtitle">{{#str}}pluginname, block_dashboardanalytics{{/str}}</div>
+            </div>
+        </div>
+
+        <div class="da-tabs" role="tablist" data-region="tabs">
+            {{#tabs}}
+                <button type="button"
+                        class="da-tab {{#active}}is-active{{/active}}"
+                        data-tab="{{key}}"
+                        role="tab"
+                        aria-selected="{{#active}}true{{/active}}{{^active}}false{{/active}}">
+                    {{label}}
+                </button>
+            {{/tabs}}
+        </div>
+
+        <section class="da-filter-band" data-region="filter-band">
+            <div class="da-filter-grid" data-region="filter-bar">
+                <div class="da-loading">{{#str}}loading, block_dashboardanalytics{{/str}}</div>
+            </div>
+            <div class="da-filter-actions">
+                <label class="da-field da-field-search">
+                    <span>{{#str}}filter:search, block_dashboardanalytics{{/str}}</span>
+                    <input type="search" data-filter="search" autocomplete="off">
+                </label>
+                <label class="da-field">
+                    <span>{{#str}}filter:status, block_dashboardanalytics{{/str}}</span>
+                    <select data-filter="status">
+                        <option value="">{{#str}}filter:statusall, block_dashboardanalytics{{/str}}</option>
+                        <option value="expired">{{#str}}filter:statusexpired, block_dashboardanalytics{{/str}}</option>
+                        <option value="expiring">{{#str}}filter:statusexpiring, block_dashboardanalytics{{/str}}</option>
+                    </select>
+                </label>
+            </div>
+        </section>
+
+        <section class="da-kpi-strip" data-region="kpi-strip" aria-live="polite">
+            <div class="da-loading">{{#str}}loading, block_dashboardanalytics{{/str}}</div>
+        </section>
+
+        <section class="da-panel" data-region="main-panel">
+            <div class="da-panel-head">
+                <div>
+                    <h4 data-region="drilldown-title">{{#str}}complianceactiontable, block_dashboardanalytics{{/str}}</h4>
+                    <p data-region="drilldown-count"></p>
+                </div>
+            </div>
+            <div class="da-drilldown" data-region="drilldown">
+                <div class="da-loading">{{#str}}loading, block_dashboardanalytics{{/str}}</div>
+            </div>
+        </section>
+    {{/hasaccess}}
+    {{^hasaccess}}
+        <div class="da-empty">{{#str}}error:noaccess, block_dashboardanalytics{{/str}}</div>
+    {{/hasaccess}}
+</div>
+
