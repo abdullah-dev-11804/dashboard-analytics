@@ -153,7 +153,7 @@ class server_repository {
     private function table_exists(string $tablename): bool {
         global $CFG, $DB;
 
-        require_once($CFG->libdir . '/ddl/xmldb_table.php');
+        require_once($CFG->libdir . '/xmldb/xmldb_table.php');
         return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
     }
 

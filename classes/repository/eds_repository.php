@@ -125,9 +125,8 @@ class eds_repository {
     private function has_tables(): bool {
         global $CFG, $DB;
 
-        require_once($CFG->libdir . '/ddl/xmldb_table.php');
+        require_once($CFG->libdir . '/xmldb/xmldb_table.php');
         return $DB->get_manager()->table_exists(new \xmldb_table('local_ncasign_jobs'))
             && $DB->get_manager()->table_exists(new \xmldb_table('local_ncasign_signers'));
     }
 }
-
