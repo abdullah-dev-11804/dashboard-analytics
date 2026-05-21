@@ -17,4 +17,3 @@ $definitions = [
         'ttl' => 120,
     ],
 ];
-

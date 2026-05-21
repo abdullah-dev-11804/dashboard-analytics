@@ -15,6 +15,7 @@ class filters {
 
         return [
             'companyids' => self::int_list($decoded['companyids'] ?? $decoded['companies'] ?? []),
+            'companies' => self::text_list($decoded['companies'] ?? []),
             'courseids' => self::int_list($decoded['courseids'] ?? $decoded['courses'] ?? []),
             'departments' => self::text_list($decoded['departments'] ?? $decoded['departmentids'] ?? []),
             'locations' => self::text_list($decoded['locations'] ?? $decoded['locationids'] ?? []),
@@ -61,4 +62,3 @@ class filters {
         return in_array($value, ['expired', 'expiring', 'active', 'nodocument'], true) ? $value : '';
     }
 }
-

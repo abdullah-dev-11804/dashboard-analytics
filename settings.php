@@ -66,7 +66,7 @@ if ($ADMIN->fulltree) {
         'block_dashboardanalytics/documenttable',
         get_string('settings:documenttable', 'block_dashboardanalytics'),
         get_string('settings:documenttable_desc', 'block_dashboardanalytics'),
-        '',
+        'local_ncasign_jobs',
         PARAM_ALPHANUMEXT
     ));
 
@@ -90,7 +90,7 @@ if ($ADMIN->fulltree) {
         'block_dashboardanalytics/documentexpirycolumn',
         get_string('settings:documentexpirycolumn', 'block_dashboardanalytics'),
         get_string('settings:documentexpirycolumn_desc', 'block_dashboardanalytics'),
-        'timeexpires',
+        'expirydate',
         PARAM_ALPHANUMEXT
     ));
 

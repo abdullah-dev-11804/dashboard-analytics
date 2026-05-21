@@ -8,49 +8,53 @@ defined('MOODLE_INTERNAL') || die();
 class dimension_repository {
 
     public function get_filter_groups(): array {
-        return [
+        $companyrepo = new company_repository();
+
+        $groups = [
             [
-                'key' => 'companyids',
+                'key' => $companyrepo->company_filter_key(),
                 'label' => get_string('filter:companies', 'block_dashboardanalytics'),
                 'multiple' => true,
-                'options' => $this->companies(),
+                'options' => $companyrepo->get_company_options(),
             ],
-            [
+        ];
+
+        if ($companyrepo->has_iomad_tables()) {
+            $groups[] = [
                 'key' => 'departments',
                 'label' => get_string('filter:departments', 'block_dashboardanalytics'),
                 'multiple' => true,
                 'options' => $this->departments(),
-            ],
-            [
-                'key' => 'locations',
-                'label' => get_string('filter:locations', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $this->locations(),
-            ],
-            [
+            ];
+        }
+
+        $groups[] = [
+            'key' => 'locations',
+            'label' => get_string('filter:locations', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->locations(),
+        ];
+
+        $positions = $this->positions();
+        if ($positions) {
+            $groups[] = [
                 'key' => 'positions',
                 'label' => get_string('filter:positions', 'block_dashboardanalytics'),
                 'multiple' => true,
-                'options' => $this->positions(),
-            ],
-            [
-                'key' => 'courseids',
-                'label' => get_string('filter:courses', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $this->courses(),
-            ],
-        ];
-    }
-
-    private function companies(): array {
-        global $DB;
-
-        $records = $DB->get_records('cohort', null, 'name ASC', 'id, name', 0, 300);
-        $options = [];
-        foreach ($records as $record) {
-            $options[] = ['value' => (string)$record->id, 'label' => format_string($record->name)];
+                'options' => $positions,
+            ];
         }
-        return $options;
+
+        $groups[] = [
+            'key' => 'courseids',
+            'label' => get_string('filter:courses', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->courses(),
+        ];
+
+        return array_values(array_filter($groups, static function(array $group): bool {
+            return !empty($group['options']);
+        }));
     }
 
     private function departments(): array {
@@ -126,4 +130,3 @@ class dimension_repository {
         return $options;
     }
 }
-

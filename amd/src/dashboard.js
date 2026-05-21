@@ -26,7 +26,16 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
     var readFilters = function(root) {
         var filters = {};
-        Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(select) {
+        Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(group) {
+            var key = group.getAttribute('data-filter-group');
+            var checked = Array.prototype.slice.call(group.querySelectorAll('[data-filter-option]:checked'))
+                .map(function(option) {
+                    return option.value;
+                });
+            filters[key] = checked;
+        });
+
+        Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
             filters[select.getAttribute('data-filter-group')] = selectedValues(select);
         });
 
@@ -57,22 +66,33 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
         container.innerHTML = groups.map(function(group) {
             var options = group.options || [];
-            var optionhtml = options.map(function(option) {
-                return '<option value="' + escapeHtml(option.value) + '">' + escapeHtml(option.label) + '</option>';
-            }).join('');
+            var optionhtml = options.length ? options.map(function(option) {
+                return '<label class="da-filter-option">'
+                    + '<input type="checkbox" data-filter-option value="' + escapeHtml(option.value) + '">'
+                    + '<span>' + escapeHtml(option.label) + '</span>'
+                    + '</label>';
+            }).join('') : '<div class="da-filter-empty">No options</div>';
 
-            if (!optionhtml) {
-                optionhtml = '<option value="">No options</option>';
-            }
-
-            return '<label class="da-field">'
+            return '<div class="da-filter-menu" data-filter-group="' + escapeHtml(group.key) + '">'
+                + '<button type="button" class="da-filter-trigger" aria-expanded="false">'
                 + '<span>' + escapeHtml(group.label) + '</span>'
-                + '<select data-filter-group="' + escapeHtml(group.key) + '" '
-                + (group.multiple ? 'multiple size="3"' : '') + '>'
+                + '<strong data-filter-count>All</strong>'
+                + '</button>'
+                + '<div class="da-filter-popover" hidden>'
                 + optionhtml
-                + '</select>'
-                + '</label>';
+                + '</div>'
+                + '</div>';
         }).join('');
+    };
+
+    var updateFilterCounts = function(root) {
+        Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(group) {
+            var count = group.querySelectorAll('[data-filter-option]:checked').length;
+            var label = group.querySelector('[data-filter-count]');
+            if (label) {
+                label.textContent = count ? count + ' selected' : 'All';
+            }
+        });
     };
 
     var renderKpis = function(root, cards) {
@@ -137,11 +157,23 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             });
 
             return '<tr>' + columns.map(function(column) {
-                return '<td>' + escapeHtml(cellsByKey[column.key] || '') + '</td>';
+                var value = escapeHtml(cellsByKey[column.key] || '');
+                var key = column.key;
+                if (key === 'status' || key === 'statusbadge') {
+                    return '<td><span class="da-badge da-badge-' + value.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '">' + value + '</span></td>';
+                }
+                if (key === 'action') {
+                    return '<td><button type="button" class="da-row-action">' + value + '</button></td>';
+                }
+                return '<td>' + value + '</td>';
             }).join('') + '</tr>';
         }).join('');
 
-        container.innerHTML = '<div class="da-table-wrap"><table class="da-table">'
+        var description = data.description
+            ? '<div class="da-description">' + escapeHtml(data.description) + '</div>'
+            : '';
+
+        container.innerHTML = description + '<div class="da-table-wrap"><table class="da-table">'
             + '<thead><tr>' + head + '</tr></thead>'
             + '<tbody>' + body + '</tbody>'
             + '</table></div>';
@@ -183,20 +215,41 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             page: 0,
             perpage: 25
         }).then(function(response) {
+            state.currentDrilldown = drilldownkey;
             renderDrilldown(root, response);
         }).catch(Notification.exception);
     };
 
     var refresh = function(root, state) {
         loadKpis(root, state);
-        loadDrilldown(root, state, 'compliance_action_table');
+        loadDrilldown(root, state, state.currentDrilldown || 'owner_total_active_users');
+    };
+
+    var drilldownForTab = function(tabkey) {
+        var map = {
+            kpis: 'owner_total_active_users',
+            overview: 'owner_compliance',
+            compliance: 'owner_compliance',
+            turnover: 'owner_total_active_users',
+            quality: 'owner_compliance',
+            proctoring: 'owner_compliance',
+            forecast: 'owner_expiring_documents',
+            server: 'owner_server_disk',
+            capacity: 'owner_server_disk',
+            performance: 'owner_server_disk',
+            errorlog: 'owner_server_disk',
+            settings: 'owner_server_disk'
+        };
+
+        return map[tabkey] || 'owner_total_active_users';
     };
 
     var bindEvents = function(root, state) {
         var timer = null;
 
         root.addEventListener('change', function(event) {
-            if (event.target.matches('[data-filter-group], [data-filter="status"]')) {
+            if (event.target.matches('[data-filter-option], [data-filter="status"]')) {
+                updateFilterCounts(root);
                 refresh(root, state);
             }
         });
@@ -212,6 +265,24 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         });
 
         root.addEventListener('click', function(event) {
+            var trigger = event.target.closest('.da-filter-trigger');
+            if (trigger && root.contains(trigger)) {
+                var menu = trigger.closest('[data-filter-group]');
+                var popover = menu ? menu.querySelector('.da-filter-popover') : null;
+                var expanded = trigger.getAttribute('aria-expanded') === 'true';
+                Array.prototype.slice.call(root.querySelectorAll('.da-filter-trigger')).forEach(function(item) {
+                    item.setAttribute('aria-expanded', 'false');
+                });
+                Array.prototype.slice.call(root.querySelectorAll('.da-filter-popover')).forEach(function(item) {
+                    item.hidden = true;
+                });
+                if (popover) {
+                    trigger.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                    popover.hidden = expanded;
+                }
+                return;
+            }
+
             var kpi = event.target.closest('[data-drilldown]');
             if (kpi && root.contains(kpi)) {
                 loadDrilldown(root, state, kpi.getAttribute('data-drilldown'));
@@ -225,6 +296,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     item.classList.toggle('is-active', active);
                     item.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
+                loadDrilldown(root, state, drilldownForTab(tab.getAttribute('data-tab')));
             }
         });
     };
@@ -242,6 +314,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
         bindEvents(root, state);
         loadFilters(root, state).then(function() {
+            updateFilterCounts(root);
             refresh(root, state);
         });
     };
@@ -250,4 +323,3 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         init: init
     };
 });
-

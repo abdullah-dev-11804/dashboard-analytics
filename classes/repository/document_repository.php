@@ -30,6 +30,7 @@ class document_repository {
         $userfilter = $employee->user_filter_sql($filters, 'u', 'doccount');
         $where = [$userfilter['sql']];
         $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, 'doccountorigin');
         $this->append_course_filter($where, $params, $filters, $source, 'doccountcourse');
 
         $now = time();
@@ -84,6 +85,7 @@ class document_repository {
         $userfilter = $employee->user_filter_sql($filters, 'u', 'docrows');
         $where = [$userfilter['sql']];
         $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, 'docrowsorigin');
         $this->append_course_filter($where, $params, $filters, $source, 'docrowscourse');
         $this->append_status_filter($where, $params, $status, $source, 'docrowsstatus');
 
@@ -92,6 +94,8 @@ class document_repository {
         $expirycolumn = $source['expiry'];
         $coursejoin = '';
         $courseselect = "'' AS coursename";
+        $company = new company_repository();
+        $companysql = $company->company_name_sql('u', 'docrowscompany');
         if ($source['courseid'] !== '') {
             $coursejoin = "LEFT JOIN {course} c ON c.id = d.{$source['courseid']}";
             $courseselect = 'c.fullname AS coursename';
@@ -111,10 +115,12 @@ class document_repository {
                        u.lastname,
                        u.department,
                        u.city,
+                       {$companysql['select']},
                        {$courseselect}
                   FROM {{$table}} d
                   JOIN {user} u ON u.id = d.{$useridcolumn}
                        {$coursejoin}
+                       {$companysql['join']}
                  WHERE {$wheresql}
               ORDER BY d.{$expirycolumn} ASC";
 
@@ -126,6 +132,7 @@ class document_repository {
             $rows[] = [
                 'cells' => [
                     ['key' => 'employee', 'value' => $showidentity ? fullname($record) : get_string('hiddenuser')],
+                    ['key' => 'company', 'value' => (string)$record->companyname],
                     ['key' => 'department', 'value' => (string)$record->department],
                     ['key' => 'location', 'value' => (string)$record->city],
                     ['key' => 'course', 'value' => (string)$record->coursename],
@@ -150,14 +157,20 @@ class document_repository {
         $table = $this->identifier(get_config('block_dashboardanalytics', 'documenttable'));
         $userid = $this->identifier(get_config('block_dashboardanalytics', 'documentuseridcolumn') ?: 'userid');
         $courseid = $this->identifier(get_config('block_dashboardanalytics', 'documentcourseidcolumn') ?: 'courseid');
-        $expiry = $this->identifier(get_config('block_dashboardanalytics', 'documentexpirycolumn') ?: 'timeexpires');
+        $expiry = $this->identifier(get_config('block_dashboardanalytics', 'documentexpirycolumn') ?: 'expirydate');
+
+        if ($table === '' && $this->table_exists('local_ncasign_jobs')) {
+            $table = 'local_ncasign_jobs';
+            $userid = 'userid';
+            $courseid = 'courseid';
+            $expiry = 'expirydate';
+        }
 
         if ($table === '' || $userid === '' || $expiry === '') {
             return null;
         }
 
-        require_once($CFG->libdir . '/ddl/xmldb_table.php');
-        if (!$DB->get_manager()->table_exists(new \xmldb_table($table))) {
+        if (!$this->table_exists($table)) {
             return null;
         }
 
@@ -175,7 +188,15 @@ class document_repository {
             'userid' => $userid,
             'courseid' => $courseid,
             'expiry' => $expiry,
+            'origin' => isset($columns['origin']) ? 'origin' : '',
         ];
+    }
+
+    private function table_exists(string $tablename): bool {
+        global $CFG, $DB;
+
+        require_once($CFG->libdir . '/ddl/xmldb_table.php');
+        return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
     }
 
     private function identifier($value): string {
@@ -197,6 +218,15 @@ class document_repository {
         [$insql, $inparams] = $DB->get_in_or_equal($filters['courseids'], SQL_PARAMS_NAMED, $prefix);
         $where[] = "d.{$source['courseid']} {$insql}";
         $params += $inparams;
+    }
+
+    private function append_origin_filter(array &$where, array &$params, array $source, string $prefix): void {
+        if (empty($source['origin'])) {
+            return;
+        }
+
+        $where[] = "(d.{$source['origin']} <> :{$prefix}demo OR d.{$source['origin']} IS NULL)";
+        $params[$prefix . 'demo'] = 'demo_job';
     }
 
     private function append_status_filter(array &$where, array &$params, string $status, array $source, string $prefix): void {
@@ -232,6 +262,7 @@ class document_repository {
     private function columns(): array {
         return [
             ['key' => 'employee', 'label' => 'Employee'],
+            ['key' => 'company', 'label' => 'Company'],
             ['key' => 'department', 'label' => 'Department'],
             ['key' => 'location', 'label' => 'Location'],
             ['key' => 'course', 'label' => 'Course'],

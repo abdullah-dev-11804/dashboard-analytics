@@ -72,15 +72,23 @@ class employee_repository {
         }
 
         if (!empty($filters['companyids'])) {
-            [$insql, $inparams] = $DB->get_in_or_equal($filters['companyids'], SQL_PARAMS_NAMED, $prefix . 'company');
-            $cohortalias = 'cm' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-            $where[] = "EXISTS (
-                            SELECT 1
-                              FROM {cohort_members} {$cohortalias}
-                             WHERE {$cohortalias}.userid = {$alias}.id
-                               AND {$cohortalias}.cohortid {$insql}
-                         )";
-            $params += $inparams;
+            $companyrepo = new company_repository();
+            if ($companyrepo->has_iomad_tables()) {
+                $companyrepo->append_user_company_filter($where, $params, $filters, $alias, $prefix);
+            } else {
+                [$insql, $inparams] = $DB->get_in_or_equal($filters['companyids'], SQL_PARAMS_NAMED, $prefix . 'company');
+                $cohortalias = 'cm' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $where[] = "EXISTS (
+                                SELECT 1
+                                  FROM {cohort_members} {$cohortalias}
+                                 WHERE {$cohortalias}.userid = {$alias}.id
+                                   AND {$cohortalias}.cohortid {$insql}
+                             )";
+                $params += $inparams;
+            }
+        } else if (!empty($filters['companies'])) {
+            $companyrepo = new company_repository();
+            $companyrepo->append_user_company_filter($where, $params, $filters, $alias, $prefix);
         }
 
         if (!empty($filters['departments'])) {

@@ -71,7 +71,7 @@ class get_drilldown extends \external_api {
             ])),
             'totalcount' => new \external_value(PARAM_INT, 'Total matching rows'),
             'notice' => new \external_value(PARAM_TEXT, 'Optional notice'),
+            'description' => new \external_value(PARAM_TEXT, 'Optional explanation'),
         ]);
     }
 }
-
