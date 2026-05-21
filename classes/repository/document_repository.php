@@ -37,7 +37,8 @@ class document_repository {
         $soon = $now + (30 * DAYSECS);
         $table = $source['table'];
         $useridcolumn = $source['userid'];
-        $expirycolumn = $source['expiry'];
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
         $params += [
             'expirednow' => $now,
             'expiringnow' => $now,
@@ -46,13 +47,14 @@ class document_repository {
         ];
 
         $sql = "SELECT COUNT(1) AS total,
-                       SUM(CASE WHEN d.{$expirycolumn} < :expirednow THEN 1 ELSE 0 END) AS expired,
-                       SUM(CASE WHEN d.{$expirycolumn} >= :expiringnow
-                                  AND d.{$expirycolumn} <= :expiringsoon THEN 1 ELSE 0 END) AS expiring,
-                       SUM(CASE WHEN d.{$expirycolumn} > :activesoon THEN 1 ELSE 0 END) AS active,
+                       SUM(CASE WHEN {$expiry} < :expirednow THEN 1 ELSE 0 END) AS expired,
+                       SUM(CASE WHEN {$expiry} >= :expiringnow
+                                  AND {$expiry} <= :expiringsoon THEN 1 ELSE 0 END) AS expiring,
+                       SUM(CASE WHEN {$expiry} > :activesoon THEN 1 ELSE 0 END) AS active,
                        COUNT(DISTINCT d.{$useridcolumn}) AS userswithdocuments
                   FROM {{$table}} d
                   JOIN {user} u ON u.id = d.{$useridcolumn}
+                       {$expiryjoin}
                  WHERE " . implode(' AND ', $where);
 
         $record = $DB->get_record_sql($sql, $params);
@@ -66,6 +68,62 @@ class document_repository {
             'expired' => (int)($record->expired ?? 0),
             'nodocument' => max(0, $totalstaff - (int)($record->userswithdocuments ?? 0)),
         ];
+    }
+
+    public function compliance_summary(array $filters): array {
+        $employee = new employee_repository();
+        $totalactiveusers = $employee->count_active_users($filters);
+        $validusers = $this->count_valid_signed_users($filters);
+        $compliance = $totalactiveusers > 0 ? round(($validusers / $totalactiveusers) * 100, 1) : 0.0;
+
+        return [
+            'configured' => $this->source() !== null,
+            'totalactiveusers' => $totalactiveusers,
+            'validusers' => $validusers,
+            'compliance' => $compliance,
+            'status' => $this->compliance_status($compliance),
+        ];
+    }
+
+    public function count_valid_signed_users(array $filters): int {
+        global $DB;
+
+        $source = $this->source();
+        if ($source === null) {
+            return 0;
+        }
+
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'validdocs');
+        $where = [
+            $userfilter['sql'],
+            "d.status IN (:validstatusmanual, :validstatusauto)",
+        ];
+        $params = $userfilter['params'] + [
+            'validstatusmanual' => 'completed_manual',
+            'validstatusauto' => 'completed_auto',
+            'validnow' => time(),
+        ];
+
+        if (!empty($source['origin'])) {
+            $where[] = "d.{$source['origin']} = :validorigin";
+            $params['validorigin'] = 'course_completion';
+        }
+
+        $this->append_course_filter($where, $params, $filters, $source, 'validdoccourse');
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
+        $where[] = "{$expiry} >= :validnow";
+
+        $table = $source['table'];
+        $useridcolumn = $source['userid'];
+        $sql = "SELECT COUNT(DISTINCT d.{$useridcolumn})
+                  FROM {{$table}} d
+                  JOIN {user} u ON u.id = d.{$useridcolumn}
+                       {$expiryjoin}
+                 WHERE " . implode(' AND ', $where);
+
+        return (int)$DB->count_records_sql($sql, $params);
     }
 
     public function document_rows(array $filters, string $status, int $page, int $perpage, bool $showidentity): array {
@@ -91,7 +149,8 @@ class document_repository {
 
         $table = $source['table'];
         $useridcolumn = $source['userid'];
-        $expirycolumn = $source['expiry'];
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
         $coursejoin = '';
         $courseselect = "'' AS coursename";
         $company = new company_repository();
@@ -106,11 +165,12 @@ class document_repository {
                        FROM {{$table}} d
                        JOIN {user} u ON u.id = d.{$useridcolumn}
                             {$coursejoin}
+                            {$expiryjoin}
                       WHERE {$wheresql}";
         $totalcount = (int)$DB->count_records_sql($countsql, $params);
 
         $sql = "SELECT d.id,
-                       d.{$expirycolumn} AS expirytime,
+                       {$expiry} AS expirytime,
                        u.firstname,
                        u.lastname,
                        u.department,
@@ -121,8 +181,9 @@ class document_repository {
                   JOIN {user} u ON u.id = d.{$useridcolumn}
                        {$coursejoin}
                        {$companysql['join']}
+                       {$expiryjoin}
                  WHERE {$wheresql}
-              ORDER BY d.{$expirycolumn} ASC";
+              ORDER BY {$expiry} ASC";
 
         $records = $DB->get_records_sql($sql, $params, $page * $perpage, $perpage);
         $rows = [];
@@ -166,7 +227,7 @@ class document_repository {
             $expiry = 'expirydate';
         }
 
-        if ($table === '' || $userid === '' || $expiry === '') {
+        if ($table === '' || $userid === '') {
             return null;
         }
 
@@ -175,8 +236,12 @@ class document_repository {
         }
 
         $columns = $DB->get_columns($table);
-        if (!isset($columns[$userid]) || !isset($columns[$expiry])) {
+        if (!isset($columns[$userid])) {
             return null;
+        }
+
+        if ($expiry !== '' && !isset($columns[$expiry])) {
+            $expiry = '';
         }
 
         if ($courseid !== '' && !isset($columns[$courseid])) {
@@ -232,19 +297,60 @@ class document_repository {
     private function append_status_filter(array &$where, array &$params, string $status, array $source, string $prefix): void {
         $now = time();
         $soon = $now + (30 * DAYSECS);
+        $expiry = $this->expiry_sql('d', $source);
 
         if ($status === 'expired') {
-            $where[] = "d.{$source['expiry']} < :{$prefix}now";
+            $where[] = "{$expiry} < :{$prefix}now";
             $params[$prefix . 'now'] = $now;
         } else if ($status === 'expiring') {
-            $where[] = "d.{$source['expiry']} >= :{$prefix}now";
-            $where[] = "d.{$source['expiry']} <= :{$prefix}soon";
+            $where[] = "{$expiry} >= :{$prefix}now";
+            $where[] = "{$expiry} <= :{$prefix}soon";
             $params[$prefix . 'now'] = $now;
             $params[$prefix . 'soon'] = $soon;
         } else if ($status === 'active') {
-            $where[] = "d.{$source['expiry']} > :{$prefix}soon";
+            $where[] = "{$expiry} > :{$prefix}soon";
             $params[$prefix . 'soon'] = $soon;
         }
+    }
+
+    private function expiry_sql(string $alias, array $source): string {
+        $fallback = '0';
+        if (!empty($source['courseid'])) {
+            $fallback = "COALESCE(ccdash.timecompleted, 0) + (COALESCE(cfdash.intvalue, cfdash.decvalue, cfdash.value, 0) * 86400)";
+        }
+
+        if (!empty($source['expiry'])) {
+            return "COALESCE(NULLIF({$alias}.{$source['expiry']}, 0), {$fallback})";
+        }
+
+        return $fallback;
+    }
+
+    private function expiry_join_sql(string $alias, array $source): string {
+        if (empty($source['courseid'])) {
+            return '';
+        }
+
+        return "LEFT JOIN {course_completions} ccdash
+                       ON ccdash.userid = {$alias}.{$source['userid']}
+                      AND ccdash.course = {$alias}.{$source['courseid']}
+                LEFT JOIN {customfield_field} cffdash
+                       ON cffdash.shortname = 'validity_period'
+                LEFT JOIN {customfield_data} cfdash
+                       ON cfdash.fieldid = cffdash.id
+                      AND cfdash.instanceid = {$alias}.{$source['courseid']}";
+    }
+
+    private function compliance_status(float $compliance): string {
+        if ($compliance >= 80) {
+            return 'Green';
+        }
+
+        if ($compliance >= 70) {
+            return 'Amber';
+        }
+
+        return 'Red';
     }
 
     private function status_label(int $expiry): string {

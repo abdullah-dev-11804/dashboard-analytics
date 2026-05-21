@@ -23,14 +23,14 @@ class kpi_service {
 
         $totalstaff = $employees->count_active_users($filters);
         $documentcounts = $documents->status_counts($filters);
+        $compliancesummary = $documents->compliance_summary($filters);
         $edsqueue = $eds->count_pending_manual($filters);
         $disk = $server->disk_card();
 
-        $compliancevalue = 'Set up';
+        $compliancevalue = $compliancesummary['compliance'] . '%';
         $compliancestatus = 'muted';
-        if ($documentcounts['configured'] && $documentcounts['total'] > 0) {
-            $compliance = round(($documentcounts['active'] / $documentcounts['total']) * 100);
-            $compliancevalue = $compliance . '%';
+        if ($compliancesummary['configured']) {
+            $compliance = $compliancesummary['compliance'];
             $compliancestatus = $compliance >= 80 ? 'ok' : ($compliance >= 70 ? 'warning' : 'danger');
         }
 
@@ -52,9 +52,9 @@ class kpi_service {
                     'value' => $compliancevalue,
                     'unit' => '',
                     'status' => $compliancestatus,
-                    'trend' => $documentcounts['total'] . ' docs',
+                    'trend' => $compliancesummary['validusers'] . ' / ' . $compliancesummary['totalactiveusers'] . ' users',
                     'drilldownkey' => 'owner_compliance',
-                    'help' => 'Compliance status from NCASign document expiry data, excluding demo jobs.',
+                    'help' => 'Compliance = active users with at least one valid signed NCASign document divided by total active users.',
                 ],
                 [
                     'key' => 'expiring30',

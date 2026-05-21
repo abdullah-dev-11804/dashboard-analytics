@@ -104,15 +104,16 @@ class company_repository {
             if ($this->has_iomad_tables() && !empty($record->companyid)) {
                 $companyfilters['companyids'] = [(int)$record->companyid];
             }
-            $counts = $documents->status_counts($companyfilters);
-            $compliance = $counts['total'] > 0 ? round(($counts['active'] / $counts['total']) * 100) : 0;
-            $status = $this->compliance_status($compliance);
+            $summary = $documents->compliance_summary($companyfilters);
+            $compliance = $summary['compliance'];
+            $status = $summary['status'];
 
             $rows[] = [
                 'cells' => [
                     ['key' => 'company', 'value' => (string)$record->companyname],
                     ['key' => 'activeusers', 'value' => (string)(int)$record->activeusers],
-                    ['key' => 'compliance', 'value' => $counts['total'] > 0 ? $compliance . '%' : 'No documents'],
+                    ['key' => 'validusers', 'value' => (string)$summary['validusers']],
+                    ['key' => 'compliance', 'value' => $compliance . '%'],
                     ['key' => 'status', 'value' => $status],
                     ['key' => 'action', 'value' => 'View full report'],
                 ],
@@ -123,6 +124,7 @@ class company_repository {
             'columns' => [
                 ['key' => 'company', 'label' => 'Company'],
                 ['key' => 'activeusers', 'label' => 'Active users'],
+                ['key' => 'validusers', 'label' => 'Valid signed users'],
                 ['key' => 'compliance', 'label' => 'Compliance %'],
                 ['key' => 'status', 'label' => 'Status'],
                 ['key' => 'action', 'label' => 'Action'],
@@ -130,7 +132,7 @@ class company_repository {
             'rows' => $rows,
             'totalcount' => count($rows),
             'notice' => '',
-            'description' => 'Count of all Moodle users where deleted=0, suspended=0, grouped by company. Each row is a company aggregate; no individual names are exposed in this view.',
+            'description' => 'Compliance % = active users with at least one valid signed NCASign document / total active users x 100. Valid means origin=course_completion, status completed_manual or completed_auto, and expirydate or calculated expiry is not expired.',
         ];
     }
 
@@ -141,18 +143,6 @@ class company_repository {
 
         $filters['companies'] = [$companyname];
         return $filters;
-    }
-
-    private function compliance_status(int $compliance): string {
-        if ($compliance >= 80) {
-            return 'Green';
-        }
-
-        if ($compliance >= 70) {
-            return 'Amber';
-        }
-
-        return 'Red';
     }
 
     private function text_options(array $values): array {
