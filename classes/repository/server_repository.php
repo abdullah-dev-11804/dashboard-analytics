@@ -96,18 +96,28 @@ class server_repository {
     }
 
     private function database_size_bytes(): ?int {
-        global $DB;
+        global $CFG, $DB;
 
         if ($DB->get_dbfamily() !== 'mysql') {
             return null;
         }
 
-        $dbname = $DB->get_dbname();
+        $dbname = !empty($CFG->dbname) ? (string)$CFG->dbname : '';
+        if ($dbname === '') {
+            return null;
+        }
+
         $sql = "SELECT SUM(data_length + index_length)
                   FROM information_schema.tables
                  WHERE table_schema = :dbname";
 
-        return (int)$DB->get_field_sql($sql, ['dbname' => $dbname]);
+        try {
+            $value = $DB->get_field_sql($sql, ['dbname' => $dbname]);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $value === false || $value === null ? null : (int)$value;
     }
 
     private function concurrent_users(): int {
