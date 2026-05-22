@@ -56,9 +56,14 @@ class get_visuals extends \external_api {
                     'percent' => new \external_value(PARAM_FLOAT, 'Percent or bar width'),
                     'status' => new \external_value(PARAM_ALPHANUMEXT, 'Status'),
                     'meta' => new \external_value(PARAM_TEXT, 'Meta text'),
+                    'segments' => new \external_multiple_structure(new \external_single_structure([
+                        'label' => new \external_value(PARAM_TEXT, 'Segment label'),
+                        'value' => new \external_value(PARAM_TEXT, 'Segment value'),
+                        'percent' => new \external_value(PARAM_FLOAT, 'Segment percent'),
+                        'status' => new \external_value(PARAM_ALPHANUMEXT, 'Segment status'),
+                    ]), 'Optional grouped/stacked chart segments', VALUE_OPTIONAL),
                 ])),
             ])),
         ]);
     }
 }
-

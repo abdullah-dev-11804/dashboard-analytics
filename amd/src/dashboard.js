@@ -235,6 +235,44 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                             + '</div>';
                     }).join('') + '</div>'
                     + '</div>';
+            } else if (panel.type === 'histogram') {
+                body = '<div class="da-histogram">' + items.map(function(item) {
+                    var height = Math.max(5, Math.min(100, Number(item.percent) || 0));
+                    return '<div class="da-histogram-bar">'
+                        + '<strong>' + escapeHtml(item.value) + '</strong>'
+                        + '<span class="da-histogram-fill da-bar-fill-' + escapeHtml(item.status) + '" style="height:' + height + '%"></span>'
+                        + '<em>' + escapeHtml(item.label) + '</em>'
+                        + '</div>';
+                }).join('') + '</div>';
+            } else if (panel.type === 'grouped') {
+                body = '<div class="da-grouped-bars">' + items.map(function(item) {
+                    var segments = item.segments || [];
+                    return '<div class="da-grouped-row">'
+                        + '<div class="da-grouped-label">' + escapeHtml(item.label) + '</div>'
+                        + '<div class="da-grouped-series">' + segments.map(function(segment) {
+                            var width = Math.max(2, Math.min(100, Number(segment.percent) || 0));
+                            return '<div class="da-grouped-segment">'
+                                + '<span class="da-grouped-fill da-bar-fill-' + escapeHtml(segment.status) + '" style="width:' + width + '%"></span>'
+                                + '<small>' + escapeHtml(segment.label) + ': ' + escapeHtml(segment.value) + '</small>'
+                                + '</div>';
+                        }).join('') + '</div>'
+                        + '</div>';
+                }).join('') + '</div>';
+            } else if (panel.type === 'stacked') {
+                body = '<div class="da-stacked-bars">' + items.map(function(item) {
+                    var segments = item.segments || [];
+                    return '<div class="da-stacked-row">'
+                        + '<div class="da-bar-label"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>'
+                        + '<div class="da-stacked-track">' + segments.map(function(segment) {
+                            var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                            return '<span class="da-stacked-segment da-bar-fill-' + escapeHtml(segment.status) + '" style="width:' + width + '%" title="'
+                                + escapeHtml(segment.label) + ': ' + escapeHtml(segment.value) + '"></span>';
+                        }).join('') + '</div>'
+                        + '<div class="da-bar-meta">' + segments.map(function(segment) {
+                            return escapeHtml(segment.label) + ' ' + escapeHtml(segment.value);
+                        }).join(' · ') + '</div>'
+                        + '</div>';
+                }).join('') + '</div>';
             } else {
                 body = '<div class="da-bars">' + items.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));

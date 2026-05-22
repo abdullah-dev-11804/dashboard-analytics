@@ -130,6 +130,66 @@ class employee_repository {
         return $items;
     }
 
+    public function staff_distribution_by_location_items(array $filters, int $limit = 8): array {
+        global $DB;
+
+        $filter = $this->user_filter_sql($filters, 'u', 'staffdist');
+        $sql = "SELECT COALESCE(NULLIF(u.city, ''), 'Unassigned') AS location,
+                       COALESCE(NULLIF(u.department, ''), 'Unassigned') AS department,
+                       COUNT(1) AS usercount
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+              GROUP BY COALESCE(NULLIF(u.city, ''), 'Unassigned'),
+                       COALESCE(NULLIF(u.department, ''), 'Unassigned')
+              ORDER BY location ASC, usercount DESC";
+
+        $records = $DB->get_records_sql($sql, $filter['params']);
+        $locations = [];
+        $max = 1;
+        foreach ($records as $record) {
+            $location = (string)$record->location;
+            if (!isset($locations[$location])) {
+                $locations[$location] = [];
+            }
+            $count = (int)$record->usercount;
+            $max = max($max, $count);
+            $locations[$location][] = [
+                'label' => (string)$record->department,
+                'value' => (string)$count,
+                'percent' => 0.0,
+                'status' => $this->department_status((string)$record->department),
+            ];
+        }
+
+        $items = [];
+        foreach (array_slice($locations, 0, $limit, true) as $location => $segments) {
+            foreach ($segments as $index => $segment) {
+                $segments[$index]['percent'] = round(((int)$segment['value'] / $max) * 100, 1);
+            }
+            $items[] = [
+                'label' => $location,
+                'value' => (string)array_sum(array_map('intval', array_column($segments, 'value'))),
+                'percent' => 100.0,
+                'status' => 'info',
+                'meta' => 'headcount by department',
+                'segments' => array_slice($segments, 0, 4),
+            ];
+        }
+
+        return $items;
+    }
+
+    private function department_status(string $department): string {
+        $department = strtolower($department);
+        if (strpos($department, 'worker') !== false) {
+            return 'info';
+        }
+        if (strpos($department, 'itr') !== false || strpos($department, 'engineer') !== false) {
+            return 'ok';
+        }
+        return 'warning';
+    }
+
     public function user_filter_sql(array $filters, string $alias = 'u', string $prefix = 'flt'): array {
         global $CFG, $DB;
 

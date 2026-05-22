@@ -359,6 +359,135 @@ class document_repository {
         return $items;
     }
 
+    public function weekly_expiry_histogram_items(array $filters, int $weeks = 13): array {
+        $items = [];
+        $threshold = max(1, (int)get_config('block_dashboardanalytics', 'forecastthreshold'));
+        for ($week = 1; $week <= $weeks; $week++) {
+            $start = ($week - 1) * 7;
+            $end = ($week * 7) - 1;
+            $count = $this->count_expiring_between($filters, $start, $end);
+            $items[] = [
+                'label' => 'W' . $week,
+                'value' => (string)$count,
+                'percent' => 0.0,
+                'status' => $count >= $threshold ? 'danger' : 'info',
+                'meta' => 'week ' . $week,
+            ];
+        }
+
+        $max = max(1, max(array_map(static function(array $item): int {
+            return (int)$item['value'];
+        }, $items)));
+
+        foreach ($items as $index => $item) {
+            $items[$index]['percent'] = round(((int)$item['value'] / $max) * 100, 1);
+        }
+
+        return $items;
+    }
+
+    public function expired_expiring_grouped_items(array $filters, string $dimension, int $limit = 10): array {
+        global $DB;
+
+        $source = $this->source();
+        if ($source === null) {
+            return [];
+        }
+
+        $dimensionexpr = $this->dimension_expr($dimension);
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'grouped' . $dimension);
+        $where = [$userfilter['sql']];
+        $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, 'groupedorigin' . $dimension);
+
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
+        $now = time();
+        $soon = $now + (30 * DAYSECS);
+        $params += [
+            'groupedexpirednow' . $dimension => $now,
+            'groupedexpiringnow' . $dimension => $now,
+            'groupedsoon' . $dimension => $soon,
+        ];
+
+        $coursejoin = $dimension === 'course' && !empty($source['courseid']) ? "LEFT JOIN {course} cdim ON cdim.id = d.{$source['courseid']}" : '';
+        $table = $source['table'];
+        $sql = "SELECT {$dimensionexpr} AS label,
+                       SUM(CASE WHEN {$expiry} < :groupedexpirednow{$dimension} THEN 1 ELSE 0 END) AS expired,
+                       SUM(CASE WHEN {$expiry} >= :groupedexpiringnow{$dimension} AND {$expiry} <= :groupedsoon{$dimension} THEN 1 ELSE 0 END) AS expiring
+                  FROM {{$table}} d
+                  JOIN {user} u ON u.id = d.{$source['userid']}
+                       {$coursejoin}
+                       {$expiryjoin}
+                 WHERE " . implode(' AND ', $where) . "
+              GROUP BY {$dimensionexpr}";
+
+        $records = $DB->get_records_sql($sql, $params);
+        return $this->grouped_count_items($records, $limit);
+    }
+
+    public function certification_status_stacked_items(array $filters, string $dimension, int $limit = 10): array {
+        global $DB;
+
+        $source = $this->source();
+        if ($source === null) {
+            return [];
+        }
+
+        $dimensionexpr = $this->dimension_expr($dimension);
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'stacked' . $dimension);
+        $where = [$userfilter['sql']];
+        $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, 'stackedorigin' . $dimension);
+
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
+        $now = time();
+        $soon = $now + (30 * DAYSECS);
+        $params += [
+            'stackedexpirednow' . $dimension => $now,
+            'stackedexpiringnow' . $dimension => $now,
+            'stackedsoon' . $dimension => $soon,
+            'stackedactivesoon' . $dimension => $soon,
+        ];
+
+        $table = $source['table'];
+        $sql = "SELECT {$dimensionexpr} AS label,
+                       SUM(CASE WHEN {$expiry} > :stackedactivesoon{$dimension} THEN 1 ELSE 0 END) AS active,
+                       SUM(CASE WHEN {$expiry} >= :stackedexpiringnow{$dimension} AND {$expiry} <= :stackedsoon{$dimension} THEN 1 ELSE 0 END) AS expiring,
+                       SUM(CASE WHEN {$expiry} < :stackedexpirednow{$dimension} THEN 1 ELSE 0 END) AS expired
+                  FROM {{$table}} d
+                  JOIN {user} u ON u.id = d.{$source['userid']}
+                       {$expiryjoin}
+                 WHERE " . implode(' AND ', $where) . "
+              GROUP BY {$dimensionexpr}";
+
+        $records = $DB->get_records_sql($sql, $params, 0, $limit);
+        $items = [];
+        foreach ($records as $record) {
+            $active = (int)$record->active;
+            $expiring = (int)$record->expiring;
+            $expired = (int)$record->expired;
+            $total = max(1, $active + $expiring + $expired);
+            $items[] = [
+                'label' => (string)$record->label,
+                'value' => (string)$total,
+                'percent' => 100.0,
+                'status' => 'info',
+                'meta' => 'certification status',
+                'segments' => [
+                    ['label' => 'Active', 'value' => (string)$active, 'percent' => round(($active / $total) * 100, 1), 'status' => 'ok'],
+                    ['label' => 'Expiring <30d', 'value' => (string)$expiring, 'percent' => round(($expiring / $total) * 100, 1), 'status' => 'warning'],
+                    ['label' => 'Expired', 'value' => (string)$expired, 'percent' => round(($expired / $total) * 100, 1), 'status' => 'danger'],
+                ],
+            ];
+        }
+
+        return $items;
+    }
+
     public function document_rows(array $filters, string $status, int $page, int $perpage, bool $showidentity): array {
         global $DB;
 
@@ -585,6 +714,57 @@ class document_repository {
             'status' => $status,
             'meta' => round(($count / max(1, $total)) * 100, 1) . '%',
         ];
+    }
+
+    private function dimension_expr(string $dimension): string {
+        if ($dimension === 'location') {
+            return "COALESCE(NULLIF(u.city, ''), 'Unassigned')";
+        }
+
+        if ($dimension === 'course') {
+            return "COALESCE(NULLIF(cdim.fullname, ''), 'Unassigned')";
+        }
+
+        return "COALESCE(NULLIF(u.department, ''), 'Unassigned')";
+    }
+
+    private function grouped_count_items(array $records, int $limit): array {
+        $items = [];
+        $max = 1;
+        foreach ($records as $record) {
+            $expired = (int)$record->expired;
+            $expiring = (int)$record->expiring;
+            $total = $expired + $expiring;
+            $max = max($max, $total);
+            $items[] = [
+                'label' => (string)$record->label,
+                'value' => (string)$total,
+                'rawtotal' => $total,
+                'expired' => $expired,
+                'expiring' => $expiring,
+            ];
+        }
+
+        usort($items, static function(array $a, array $b): int {
+            return $b['rawtotal'] <=> $a['rawtotal'];
+        });
+
+        $items = array_slice($items, 0, $limit);
+        foreach ($items as $index => $item) {
+            $items[$index] = [
+                'label' => $item['label'],
+                'value' => $item['value'],
+                'percent' => round(($item['rawtotal'] / $max) * 100, 1),
+                'status' => $item['expired'] > 0 ? 'danger' : 'warning',
+                'meta' => $item['expired'] . ' expired, ' . $item['expiring'] . ' expiring',
+                'segments' => [
+                    ['label' => 'Expired now', 'value' => (string)$item['expired'], 'percent' => round(($item['expired'] / $max) * 100, 1), 'status' => 'danger'],
+                    ['label' => 'Expiring <30d', 'value' => (string)$item['expiring'], 'percent' => round(($item['expiring'] / $max) * 100, 1), 'status' => 'warning'],
+                ],
+            ];
+        }
+
+        return $items;
     }
 
     private function expiry_sql(string $alias, array $source): string {

@@ -159,8 +159,8 @@ class visual_service {
             'description' => 'Client manager view focused on department, location and site-level compliance.',
             'panels' => [
                 $this->panel('clientdocumentstatus', 'Document status distribution', 'donut', 'Active, expiring, expired and missing document coverage for the current scope.', $documents->status_items($filters)),
-                $this->panel('clientheatmap', 'Compliance heatmap: department / location', 'bar', 'Each row represents a department and location intersection.', $documents->compliance_heatmap_items($filters)),
-                $this->panel('clientlocations', 'Active users by location', 'bar', 'Active users grouped by Moodle location/city.', $employees->active_users_by_dimension_items($filters, 'location')),
+                $this->panel('staffdistribution', 'Staff distribution - department x location', 'grouped', 'Headcount per location, split by department.', $employees->staff_distribution_by_location_items($filters)),
+                $this->panel('certstatusdepartment', 'Certification status by department', 'stacked', 'Active, expiring and expired document counts by department.', $documents->certification_status_stacked_items($filters, 'department')),
             ],
         ];
     }
@@ -172,8 +172,8 @@ class visual_service {
             'title' => 'Compliance',
             'description' => 'Compliance breakdowns for the client manager scope.',
             'panels' => [
-                $this->panel('departmentcompliance', 'Compliance by department', 'bar', 'Departments ordered from lowest to highest compliance.', $documents->compliance_by_dimension_items($filters, 'department')),
-                $this->panel('locationcompliance', 'Compliance by location', 'bar', 'Locations ordered from lowest to highest compliance.', $documents->compliance_by_dimension_items($filters, 'location')),
+                $this->panel('expiredexpiringdepartment', 'Expired & expiring - by department', 'grouped', 'Expired now versus expiring within 30 days.', $documents->expired_expiring_grouped_items($filters, 'department')),
+                $this->panel('expiredexpiringlocation', 'Expired & expiring - by location', 'grouped', 'Expired now versus expiring within 30 days.', $documents->expired_expiring_grouped_items($filters, 'location')),
                 $this->panel('coursecompliance', 'Non-compliance by course', 'bar', 'Courses with documents expired or expiring soon.', $documents->noncompliance_by_course_items($filters)),
             ],
         ];
@@ -187,6 +187,7 @@ class visual_service {
             'description' => 'Upcoming expiry workload for the current client manager scope.',
             'panels' => [
                 $this->panel('clientexpirywindows', '30/60/90 day expiry workload', 'cards', 'Retraining load by upcoming expiry window.', $documents->forecast_window_items($filters)),
+                $this->panel('weeklyforecast', '13-week expiry forecast histogram', 'histogram', 'Week-by-week expiry pressure across the next quarter.', $documents->weekly_expiry_histogram_items($filters)),
                 $this->panel('clientforecastcourse', 'Upcoming expiry by course', 'bar', 'Courses contributing most to near-term retraining pressure.', $documents->noncompliance_by_course_items($filters)),
             ],
         ];
@@ -207,6 +208,12 @@ class visual_service {
     }
 
     private function panel(string $key, string $title, string $type, string $description, array $items): array {
+        foreach ($items as $index => $item) {
+            if (!isset($item['segments'])) {
+                $items[$index]['segments'] = [];
+            }
+        }
+
         return [
             'key' => $key,
             'title' => $title,
