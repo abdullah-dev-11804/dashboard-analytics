@@ -456,8 +456,8 @@
 
 .block-dashboardanalytics .da-donut-wrap {
     display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: .85rem;
+    grid-template-columns: 165px 1fr;
+    /* gap: .85rem; */
     align-items: center;
     margin-top: .75rem;
 }
