@@ -394,6 +394,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             loadVisuals(root, state, state.currentTab);
             return;
         }
+        if (state.dashboardkey === 'clientmanager') {
+            loadVisuals(root, state, state.currentTab || 'overview');
+            return;
+        }
         loadDrilldown(root, state, state.currentDrilldown || 'owner_total_active_users');
     };
 
@@ -490,6 +494,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     loadVisuals(root, state, tab.getAttribute('data-tab'));
                     return;
                 }
+                if (state.dashboardkey === 'clientmanager') {
+                    loadVisuals(root, state, tab.getAttribute('data-tab'));
+                    return;
+                }
                 loadDrilldown(root, state, drilldownForTab(tab.getAttribute('data-tab')));
             }
         });
@@ -503,7 +511,8 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
         var state = {
             contextid: contextid,
-            dashboardkey: root.getAttribute('data-dashboardkey') || ''
+            dashboardkey: root.getAttribute('data-dashboardkey') || '',
+            currentTab: root.getAttribute('data-dashboardkey') === 'clientmanager' ? 'overview' : ''
         };
 
         bindEvents(root, state);

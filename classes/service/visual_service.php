@@ -7,6 +7,7 @@ use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\company_repository;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
+use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
 
 defined('MOODLE_INTERNAL') || die();
@@ -14,6 +15,10 @@ defined('MOODLE_INTERNAL') || die();
 class visual_service {
 
     public function panels(string $dashboardkey, string $tabkey, array $filters): array {
+        if ($dashboardkey === permissions::DASHBOARD_CLIENT_MANAGER) {
+            return $this->client_manager_panels($tabkey, $filters);
+        }
+
         if ($dashboardkey !== permissions::DASHBOARD_COORDINATOR) {
             return [
                 'title' => 'Dashboard visuals',
@@ -125,6 +130,78 @@ class visual_service {
             'panels' => [
                 $this->panel('expirywindows', '30/60/90 day workload', 'cards', 'At-a-glance retraining load for the next three windows.', $documents->forecast_window_items($filters)),
                 $this->panel('forecastcompany', 'Upcoming risk by company', 'bar', 'Companies with the most expired or soon-expiring documents.', $documents->risk_by_company_items($filters)),
+            ],
+        ];
+    }
+
+    private function client_manager_panels(string $tabkey, array $filters): array {
+        if ($tabkey === 'compliance') {
+            return $this->client_compliance($filters);
+        }
+
+        if ($tabkey === 'forecast' || $tabkey === 'expiry') {
+            return $this->client_forecast($filters);
+        }
+
+        if ($tabkey === 'newstaff') {
+            return $this->client_new_staff($filters);
+        }
+
+        return $this->client_overview($filters);
+    }
+
+    private function client_overview(array $filters): array {
+        $documents = new document_repository();
+        $employees = new employee_repository();
+
+        return [
+            'title' => 'Overview',
+            'description' => 'Client manager view focused on department, location and site-level compliance.',
+            'panels' => [
+                $this->panel('clientdocumentstatus', 'Document status distribution', 'donut', 'Active, expiring, expired and missing document coverage for the current scope.', $documents->status_items($filters)),
+                $this->panel('clientheatmap', 'Compliance heatmap: department / location', 'bar', 'Each row represents a department and location intersection.', $documents->compliance_heatmap_items($filters)),
+                $this->panel('clientlocations', 'Active users by location', 'bar', 'Active users grouped by Moodle location/city.', $employees->active_users_by_dimension_items($filters, 'location')),
+            ],
+        ];
+    }
+
+    private function client_compliance(array $filters): array {
+        $documents = new document_repository();
+
+        return [
+            'title' => 'Compliance',
+            'description' => 'Compliance breakdowns for the client manager scope.',
+            'panels' => [
+                $this->panel('departmentcompliance', 'Compliance by department', 'bar', 'Departments ordered from lowest to highest compliance.', $documents->compliance_by_dimension_items($filters, 'department')),
+                $this->panel('locationcompliance', 'Compliance by location', 'bar', 'Locations ordered from lowest to highest compliance.', $documents->compliance_by_dimension_items($filters, 'location')),
+                $this->panel('coursecompliance', 'Non-compliance by course', 'bar', 'Courses with documents expired or expiring soon.', $documents->noncompliance_by_course_items($filters)),
+            ],
+        ];
+    }
+
+    private function client_forecast(array $filters): array {
+        $documents = new document_repository();
+
+        return [
+            'title' => '30/60/90 days',
+            'description' => 'Upcoming expiry workload for the current client manager scope.',
+            'panels' => [
+                $this->panel('clientexpirywindows', '30/60/90 day expiry workload', 'cards', 'Retraining load by upcoming expiry window.', $documents->forecast_window_items($filters)),
+                $this->panel('clientforecastcourse', 'Upcoming expiry by course', 'bar', 'Courses contributing most to near-term retraining pressure.', $documents->noncompliance_by_course_items($filters)),
+            ],
+        ];
+    }
+
+    private function client_new_staff(array $filters): array {
+        $employees = new employee_repository();
+        $documents = new document_repository();
+
+        return [
+            'title' => 'New staff',
+            'description' => 'New-staff onboarding risk and certification coverage.',
+            'panels' => [
+                $this->panel('newstaffrisk', 'New staff by department', 'bar', 'New users created in the last 90 days, grouped by department.', $employees->new_staff_risk_items($filters)),
+                $this->panel('newstaffcoverage', 'Current document coverage', 'donut', 'Document coverage for the currently filtered user scope.', $documents->status_items($filters)),
             ],
         ];
     }

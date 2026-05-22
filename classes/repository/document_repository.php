@@ -279,6 +279,86 @@ class document_repository {
         return $items;
     }
 
+    public function compliance_by_dimension_items(array $filters, string $dimension, int $limit = 12): array {
+        global $DB;
+
+        $allowed = [
+            'department' => "COALESCE(NULLIF(u.department, ''), 'Unassigned')",
+            'location' => "COALESCE(NULLIF(u.city, ''), 'Unassigned')",
+        ];
+        $expr = $allowed[$dimension] ?? $allowed['department'];
+
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'compdim' . $dimension);
+
+        $sql = "SELECT {$expr} AS label,
+                       COUNT(1) AS activeusers
+                  FROM {user} u
+                 WHERE {$userfilter['sql']}
+              GROUP BY {$expr}
+              ORDER BY label ASC";
+
+        $records = $DB->get_records_sql($sql, $userfilter['params'], 0, $limit);
+        $items = [];
+        foreach ($records as $record) {
+            $dimensionfilters = $filters;
+            if ($dimension === 'location') {
+                $dimensionfilters['locations'] = [(string)$record->label];
+            } else {
+                $dimensionfilters['departments'] = [(string)$record->label];
+            }
+            $summary = $this->compliance_summary($dimensionfilters);
+            $items[] = [
+                'label' => (string)$record->label,
+                'value' => $summary['compliance'] . '%',
+                'percent' => (float)$summary['compliance'],
+                'status' => strtolower($summary['status']),
+                'meta' => $summary['validusers'] . ' / ' . $summary['totalactiveusers'] . ' valid users',
+            ];
+        }
+
+        usort($items, static function(array $a, array $b): int {
+            return $a['percent'] <=> $b['percent'];
+        });
+
+        return $items;
+    }
+
+    public function compliance_heatmap_items(array $filters, int $limit = 18): array {
+        global $DB;
+
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'heatmap');
+
+        $sql = "SELECT " . $DB->sql_concat("COALESCE(NULLIF(u.department, ''), 'Unassigned')", "' / '", "COALESCE(NULLIF(u.city, ''), 'Unassigned')") . " AS label,
+                       COALESCE(NULLIF(u.department, ''), 'Unassigned') AS department,
+                       COALESCE(NULLIF(u.city, ''), 'Unassigned') AS location,
+                       COUNT(1) AS activeusers
+                  FROM {user} u
+                 WHERE {$userfilter['sql']}
+              GROUP BY COALESCE(NULLIF(u.department, ''), 'Unassigned'),
+                       COALESCE(NULLIF(u.city, ''), 'Unassigned')
+              ORDER BY activeusers DESC";
+
+        $records = $DB->get_records_sql($sql, $userfilter['params'], 0, $limit);
+        $items = [];
+        foreach ($records as $record) {
+            $cellfilters = $filters;
+            $cellfilters['departments'] = [(string)$record->department];
+            $cellfilters['locations'] = [(string)$record->location];
+            $summary = $this->compliance_summary($cellfilters);
+            $items[] = [
+                'label' => (string)$record->label,
+                'value' => $summary['compliance'] . '%',
+                'percent' => (float)$summary['compliance'],
+                'status' => strtolower($summary['status']),
+                'meta' => (int)$record->activeusers . ' active users',
+            ];
+        }
+
+        return $items;
+    }
+
     public function document_rows(array $filters, string $status, int $page, int $perpage, bool $showidentity): array {
         global $DB;
 

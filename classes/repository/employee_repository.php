@@ -55,6 +55,81 @@ class employee_repository {
         ];
     }
 
+    public function new_staff_risk_items(array $filters, int $days = 90, int $limit = 12): array {
+        global $DB;
+
+        $filter = $this->user_filter_sql($filters, 'u', 'newstaffrisk');
+        $params = $filter['params'];
+        $params['createdsince'] = time() - ($days * DAYSECS);
+
+        $sql = "SELECT COALESCE(NULLIF(u.department, ''), 'Unassigned') AS department,
+                       COUNT(1) AS newstaff
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+                   AND u.timecreated >= :createdsince
+              GROUP BY COALESCE(NULLIF(u.department, ''), 'Unassigned')
+              ORDER BY newstaff DESC";
+
+        $records = $DB->get_records_sql($sql, $params, 0, $limit);
+        $max = 1;
+        foreach ($records as $record) {
+            $max = max($max, (int)$record->newstaff);
+        }
+
+        $items = [];
+        foreach ($records as $record) {
+            $count = (int)$record->newstaff;
+            $items[] = [
+                'label' => (string)$record->department,
+                'value' => (string)$count,
+                'percent' => round(($count / $max) * 100, 1),
+                'status' => $count > 20 ? 'danger' : ($count > 10 ? 'warning' : 'ok'),
+                'meta' => 'created in last ' . $days . ' days',
+            ];
+        }
+
+        return $items;
+    }
+
+    public function active_users_by_dimension_items(array $filters, string $dimension, int $limit = 12): array {
+        global $DB;
+
+        $allowed = [
+            'department' => "COALESCE(NULLIF(u.department, ''), 'Unassigned')",
+            'location' => "COALESCE(NULLIF(u.city, ''), 'Unassigned')",
+        ];
+
+        $expr = $allowed[$dimension] ?? $allowed['department'];
+        $filter = $this->user_filter_sql($filters, 'u', 'userdim' . $dimension);
+
+        $sql = "SELECT {$expr} AS label,
+                       COUNT(1) AS usercount
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+              GROUP BY {$expr}
+              ORDER BY usercount DESC";
+
+        $records = $DB->get_records_sql($sql, $filter['params'], 0, $limit);
+        $max = 1;
+        foreach ($records as $record) {
+            $max = max($max, (int)$record->usercount);
+        }
+
+        $items = [];
+        foreach ($records as $record) {
+            $count = (int)$record->usercount;
+            $items[] = [
+                'label' => (string)$record->label,
+                'value' => (string)$count,
+                'percent' => round(($count / $max) * 100, 1),
+                'status' => 'info',
+                'meta' => 'active users',
+            ];
+        }
+
+        return $items;
+    }
+
     public function user_filter_sql(array $filters, string $alias = 'u', string $prefix = 'flt'): array {
         global $CFG, $DB;
 
