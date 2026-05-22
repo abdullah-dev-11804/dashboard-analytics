@@ -7,6 +7,7 @@ use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\company_repository;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
+use block_dashboardanalytics\repository\proctoring_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -77,11 +78,24 @@ class visual_service {
     }
 
     private function proctoring(array $filters): array {
+        $proctoring = new proctoring_repository();
+
+        if ($proctoring->has_data($filters)) {
+            return [
+                'title' => 'Proctoring',
+                'description' => 'Quilgo trust score distribution and company-level proctoring risk.',
+                'panels' => [
+                    $this->panel('trustdistribution', 'Trust score distribution', 'donut', 'Attempts grouped into Trusted, Review, Suspicious and Flagged bands.', $proctoring->trust_distribution_items($filters)),
+                    $this->panel('companytrust', 'Average trust score by company', 'bar', 'Companies with lower average trust scores appear first.', $proctoring->company_average_items($filters)),
+                ],
+            ];
+        }
+
         return [
             'title' => 'Proctoring',
-            'description' => 'Quilgo trust-score visuals are scaffolded here. Once the Quilgo table/source is confirmed, these cards will become trusted/review/suspicious/flagged distributions.',
+            'description' => 'Quilgo tables were found but no parsable trust score values were available in quizaccess_quilgo_reports.stat for the current filters.',
             'panels' => [
-                $this->panel('trustdistribution', 'Trust score distribution', 'cards', 'Waiting for Quilgo trust score source mapping.', [
+                $this->panel('trustdistribution', 'Trust score distribution', 'donut', 'No parsable Quilgo trust scores yet.', [
                     ['label' => 'Trusted', 'value' => '0', 'percent' => 0.0, 'status' => 'ok', 'meta' => '90-100'],
                     ['label' => 'Review', 'value' => '0', 'percent' => 0.0, 'status' => 'warning', 'meta' => '70-89'],
                     ['label' => 'Suspicious', 'value' => '0', 'percent' => 0.0, 'status' => 'warning', 'meta' => '50-69'],
@@ -114,4 +128,3 @@ class visual_service {
         ];
     }
 }
-
