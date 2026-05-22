@@ -91,9 +91,20 @@ class visual_service {
             ];
         }
 
+        if ($proctoring->has_reports($filters)) {
+            return [
+                'title' => 'Proctoring',
+                'description' => 'Quilgo report rows exist, but stat is empty so trust scores are not available yet. Showing proctoring coverage instead.',
+                'panels' => [
+                    $this->panel('proctoringcoverage', 'Proctoring coverage', 'donut', 'Attempts with Quilgo proctoring enabled versus reports without proctoring enabled.', $proctoring->coverage_items($filters)),
+                    $this->panel('proctoringfeatures', 'Capture features', 'cards', 'Camera, screen, force mode and captured errors from Quilgo report rows.', $proctoring->feature_items($filters)),
+                ],
+            ];
+        }
+
         return [
             'title' => 'Proctoring',
-            'description' => 'Quilgo tables were found but no parsable trust score values were available in quizaccess_quilgo_reports.stat for the current filters.',
+            'description' => 'No Quilgo report rows were found for the current filters.',
             'panels' => [
                 $this->panel('trustdistribution', 'Trust score distribution', 'donut', 'No parsable Quilgo trust scores yet.', [
                     ['label' => 'Trusted', 'value' => '0', 'percent' => 0.0, 'status' => 'ok', 'meta' => '90-100'],

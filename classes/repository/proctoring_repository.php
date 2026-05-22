@@ -86,6 +86,44 @@ class proctoring_repository {
         return count($this->trust_score_records($filters, 1)) > 0;
     }
 
+    public function has_reports(array $filters): bool {
+        return $this->report_count($filters) > 0;
+    }
+
+    public function coverage_items(array $filters): array {
+        $counts = $this->report_counts($filters);
+        $total = max(1, (int)$counts->total);
+
+        return [
+            [
+                'label' => 'Proctoring enabled',
+                'value' => (string)(int)$counts->proctoringenabled,
+                'percent' => round(((int)$counts->proctoringenabled / $total) * 100, 1),
+                'status' => 'ok',
+                'meta' => round(((int)$counts->proctoringenabled / $total) * 100, 1) . '% of reports',
+            ],
+            [
+                'label' => 'Not enabled',
+                'value' => (string)max(0, (int)$counts->total - (int)$counts->proctoringenabled),
+                'percent' => round((max(0, (int)$counts->total - (int)$counts->proctoringenabled) / $total) * 100, 1),
+                'status' => 'muted',
+                'meta' => 'reports without proctoring',
+            ],
+        ];
+    }
+
+    public function feature_items(array $filters): array {
+        $counts = $this->report_counts($filters);
+        $total = max(1, (int)$counts->total);
+
+        return [
+            $this->feature_item('Camera enabled', (int)$counts->cameraenabled, $total, 'ok'),
+            $this->feature_item('Screen enabled', (int)$counts->screenenabled, $total, 'ok'),
+            $this->feature_item('Force enabled', (int)$counts->forceenabled, $total, 'warning'),
+            $this->feature_item('Errors captured', (int)$counts->errors, $total, (int)$counts->errors > 0 ? 'danger' : 'ok'),
+        ];
+    }
+
     private function trust_score_records(array $filters, int $limit = 500): array {
         global $DB;
 
@@ -136,6 +174,64 @@ class proctoring_repository {
         }
 
         return $items;
+    }
+
+    private function report_count(array $filters): int {
+        $counts = $this->report_counts($filters);
+        return (int)$counts->total;
+    }
+
+    private function report_counts(array $filters): \stdClass {
+        global $DB;
+
+        $empty = (object)[
+            'total' => 0,
+            'proctoringenabled' => 0,
+            'cameraenabled' => 0,
+            'screenenabled' => 0,
+            'forceenabled' => 0,
+            'errors' => 0,
+        ];
+
+        if (!$this->has_tables()) {
+            return $empty;
+        }
+
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'quilgocount');
+        $where = [$userfilter['sql']];
+        $params = $userfilter['params'];
+
+        if (!empty($filters['courseids'])) {
+            [$insql, $inparams] = $DB->get_in_or_equal($filters['courseids'], SQL_PARAMS_NAMED, 'quilgocountcourse');
+            $where[] = "q.course {$insql}";
+            $params += $inparams;
+        }
+
+        $sql = "SELECT COUNT(1) AS total,
+                       SUM(CASE WHEN qr.proctoring_enabled = 1 THEN 1 ELSE 0 END) AS proctoringenabled,
+                       SUM(CASE WHEN qr.camera_enabled = 1 THEN 1 ELSE 0 END) AS cameraenabled,
+                       SUM(CASE WHEN qr.screen_enabled = 1 THEN 1 ELSE 0 END) AS screenenabled,
+                       SUM(CASE WHEN qr.force_enabled = 1 THEN 1 ELSE 0 END) AS forceenabled,
+                       SUM(CASE WHEN qr.error_reason IS NOT NULL AND qr.error_reason <> '' THEN 1 ELSE 0 END) AS errors
+                  FROM {quizaccess_quilgo_reports} qr
+                  JOIN {quiz_attempts} qa ON qa.id = qr.attemptid
+                  JOIN {quiz} q ON q.id = qa.quiz
+                  JOIN {user} u ON u.id = qa.userid
+                 WHERE " . implode(' AND ', $where);
+
+        $record = $DB->get_record_sql($sql, $params);
+        return $record ?: $empty;
+    }
+
+    private function feature_item(string $label, int $count, int $total, string $status): array {
+        return [
+            'label' => $label,
+            'value' => (string)$count,
+            'percent' => round(($count / max(1, $total)) * 100, 1),
+            'status' => $status,
+            'meta' => round(($count / max(1, $total)) * 100, 1) . '% of reports',
+        ];
     }
 
     private function extract_trust_score(string $stat): ?float {
