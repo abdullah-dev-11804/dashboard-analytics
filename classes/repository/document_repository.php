@@ -158,12 +158,16 @@ class document_repository {
         $expiryjoin = $this->expiry_join_sql('d', $source);
         $now = time();
         $soon = $now + (30 * DAYSECS);
-        $params += ['risknow' => $now, 'risksoon' => $soon];
+        $params += [
+            'riskexpirednow' => $now,
+            'riskexpiringnow' => $now,
+            'risksoon' => $soon,
+        ];
 
         $table = $source['table'];
         $sql = "SELECT COALESCE({$companysql['expr']}, 'Unassigned') AS companyname,
-                       SUM(CASE WHEN {$expiry} < :risknow THEN 1 ELSE 0 END) AS expired,
-                       SUM(CASE WHEN {$expiry} >= :risknow AND {$expiry} <= :risksoon THEN 1 ELSE 0 END) AS expiring
+                       SUM(CASE WHEN {$expiry} < :riskexpirednow THEN 1 ELSE 0 END) AS expired,
+                       SUM(CASE WHEN {$expiry} >= :riskexpiringnow AND {$expiry} <= :risksoon THEN 1 ELSE 0 END) AS expiring
                   FROM {{$table}} d
                   JOIN {user} u ON u.id = d.{$source['userid']}
                        {$companysql['join']}
