@@ -224,14 +224,17 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'donut') {
-                body = '<div class="da-donut-list">' + items.map(function(item) {
-                    return '<div class="da-donut-row">'
-                        + '<span class="da-dot da-dot-' + escapeHtml(item.status) + '"></span>'
-                        + '<span>' + escapeHtml(item.label) + '</span>'
-                        + '<strong>' + escapeHtml(item.value) + '</strong>'
-                        + '<em>' + escapeHtml(item.meta) + '</em>'
-                        + '</div>';
-                }).join('') + '</div>';
+                body = '<div class="da-donut-wrap">'
+                    + '<canvas class="da-donut-canvas" width="180" height="180" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
+                    + '<div class="da-donut-list">' + items.map(function(item) {
+                        return '<div class="da-donut-row">'
+                            + '<span class="da-dot da-dot-' + escapeHtml(item.status) + '"></span>'
+                            + '<span>' + escapeHtml(item.label) + '</span>'
+                            + '<strong>' + escapeHtml(item.value) + '</strong>'
+                            + '<em>' + escapeHtml(item.meta) + '</em>'
+                            + '</div>';
+                    }).join('') + '</div>'
+                    + '</div>';
             } else {
                 body = '<div class="da-bars">' + items.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
@@ -249,6 +252,84 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 + body
                 + '</article>';
         }).join('') + '</div>';
+
+        drawDoughnuts(root, panels);
+    };
+
+    var colorForStatus = function(status) {
+        var map = {
+            ok: '#639922',
+            green: '#639922',
+            warning: '#EF9F27',
+            amber: '#EF9F27',
+            danger: '#E24B4A',
+            red: '#E24B4A',
+            muted: '#B4B2A9',
+            info: '#378ADD'
+        };
+        return map[status] || '#378ADD';
+    };
+
+    var drawDoughnuts = function(root, panels) {
+        panels.forEach(function(panel) {
+            if (panel.type !== 'donut') {
+                return;
+            }
+
+            var canvas = root.querySelector('[data-donut="' + panel.key + '"]');
+            if (!canvas || !canvas.getContext) {
+                return;
+            }
+
+            var ctx = canvas.getContext('2d');
+            var items = (panel.items || []).filter(function(item) {
+                return Number(item.value) > 0 || Number(item.percent) > 0;
+            });
+            var total = items.reduce(function(sum, item) {
+                return sum + Math.max(0, Number(item.value) || Number(item.percent) || 0);
+            }, 0);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 26;
+            ctx.lineCap = 'butt';
+
+            var cx = canvas.width / 2;
+            var cy = canvas.height / 2;
+            var radius = 58;
+
+            if (!total) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#edf1f6';
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = '#5d6878';
+                ctx.font = '600 14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('No data', cx, cy);
+                return;
+            }
+
+            var start = -Math.PI / 2;
+            items.forEach(function(item) {
+                var value = Math.max(0, Number(item.value) || Number(item.percent) || 0);
+                var end = start + (value / total) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.strokeStyle = colorForStatus(item.status);
+                ctx.arc(cx, cy, radius, start, end);
+                ctx.stroke();
+                start = end;
+            });
+
+            ctx.fillStyle = '#1f2937';
+            ctx.font = '700 22px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(Math.round(total)), cx, cy - 4);
+            ctx.fillStyle = '#5d6878';
+            ctx.font = '500 11px sans-serif';
+            ctx.fillText('total', cx, cy + 17);
+        });
     };
 
     var loadFilters = function(root, state) {

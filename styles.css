@@ -454,6 +454,30 @@
     grid-template-columns: auto 1fr auto auto;
 }
 
+.block-dashboardanalytics .da-donut-wrap {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: .85rem;
+    align-items: center;
+    margin-top: .75rem;
+}
+
+.block-dashboardanalytics .da-donut-canvas {
+    width: 180px;
+    height: 180px;
+    display: block;
+}
+
+@media (max-width: 520px) {
+    .block-dashboardanalytics .da-donut-wrap {
+        grid-template-columns: 1fr;
+    }
+
+    .block-dashboardanalytics .da-donut-canvas {
+        margin: 0 auto;
+    }
+}
+
 .block-dashboardanalytics .da-loading,
 .block-dashboardanalytics .da-empty,
 .block-dashboardanalytics .da-error {
