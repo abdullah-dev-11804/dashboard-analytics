@@ -479,7 +479,7 @@ class document_repository {
                 'meta' => 'certification status',
                 'segments' => [
                     ['label' => 'Active', 'value' => (string)$active, 'percent' => round(($active / $total) * 100, 1), 'status' => 'ok'],
-                    ['label' => 'Expiring <30d', 'value' => (string)$expiring, 'percent' => round(($expiring / $total) * 100, 1), 'status' => 'warning'],
+                    ['label' => 'Expiring within 30 days', 'value' => (string)$expiring, 'percent' => round(($expiring / $total) * 100, 1), 'status' => 'warning'],
                     ['label' => 'Expired', 'value' => (string)$expired, 'percent' => round(($expired / $total) * 100, 1), 'status' => 'danger'],
                 ],
             ];
@@ -759,7 +759,7 @@ class document_repository {
                 'meta' => $item['expired'] . ' expired, ' . $item['expiring'] . ' expiring',
                 'segments' => [
                     ['label' => 'Expired now', 'value' => (string)$item['expired'], 'percent' => round(($item['expired'] / $max) * 100, 1), 'status' => 'danger'],
-                    ['label' => 'Expiring <30d', 'value' => (string)$item['expiring'], 'percent' => round(($item['expiring'] / $max) * 100, 1), 'status' => 'warning'],
+                    ['label' => 'Expiring within 30 days', 'value' => (string)$item['expiring'], 'percent' => round(($item['expiring'] / $max) * 100, 1), 'status' => 'warning'],
                 ],
             ];
         }
