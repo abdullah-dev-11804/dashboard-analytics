@@ -110,6 +110,7 @@ class company_repository {
 
             $rows[] = [
                 'cells' => [
+                    ['key' => 'companyid', 'value' => (string)(int)$record->companyid],
                     ['key' => 'company', 'value' => (string)$record->companyname],
                     ['key' => 'activeusers', 'value' => (string)(int)$record->activeusers],
                     ['key' => 'validusers', 'value' => (string)$summary['validusers']],

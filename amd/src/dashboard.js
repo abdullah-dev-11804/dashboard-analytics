@@ -24,7 +24,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             });
     };
 
-    var readFilters = function(root) {
+    var readFilters = function(root, overrides) {
         var filters = {};
         Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(group) {
             var key = group.getAttribute('data-filter-group');
@@ -43,6 +43,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         var search = root.querySelector('[data-filter="search"]');
         filters.status = status ? status.value : '';
         filters.search = search ? search.value : '';
+
+        if (overrides) {
+            Object.keys(overrides).forEach(function(key) {
+                filters[key] = overrides[key];
+            });
+        }
 
         return filters;
     };
@@ -163,7 +169,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     return '<td><span class="da-badge da-badge-' + value.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '">' + value + '</span></td>';
                 }
                 if (key === 'action') {
-                    return '<td><button type="button" class="da-row-action">' + value + '</button></td>';
+                    return '<td><button type="button" class="da-row-action" data-action="company-report"'
+                        + ' data-company="' + escapeHtml(cellsByKey.company || '') + '"'
+                        + ' data-companyid="' + escapeHtml(cellsByKey.companyid || '') + '">'
+                        + value + '</button></td>';
                 }
                 return '<td>' + value + '</td>';
             }).join('') + '</tr>';
@@ -203,7 +212,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         }).catch(Notification.exception);
     };
 
-    var loadDrilldown = function(root, state, drilldownkey) {
+    var loadDrilldown = function(root, state, drilldownkey, filterOverrides) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
 
@@ -211,7 +220,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             contextid: state.contextid,
             dashboardkey: state.dashboardkey,
             drilldownkey: drilldownkey,
-            filters: JSON.stringify(readFilters(root)),
+            filters: JSON.stringify(readFilters(root, filterOverrides)),
             page: 0,
             perpage: 25
         }).then(function(response) {
@@ -280,6 +289,24 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     trigger.setAttribute('aria-expanded', expanded ? 'false' : 'true');
                     popover.hidden = expanded;
                 }
+                return;
+            }
+
+            var rowAction = event.target.closest('[data-action="company-report"]');
+            if (rowAction && root.contains(rowAction)) {
+                var companyid = rowAction.getAttribute('data-companyid');
+                var company = rowAction.getAttribute('data-company');
+                var overrides = {};
+
+                if (companyid && companyid !== '0') {
+                    overrides.companyids = [companyid];
+                } else if (company) {
+                    overrides.companies = [company];
+                }
+
+                overrides.status = '';
+                state.currentDrilldown = 'owner_compliance';
+                loadDrilldown(root, state, 'owner_compliance', overrides);
                 return;
             }
 
