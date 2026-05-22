@@ -34,7 +34,7 @@ class kpi_service {
             $compliancestatus = $compliance >= 80 ? 'ok' : ($compliance >= 70 ? 'warning' : 'danger');
         }
 
-        if ($dashboardkey === permissions::DASHBOARD_OWNER) {
+        if ($dashboardkey === permissions::DASHBOARD_OWNER || $dashboardkey === permissions::DASHBOARD_COORDINATOR) {
             return [
                 [
                     'key' => 'totalactiveusers',

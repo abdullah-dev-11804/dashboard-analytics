@@ -126,6 +126,155 @@ class document_repository {
         return (int)$DB->count_records_sql($sql, $params);
     }
 
+    public function status_items(array $filters): array {
+        $counts = $this->status_counts($filters);
+        $total = max(1, (int)$counts['total'] + (int)$counts['nodocument']);
+
+        return [
+            $this->visual_item('Active', (int)$counts['active'], $total, 'ok'),
+            $this->visual_item('Expiring', (int)$counts['expiring'], $total, 'warning'),
+            $this->visual_item('Expired', (int)$counts['expired'], $total, 'danger'),
+            $this->visual_item('No document', (int)$counts['nodocument'], $total, 'muted'),
+        ];
+    }
+
+    public function risk_by_company_items(array $filters, int $limit = 10): array {
+        global $DB;
+
+        $source = $this->source();
+        if ($source === null) {
+            return [];
+        }
+
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'riskcompany');
+        $company = new company_repository();
+        $companysql = $company->company_name_sql('u', 'riskcompany');
+        $where = [$userfilter['sql']];
+        $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, 'riskcompanyorigin');
+
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
+        $now = time();
+        $soon = $now + (30 * DAYSECS);
+        $params += ['risknow' => $now, 'risksoon' => $soon];
+
+        $table = $source['table'];
+        $sql = "SELECT COALESCE({$companysql['expr']}, 'Unassigned') AS companyname,
+                       SUM(CASE WHEN {$expiry} < :risknow THEN 1 ELSE 0 END) AS expired,
+                       SUM(CASE WHEN {$expiry} >= :risknow AND {$expiry} <= :risksoon THEN 1 ELSE 0 END) AS expiring
+                  FROM {{$table}} d
+                  JOIN {user} u ON u.id = d.{$source['userid']}
+                       {$companysql['join']}
+                       {$expiryjoin}
+                 WHERE " . implode(' AND ', $where) . "
+              GROUP BY COALESCE({$companysql['expr']}, 'Unassigned')";
+
+        $records = $DB->get_records_sql($sql, $params);
+        $items = [];
+        $max = 1;
+        foreach ($records as $record) {
+            $total = (int)$record->expired + (int)$record->expiring;
+            $max = max($max, $total);
+            $items[] = [
+                'label' => (string)$record->companyname,
+                'value' => (string)$total,
+                'rawtotal' => $total,
+                'expired' => (int)$record->expired,
+                'expiring' => (int)$record->expiring,
+            ];
+        }
+
+        usort($items, static function(array $a, array $b): int {
+            return $b['rawtotal'] <=> $a['rawtotal'];
+        });
+
+        $items = array_slice($items, 0, $limit);
+        foreach ($items as $index => $item) {
+            $items[$index] = [
+                'label' => $item['label'],
+                'value' => $item['value'],
+                'percent' => round(($item['rawtotal'] / $max) * 100, 1),
+                'status' => $item['expired'] > 0 ? 'danger' : 'warning',
+                'meta' => $item['expired'] . ' expired, ' . $item['expiring'] . ' expiring',
+            ];
+        }
+
+        return $items;
+    }
+
+    public function noncompliance_by_course_items(array $filters, int $limit = 10): array {
+        global $DB;
+
+        $source = $this->source();
+        if ($source === null || empty($source['courseid'])) {
+            return [];
+        }
+
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'riskcourse');
+        $where = [$userfilter['sql']];
+        $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, 'riskcourseorigin');
+
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
+        $params['riskcoursenow'] = time() + (30 * DAYSECS);
+        $table = $source['table'];
+
+        $sql = "SELECT c.fullname AS coursename,
+                       COUNT(1) AS affected
+                  FROM {{$table}} d
+                  JOIN {user} u ON u.id = d.{$source['userid']}
+                  JOIN {course} c ON c.id = d.{$source['courseid']}
+                       {$expiryjoin}
+                 WHERE " . implode(' AND ', $where) . "
+                   AND {$expiry} <= :riskcoursenow
+              GROUP BY c.fullname
+              ORDER BY affected DESC";
+
+        $records = $DB->get_records_sql($sql, $params, 0, $limit);
+        $max = 1;
+        foreach ($records as $record) {
+            $max = max($max, (int)$record->affected);
+        }
+
+        $items = [];
+        foreach ($records as $record) {
+            $affected = (int)$record->affected;
+            $items[] = [
+                'label' => format_string((string)$record->coursename),
+                'value' => (string)$affected,
+                'percent' => round(($affected / $max) * 100, 1),
+                'status' => $affected > 20 ? 'danger' : ($affected > 10 ? 'warning' : 'ok'),
+                'meta' => 'Expired or expiring soon',
+            ];
+        }
+
+        return $items;
+    }
+
+    public function forecast_window_items(array $filters): array {
+        $counts = [
+            '30 days' => $this->count_expiring_between($filters, 0, 30),
+            '60 days' => $this->count_expiring_between($filters, 31, 60),
+            '90 days' => $this->count_expiring_between($filters, 61, 90),
+        ];
+        $max = max(1, max($counts));
+        $items = [];
+        foreach ($counts as $label => $count) {
+            $items[] = [
+                'label' => $label,
+                'value' => (string)$count,
+                'percent' => round(($count / $max) * 100, 1),
+                'status' => $label === '30 days' ? 'danger' : ($label === '60 days' ? 'warning' : 'info'),
+                'meta' => 'documents expiring',
+            ];
+        }
+        return $items;
+    }
+
     public function document_rows(array $filters, string $status, int $page, int $perpage, bool $showidentity): array {
         global $DB;
 
@@ -311,6 +460,47 @@ class document_repository {
             $where[] = "{$expiry} > :{$prefix}soon";
             $params[$prefix . 'soon'] = $soon;
         }
+    }
+
+    private function count_expiring_between(array $filters, int $startdays, int $enddays): int {
+        global $DB;
+
+        $source = $this->source();
+        if ($source === null) {
+            return 0;
+        }
+
+        $employee = new employee_repository();
+        $prefix = 'forecast' . $startdays;
+        $userfilter = $employee->user_filter_sql($filters, 'u', $prefix);
+        $where = [$userfilter['sql']];
+        $params = $userfilter['params'];
+        $this->append_origin_filter($where, $params, $source, $prefix . 'origin');
+
+        $expiry = $this->expiry_sql('d', $source);
+        $expiryjoin = $this->expiry_join_sql('d', $source);
+        $params[$prefix . 'start'] = time() + ($startdays * DAYSECS);
+        $params[$prefix . 'end'] = time() + ($enddays * DAYSECS);
+        $table = $source['table'];
+
+        $sql = "SELECT COUNT(1)
+                  FROM {{$table}} d
+                  JOIN {user} u ON u.id = d.{$source['userid']}
+                       {$expiryjoin}
+                 WHERE " . implode(' AND ', $where) . "
+                   AND {$expiry} BETWEEN :{$prefix}start AND :{$prefix}end";
+
+        return (int)$DB->count_records_sql($sql, $params);
+    }
+
+    private function visual_item(string $label, int $count, int $total, string $status): array {
+        return [
+            'label' => $label,
+            'value' => (string)$count,
+            'percent' => round(($count / max(1, $total)) * 100, 1),
+            'status' => $status,
+            'meta' => round(($count / max(1, $total)) * 100, 1) . '%',
+        ];
     }
 
     private function expiry_sql(string $alias, array $source): string {

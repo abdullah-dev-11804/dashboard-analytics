@@ -325,6 +325,135 @@
     font-size: .82rem;
 }
 
+.block-dashboardanalytics .da-visual-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: .75rem;
+}
+
+.block-dashboardanalytics .da-visual-panel {
+    border: 1px solid var(--da-border);
+    border-radius: 8px;
+    padding: .8rem;
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-visual-panel h5 {
+    margin: 0 0 .25rem;
+    font-size: .98rem;
+}
+
+.block-dashboardanalytics .da-visual-panel p,
+.block-dashboardanalytics .da-bar-meta,
+.block-dashboardanalytics .da-mini-card em,
+.block-dashboardanalytics .da-donut-row em {
+    color: var(--da-muted);
+    font-size: .78rem;
+    font-style: normal;
+}
+
+.block-dashboardanalytics .da-bars,
+.block-dashboardanalytics .da-donut-list {
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+    margin-top: .75rem;
+}
+
+.block-dashboardanalytics .da-bar-label,
+.block-dashboardanalytics .da-donut-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .5rem;
+    align-items: center;
+    font-size: .86rem;
+}
+
+.block-dashboardanalytics .da-bar-track {
+    height: .65rem;
+    border-radius: 999px;
+    background: #edf1f6;
+    overflow: hidden;
+    margin: .25rem 0;
+}
+
+.block-dashboardanalytics .da-bar-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--da-blue);
+}
+
+.block-dashboardanalytics .da-bar-fill-ok,
+.block-dashboardanalytics .da-dot-ok,
+.block-dashboardanalytics .da-dot-green {
+    background: var(--da-green);
+}
+
+.block-dashboardanalytics .da-bar-fill-warning,
+.block-dashboardanalytics .da-bar-fill-amber,
+.block-dashboardanalytics .da-dot-warning,
+.block-dashboardanalytics .da-dot-amber {
+    background: var(--da-amber);
+}
+
+.block-dashboardanalytics .da-bar-fill-danger,
+.block-dashboardanalytics .da-bar-fill-red,
+.block-dashboardanalytics .da-dot-danger,
+.block-dashboardanalytics .da-dot-red {
+    background: var(--da-red);
+}
+
+.block-dashboardanalytics .da-bar-fill-muted,
+.block-dashboardanalytics .da-dot-muted {
+    background: #b4b2a9;
+}
+
+.block-dashboardanalytics .da-mini-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: .6rem;
+    margin-top: .75rem;
+}
+
+.block-dashboardanalytics .da-mini-card {
+    border: 1px solid var(--da-border);
+    border-left: 4px solid var(--da-blue);
+    border-radius: 8px;
+    padding: .65rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.block-dashboardanalytics .da-mini-card strong {
+    font-size: 1.35rem;
+}
+
+.block-dashboardanalytics .da-mini-card-ok {
+    border-left-color: var(--da-green);
+}
+
+.block-dashboardanalytics .da-mini-card-warning,
+.block-dashboardanalytics .da-mini-card-info {
+    border-left-color: var(--da-amber);
+}
+
+.block-dashboardanalytics .da-mini-card-danger {
+    border-left-color: var(--da-red);
+}
+
+.block-dashboardanalytics .da-dot {
+    width: .7rem;
+    height: .7rem;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: .35rem;
+}
+
+.block-dashboardanalytics .da-donut-row {
+    grid-template-columns: auto 1fr auto auto;
+}
+
 .block-dashboardanalytics .da-loading,
 .block-dashboardanalytics .da-empty,
 .block-dashboardanalytics .da-error {

@@ -188,6 +188,69 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             + '</table></div>';
     };
 
+    var renderVisuals = function(root, data) {
+        var container = root.querySelector('[data-region="drilldown"]');
+        var title = root.querySelector('[data-region="drilldown-title"]');
+        var count = root.querySelector('[data-region="drilldown-count"]');
+
+        if (title) {
+            title.textContent = data.title || 'Dashboard visuals';
+        }
+        if (count) {
+            count.textContent = data.description || '';
+        }
+        if (!container) {
+            return;
+        }
+
+        var panels = data.panels || [];
+        if (!panels.length) {
+            container.innerHTML = '<div class="da-empty">No visual data available.</div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="da-visual-grid">' + panels.map(function(panel) {
+            var items = panel.items || [];
+            var body = '';
+
+            if (!items.length) {
+                body = '<div class="da-empty">No matching data.</div>';
+            } else if (panel.type === 'cards') {
+                body = '<div class="da-mini-cards">' + items.map(function(item) {
+                    return '<div class="da-mini-card da-mini-card-' + escapeHtml(item.status) + '">'
+                        + '<span>' + escapeHtml(item.label) + '</span>'
+                        + '<strong>' + escapeHtml(item.value) + '</strong>'
+                        + '<em>' + escapeHtml(item.meta) + '</em>'
+                        + '</div>';
+                }).join('') + '</div>';
+            } else if (panel.type === 'donut') {
+                body = '<div class="da-donut-list">' + items.map(function(item) {
+                    return '<div class="da-donut-row">'
+                        + '<span class="da-dot da-dot-' + escapeHtml(item.status) + '"></span>'
+                        + '<span>' + escapeHtml(item.label) + '</span>'
+                        + '<strong>' + escapeHtml(item.value) + '</strong>'
+                        + '<em>' + escapeHtml(item.meta) + '</em>'
+                        + '</div>';
+                }).join('') + '</div>';
+            } else {
+                body = '<div class="da-bars">' + items.map(function(item) {
+                    var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                    return '<div class="da-bar-row">'
+                        + '<div class="da-bar-label"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>'
+                        + '<div class="da-bar-track"><div class="da-bar-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"></div></div>'
+                        + '<div class="da-bar-meta">' + escapeHtml(item.meta) + '</div>'
+                        + '</div>';
+                }).join('') + '</div>';
+            }
+
+            return '<article class="da-visual-panel">'
+                + '<h5>' + escapeHtml(panel.title) + '</h5>'
+                + '<p>' + escapeHtml(panel.description) + '</p>'
+                + body
+                + '</article>';
+        }).join('') + '</div>';
+    };
+
     var loadFilters = function(root, state) {
         var container = root.querySelector('[data-region="filter-bar"]');
         setLoading(container);
@@ -229,8 +292,27 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         }).catch(Notification.exception);
     };
 
+    var loadVisuals = function(root, state, tabkey) {
+        var container = root.querySelector('[data-region="drilldown"]');
+        setLoading(container);
+
+        return call('block_dashboardanalytics_get_visuals', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            tabkey: tabkey,
+            filters: JSON.stringify(readFilters(root))
+        }).then(function(response) {
+            state.currentTab = tabkey;
+            renderVisuals(root, response);
+        }).catch(Notification.exception);
+    };
+
     var refresh = function(root, state) {
         loadKpis(root, state);
+        if (state.dashboardkey === 'coordinator' && state.currentTab && state.currentTab !== 'kpis') {
+            loadVisuals(root, state, state.currentTab);
+            return;
+        }
         loadDrilldown(root, state, state.currentDrilldown || 'owner_total_active_users');
     };
 
@@ -323,6 +405,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     item.classList.toggle('is-active', active);
                     item.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
+                if (state.dashboardkey === 'coordinator' && tab.getAttribute('data-tab') !== 'kpis') {
+                    loadVisuals(root, state, tab.getAttribute('data-tab'));
+                    return;
+                }
                 loadDrilldown(root, state, drilldownForTab(tab.getAttribute('data-tab')));
             }
         });

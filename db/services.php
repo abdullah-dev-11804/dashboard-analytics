@@ -35,5 +35,12 @@ $functions = [
         'type' => 'read',
         'ajax' => true,
     ],
-];
 
+    'block_dashboardanalytics_get_visuals' => [
+        'classname' => 'block_dashboardanalytics\external\get_visuals',
+        'methodname' => 'execute',
+        'description' => 'Return visual panels for dashboard tabs.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+];

@@ -137,6 +137,47 @@ class company_repository {
         ];
     }
 
+    public function compliance_items(array $filters, int $limit = 12): array {
+        global $DB;
+
+        $employee = new employee_repository();
+        $documents = new document_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'companychart');
+        $company = $this->company_name_sql('u', 'companychart');
+
+        $sql = "SELECT COALESCE({$company['idexpr']}, 0) AS companyid,
+                       COALESCE({$company['expr']}, 'Unassigned') AS companyname,
+                       COUNT(DISTINCT u.id) AS activeusers
+                  FROM {user} u
+                       {$company['join']}
+                 WHERE {$userfilter['sql']}
+              GROUP BY COALESCE({$company['idexpr']}, 0), COALESCE({$company['expr']}, 'Unassigned')
+              ORDER BY companyname ASC";
+
+        $records = $DB->get_records_sql($sql, $userfilter['params'], 0, $limit);
+        $items = [];
+        foreach ($records as $record) {
+            $companyfilters = $this->filters_for_company($filters, (string)$record->companyname);
+            if ($this->has_iomad_tables() && !empty($record->companyid)) {
+                $companyfilters['companyids'] = [(int)$record->companyid];
+            }
+            $summary = $documents->compliance_summary($companyfilters);
+            $items[] = [
+                'label' => (string)$record->companyname,
+                'value' => $summary['compliance'] . '%',
+                'percent' => (float)$summary['compliance'],
+                'status' => strtolower($summary['status']),
+                'meta' => $summary['validusers'] . ' / ' . $summary['totalactiveusers'] . ' valid users',
+            ];
+        }
+
+        usort($items, static function(array $a, array $b): int {
+            return $a['percent'] <=> $b['percent'];
+        });
+
+        return $items;
+    }
+
     private function filters_for_company(array $filters, string $companyname): array {
         if ($this->has_iomad_tables()) {
             return $filters;
