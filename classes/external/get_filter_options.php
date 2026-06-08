@@ -4,6 +4,8 @@
 namespace block_dashboardanalytics\external;
 
 use block_dashboardanalytics\context_resolver;
+use block_dashboardanalytics\filters;
+use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\dimension_repository;
 
 defined('MOODLE_INTERNAL') || die();
@@ -20,11 +22,18 @@ class get_filter_options extends \external_api {
     }
 
     public static function execute(int $contextid): array {
+        global $USER;
+
         $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid]);
-        context_resolver::require_context((int)$params['contextid']);
+        $context = context_resolver::require_context((int)$params['contextid']);
+        $dashboardkey = permissions::resolve_dashboard_key($context, (int)$USER->id);
+        if ($dashboardkey === null) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
 
         $repository = new dimension_repository();
-        return ['groups' => $repository->get_filter_groups()];
+        $scopefilters = filters::apply_dashboard_scope([], $dashboardkey, (int)$USER->id);
+        return ['groups' => $repository->get_filter_groups($scopefilters)];
     }
 
     public static function execute_returns(): \external_single_structure {
@@ -41,4 +50,3 @@ class get_filter_options extends \external_api {
         ]);
     }
 }
-

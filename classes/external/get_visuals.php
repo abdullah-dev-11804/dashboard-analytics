@@ -5,6 +5,7 @@ namespace block_dashboardanalytics\external;
 
 use block_dashboardanalytics\context_resolver;
 use block_dashboardanalytics\filters;
+use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\service\visual_service;
 
 defined('MOODLE_INTERNAL') || die();
@@ -24,6 +25,8 @@ class get_visuals extends \external_api {
     }
 
     public static function execute(int $contextid, string $dashboardkey, string $tabkey, string $filters = '{}'): array {
+        global $USER;
+
         $params = self::validate_parameters(self::execute_parameters(), [
             'contextid' => $contextid,
             'dashboardkey' => $dashboardkey,
@@ -31,13 +34,15 @@ class get_visuals extends \external_api {
             'filters' => $filters,
         ]);
 
-        context_resolver::require_context((int)$params['contextid']);
+        $context = context_resolver::require_context((int)$params['contextid']);
+        $dashboardkey = permissions::require_dashboard_key($context, $params['dashboardkey'], (int)$USER->id);
+        $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
 
         $service = new visual_service();
         return $service->panels(
-            $params['dashboardkey'],
+            $dashboardkey,
             $params['tabkey'],
-            filters::from_json($params['filters'])
+            $scopedfilters
         );
     }
 

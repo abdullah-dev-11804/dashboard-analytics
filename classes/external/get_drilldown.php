@@ -34,6 +34,8 @@ class get_drilldown extends \external_api {
         int $page = 0,
         int $perpage = 25
     ): array {
+        global $USER;
+
         $params = self::validate_parameters(self::execute_parameters(), [
             'contextid' => $contextid,
             'dashboardkey' => $dashboardkey,
@@ -44,15 +46,20 @@ class get_drilldown extends \external_api {
         ]);
 
         $context = context_resolver::require_context((int)$params['contextid']);
-        $showidentity = permissions::can_view_employee_identity($context);
+        $dashboardkey = permissions::require_dashboard_key($context, $params['dashboardkey'], (int)$USER->id);
+        $showidentity = permissions::can_view_employee_identity($context)
+            || $dashboardkey === permissions::DASHBOARD_EMPLOYEE;
+        $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
 
         $service = new compliance_service();
         return $service->drilldown(
+            $dashboardkey,
             $params['drilldownkey'],
-            filters::from_json($params['filters']),
+            $scopedfilters,
             (int)$params['page'],
             (int)$params['perpage'],
-            $showidentity
+            $showidentity,
+            (int)$USER->id
         );
     }
 

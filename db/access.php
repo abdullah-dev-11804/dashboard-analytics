@@ -31,40 +31,19 @@ $capabilities = [
         ],
     ],
 
-    'block/dashboardanalytics:viewowner' => [
+    'block/dashboardanalytics:viewcompany' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_BLOCK,
-        'archetypes' => [
-            'manager' => CAP_ALLOW,
-        ],
+        'archetypes' => [],
     ],
 
-    'block/dashboardanalytics:viewcoordinator' => [
+    'block/dashboardanalytics:viewclient' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_BLOCK,
-        'archetypes' => [
-            'manager' => CAP_ALLOW,
-        ],
+        'archetypes' => [],
     ],
 
-    'block/dashboardanalytics:viewclientmanager' => [
-        'captype' => 'read',
-        'contextlevel' => CONTEXT_BLOCK,
-        'archetypes' => [
-            'manager' => CAP_ALLOW,
-        ],
-    ],
-
-    'block/dashboardanalytics:viewsystem' => [
-        'riskbitmask' => RISK_CONFIG,
-        'captype' => 'read',
-        'contextlevel' => CONTEXT_BLOCK,
-        'archetypes' => [
-            'manager' => CAP_ALLOW,
-        ],
-    ],
-
-    'block/dashboardanalytics:viewprofile' => [
+    'block/dashboardanalytics:viewemployee' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_BLOCK,
         'archetypes' => [
@@ -100,4 +79,3 @@ $capabilities = [
         'clonepermissionsfrom' => 'moodle/site:config',
     ],
 ];
-

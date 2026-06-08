@@ -5,6 +5,7 @@ namespace block_dashboardanalytics\external;
 
 use block_dashboardanalytics\context_resolver;
 use block_dashboardanalytics\filters;
+use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\service\kpi_service;
 
 defined('MOODLE_INTERNAL') || die();
@@ -23,16 +24,20 @@ class get_kpis extends \external_api {
     }
 
     public static function execute(int $contextid, string $dashboardkey, string $filters = '{}'): array {
+        global $USER;
+
         $params = self::validate_parameters(self::execute_parameters(), [
             'contextid' => $contextid,
             'dashboardkey' => $dashboardkey,
             'filters' => $filters,
         ]);
-        context_resolver::require_context((int)$params['contextid']);
+        $context = context_resolver::require_context((int)$params['contextid']);
+        $dashboardkey = permissions::require_dashboard_key($context, $params['dashboardkey'], (int)$USER->id);
+        $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
 
         $service = new kpi_service();
         return [
-            'cards' => $service->cards(filters::from_json($params['filters']), $params['dashboardkey']),
+            'cards' => $service->cards($scopedfilters, $dashboardkey, (int)$USER->id),
             'notice' => '',
         ];
     }
@@ -53,4 +58,3 @@ class get_kpis extends \external_api {
         ]);
     }
 }
-

@@ -11,11 +11,20 @@ class company_repository {
         return $this->table_exists('company') && $this->table_exists('company_users');
     }
 
-    public function get_company_options(): array {
+    public function get_company_options(array $filters = []): array {
         global $DB;
 
         if ($this->has_iomad_tables()) {
-            $records = $DB->get_records('company', null, 'name ASC', 'id, name', 0, 500);
+            $where = '';
+            $params = [];
+            if (!empty($filters['companyids'])) {
+                [$insql, $params] = $DB->get_in_or_equal($filters['companyids'], SQL_PARAMS_NAMED, 'companyoption');
+                $where = "id {$insql}";
+            }
+
+            $records = $where === ''
+                ? $DB->get_records('company', null, 'name ASC', 'id, name', 0, 500)
+                : $DB->get_records_select('company', $where, $params, 'name ASC', 'id, name', 0, 500);
             $options = [];
             foreach ($records as $record) {
                 $options[] = ['value' => (string)$record->id, 'label' => format_string($record->name)];
@@ -23,17 +32,44 @@ class company_repository {
             return $options;
         }
 
+        $where = ["deleted = 0", "department <> ''"];
+        $params = [];
+        if (!empty($filters['companies'])) {
+            [$insql, $params] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, 'companynameoption');
+            $where[] = "department {$insql}";
+        }
+
         $sql = "SELECT DISTINCT department
                   FROM {user}
-                 WHERE deleted = 0
-                   AND department <> ''
+                 WHERE " . implode(' AND ', $where) . "
               ORDER BY department ASC";
 
-        return $this->text_options($DB->get_fieldset_sql($sql));
+        return $this->text_options($DB->get_fieldset_sql($sql, $params));
     }
 
     public function company_filter_key(): string {
         return $this->has_iomad_tables() ? 'companyids' : 'companies';
+    }
+
+    public function scope_filters_for_user(int $userid): array {
+        global $DB;
+
+        if ($this->has_iomad_tables()) {
+            $records = $DB->get_records('company_users', ['userid' => $userid], '', 'id, companyid');
+            $companyids = [];
+            foreach ($records as $record) {
+                $companyid = (int)$record->companyid;
+                if ($companyid > 0) {
+                    $companyids[] = $companyid;
+                }
+            }
+
+            return ['companyids' => array_values(array_unique($companyids))];
+        }
+
+        $department = (string)$DB->get_field('user', 'department', ['id' => $userid], IGNORE_MISSING);
+        $department = trim($department);
+        return $department === '' ? [] : ['companies' => [$department]];
     }
 
     public function company_name_sql(string $useralias, string $prefix): array {

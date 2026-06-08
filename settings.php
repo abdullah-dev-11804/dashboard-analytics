@@ -12,33 +12,17 @@ if ($ADMIN->fulltree) {
 
     $settings->add(new admin_setting_configtext(
         'block_dashboardanalytics/companyownerroles',
-        get_string('settings:companyownerroles', 'block_dashboardanalytics'),
+        get_string('settings:companyroles', 'block_dashboardanalytics'),
         get_string('settings:rolescsv_desc', 'block_dashboardanalytics'),
         'companyowner',
         PARAM_RAW_TRIMMED
     ));
 
     $settings->add(new admin_setting_configtext(
-        'block_dashboardanalytics/companycoordinatorroles',
-        get_string('settings:companycoordinatorroles', 'block_dashboardanalytics'),
+        'block_dashboardanalytics/clientroles',
+        get_string('settings:clientroles', 'block_dashboardanalytics'),
         get_string('settings:rolescsv_desc', 'block_dashboardanalytics'),
-        'companycoordinator,trainingmanager',
-        PARAM_RAW_TRIMMED
-    ));
-
-    $settings->add(new admin_setting_configtext(
-        'block_dashboardanalytics/clientmanagerroles',
-        get_string('settings:clientmanagerroles', 'block_dashboardanalytics'),
-        get_string('settings:rolescsv_desc', 'block_dashboardanalytics'),
-        'clientadministrator,manager',
-        PARAM_RAW_TRIMMED
-    ));
-
-    $settings->add(new admin_setting_configtext(
-        'block_dashboardanalytics/systemadministratorroles',
-        get_string('settings:systemadministratorroles', 'block_dashboardanalytics'),
-        get_string('settings:rolescsv_desc', 'block_dashboardanalytics'),
-        'systemadministrator',
+        'trainingmanager',
         PARAM_RAW_TRIMMED
     ));
 

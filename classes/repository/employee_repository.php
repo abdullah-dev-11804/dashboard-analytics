@@ -206,6 +206,12 @@ class employee_repository {
             $params[$guestkey] = (int)$CFG->siteguest;
         }
 
+        if (!empty($filters['userids'])) {
+            [$insql, $inparams] = $DB->get_in_or_equal($filters['userids'], SQL_PARAMS_NAMED, $prefix . 'user');
+            $where[] = "{$alias}.id {$insql}";
+            $params += $inparams;
+        }
+
         if (!empty($filters['companyids'])) {
             $companyrepo = new company_repository();
             if ($companyrepo->has_iomad_tables()) {

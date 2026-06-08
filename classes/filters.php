@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics;
 
+use block_dashboardanalytics\repository\company_repository;
+
 defined('MOODLE_INTERNAL') || die();
 
 class filters {
@@ -16,6 +18,7 @@ class filters {
         return [
             'companyids' => self::int_list($decoded['companyids'] ?? $decoded['companies'] ?? []),
             'companies' => self::text_list($decoded['companies'] ?? []),
+            'userids' => self::int_list($decoded['userids'] ?? []),
             'courseids' => self::int_list($decoded['courseids'] ?? $decoded['courses'] ?? []),
             'departments' => self::text_list($decoded['departments'] ?? $decoded['departmentids'] ?? []),
             'locations' => self::text_list($decoded['locations'] ?? $decoded['locationids'] ?? []),
@@ -23,6 +26,37 @@ class filters {
             'status' => self::status($decoded['status'] ?? ''),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
         ];
+    }
+
+    public static function apply_dashboard_scope(array $filters, string $dashboardkey, int $userid): array {
+        if ($dashboardkey === permissions::DASHBOARD_EMPLOYEE) {
+            $filters['userids'] = [$userid];
+            $filters['companyids'] = [];
+            $filters['companies'] = [];
+            return $filters;
+        }
+
+        if ($dashboardkey !== permissions::DASHBOARD_CLIENT) {
+            return $filters;
+        }
+
+        $companies = new company_repository();
+        $scope = $companies->scope_filters_for_user($userid);
+        if (!empty($scope['companyids'])) {
+            $filters['companyids'] = $scope['companyids'];
+            $filters['companies'] = [];
+            return $filters;
+        }
+
+        if (!empty($scope['companies'])) {
+            $filters['companies'] = $scope['companies'];
+            $filters['companyids'] = [];
+            return $filters;
+        }
+
+        $filters['companyids'] = [-1];
+        $filters['companies'] = ['__no_client_scope__'];
+        return $filters;
     }
 
     private static function int_list($value): array {

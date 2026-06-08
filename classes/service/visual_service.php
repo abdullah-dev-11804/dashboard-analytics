@@ -15,16 +15,16 @@ defined('MOODLE_INTERNAL') || die();
 class visual_service {
 
     public function panels(string $dashboardkey, string $tabkey, array $filters): array {
-        if ($dashboardkey === permissions::DASHBOARD_CLIENT_MANAGER) {
+        if ($dashboardkey === permissions::DASHBOARD_CLIENT) {
             return $this->client_manager_panels($tabkey, $filters);
         }
 
-        if ($dashboardkey !== permissions::DASHBOARD_COORDINATOR) {
-            return [
-                'title' => 'Dashboard visuals',
-                'description' => '',
-                'panels' => [],
-            ];
+        if ($dashboardkey === permissions::DASHBOARD_EMPLOYEE) {
+            return $this->employee_panels($tabkey, $filters);
+        }
+
+        if ($dashboardkey !== permissions::DASHBOARD_COMPANY) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
         }
 
         if ($tabkey === 'overview') {
@@ -43,6 +43,10 @@ class visual_service {
             return $this->forecast($filters);
         }
 
+        if ($tabkey === 'turnover') {
+            return $this->company_pending('Staff Turnover', 'Staff turnover analytics are pending final data-source confirmation.');
+        }
+
         return $this->overview($filters);
     }
 
@@ -55,7 +59,7 @@ class visual_service {
             'description' => 'Coordinator snapshot of compliance status and company-level performance.',
             'panels' => [
                 $this->panel('documentstatus', 'Document status distribution', 'donut', 'Active, expiring, expired and missing document coverage.', $documents->status_items($filters)),
-                $this->panel('companycompliance', 'Compliance by company', 'bar', 'Worst companies are shown first so coordinators can act quickly.', $companies->compliance_items($filters)),
+                $this->panel('companycompliance', 'Compliance by company', 'bar', 'Worst companies are shown first so company users can act quickly.', $companies->compliance_items($filters)),
             ],
         ];
     }
@@ -156,7 +160,7 @@ class visual_service {
 
         return [
             'title' => 'Overview',
-            'description' => 'Client manager view focused on department, location and site-level compliance.',
+            'description' => 'Client dashboard view focused on department, location and site-level compliance.',
             'panels' => [
                 $this->panel('clientdocumentstatus', 'Document status distribution', 'donut', 'Active, expiring, expired and missing document coverage for the current scope.', $documents->status_items($filters)),
                 $this->panel('staffdistribution', 'Staff distribution - department x location', 'grouped', 'Headcount per location, split by department.', $employees->staff_distribution_by_location_items($filters)),
@@ -170,7 +174,7 @@ class visual_service {
 
         return [
             'title' => 'Compliance',
-            'description' => 'Compliance breakdowns for the client manager scope.',
+            'description' => 'Compliance breakdowns for the client dashboard scope.',
             'panels' => [
                 $this->panel('expiredexpiringdepartment', 'Expired & expiring - by department', 'grouped', 'Expired now versus expiring within 30 days.', $documents->expired_expiring_grouped_items($filters, 'department')),
                 $this->panel('expiredexpiringlocation', 'Expired & expiring - by location', 'grouped', 'Expired now versus expiring within 30 days.', $documents->expired_expiring_grouped_items($filters, 'location')),
@@ -184,7 +188,7 @@ class visual_service {
 
         return [
             'title' => '30/60/90 days',
-            'description' => 'Upcoming expiry workload for the current client manager scope.',
+            'description' => 'Upcoming expiry workload for the current client dashboard scope.',
             'panels' => [
                 $this->panel('clientexpirywindows', '30/60/90 day expiry workload', 'cards', 'Retraining load by upcoming expiry window.', $documents->forecast_window_items($filters)),
                 $this->panel('weeklyforecast', '13-week expiry forecast histogram', 'histogram', 'Week-by-week expiry pressure across the next quarter.', $documents->weekly_expiry_histogram_items($filters)),
@@ -203,6 +207,48 @@ class visual_service {
             'panels' => [
                 $this->panel('newstaffrisk', 'New staff by department', 'bar', 'New users created in the last 90 days, grouped by department.', $employees->new_staff_risk_items($filters)),
                 $this->panel('newstaffcoverage', 'Current document coverage', 'donut', 'Document coverage for the currently filtered user scope.', $documents->status_items($filters)),
+            ],
+        ];
+    }
+
+    private function employee_panels(string $tabkey, array $filters): array {
+        $documents = new document_repository();
+
+        if ($tabkey === 'certificates') {
+            return [
+                'title' => 'Certificates',
+                'description' => 'Personal certificates and protocols linked to your Moodle account.',
+                'panels' => [
+                    $this->panel('employeedocumentstatus', 'My document status', 'donut', 'Expiry-based status will become exact once document validity data is available.', $documents->status_items($filters)),
+                ],
+            ];
+        }
+
+        if ($tabkey === 'courses') {
+            return $this->company_pending('Courses', 'Required course and progress data is pending LMS integration for the employee dashboard.');
+        }
+
+        return [
+            'title' => 'Overview',
+            'description' => 'Personal training status for the logged-in employee.',
+            'panels' => [
+                $this->panel('employeedocumentstatus', 'My document status', 'donut', 'Personal certificate/protocol rows linked to your account.', $documents->status_items($filters)),
+            ],
+        ];
+    }
+
+    private function company_pending(string $title, string $description): array {
+        return [
+            'title' => $title,
+            'description' => $description,
+            'panels' => [
+                $this->panel('pending', 'Data pending', 'cards', $description, [[
+                    'label' => 'Coming soon',
+                    'value' => 'Pending',
+                    'percent' => 0.0,
+                    'status' => 'muted',
+                    'meta' => 'Next milestone',
+                ]]),
             ],
         ];
     }

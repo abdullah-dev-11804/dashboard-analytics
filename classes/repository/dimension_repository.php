@@ -7,7 +7,7 @@ defined('MOODLE_INTERNAL') || die();
 
 class dimension_repository {
 
-    public function get_filter_groups(): array {
+    public function get_filter_groups(array $scopefilters = []): array {
         $companyrepo = new company_repository();
 
         $groups = [
@@ -15,7 +15,7 @@ class dimension_repository {
                 'key' => $companyrepo->company_filter_key(),
                 'label' => get_string('filter:companies', 'block_dashboardanalytics'),
                 'multiple' => true,
-                'options' => $companyrepo->get_company_options(),
+                'options' => $companyrepo->get_company_options($scopefilters),
             ],
         ];
 
@@ -24,7 +24,7 @@ class dimension_repository {
                 'key' => 'departments',
                 'label' => get_string('filter:departments', 'block_dashboardanalytics'),
                 'multiple' => true,
-                'options' => $this->departments(),
+                'options' => $this->departments($scopefilters),
             ];
         }
 
@@ -32,10 +32,10 @@ class dimension_repository {
             'key' => 'locations',
             'label' => get_string('filter:locations', 'block_dashboardanalytics'),
             'multiple' => true,
-            'options' => $this->locations(),
+            'options' => $this->locations($scopefilters),
         ];
 
-        $positions = $this->positions();
+        $positions = $this->positions($scopefilters);
         if ($positions) {
             $groups[] = [
                 'key' => 'positions',
@@ -57,31 +57,37 @@ class dimension_repository {
         }));
     }
 
-    private function departments(): array {
+    private function departments(array $scopefilters): array {
         global $DB;
 
-        $sql = "SELECT DISTINCT department
-                  FROM {user}
-                 WHERE deleted = 0
-                   AND department <> ''
-              ORDER BY department ASC";
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimensiondepartment');
 
-        return $this->text_options($DB->get_fieldset_sql($sql));
+        $sql = "SELECT DISTINCT u.department
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+                   AND u.department <> ''
+              ORDER BY u.department ASC";
+
+        return $this->text_options($DB->get_fieldset_sql($sql, $filter['params']));
     }
 
-    private function locations(): array {
+    private function locations(array $scopefilters): array {
         global $DB;
 
-        $sql = "SELECT DISTINCT city
-                  FROM {user}
-                 WHERE deleted = 0
-                   AND city <> ''
-              ORDER BY city ASC";
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimensionlocation');
 
-        return $this->text_options($DB->get_fieldset_sql($sql));
+        $sql = "SELECT DISTINCT u.city
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+                   AND u.city <> ''
+              ORDER BY u.city ASC";
+
+        return $this->text_options($DB->get_fieldset_sql($sql, $filter['params']));
     }
 
-    private function positions(): array {
+    private function positions(array $scopefilters): array {
         global $DB;
 
         $positionfield = trim((string)get_config('block_dashboardanalytics', 'positionfield'));
@@ -89,14 +95,19 @@ class dimension_repository {
             return [];
         }
 
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimensionposition');
+
         $sql = "SELECT DISTINCT uid.data
                   FROM {user_info_data} uid
                   JOIN {user_info_field} uif ON uif.id = uid.fieldid
+                  JOIN {user} u ON u.id = uid.userid
                  WHERE uif.shortname = :shortname
                    AND uid.data <> ''
+                   AND {$filter['sql']}
               ORDER BY uid.data ASC";
 
-        return $this->text_options($DB->get_fieldset_sql($sql, ['shortname' => $positionfield]));
+        return $this->text_options($DB->get_fieldset_sql($sql, ['shortname' => $positionfield] + $filter['params']));
     }
 
     private function courses(): array {

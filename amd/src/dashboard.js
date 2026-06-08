@@ -428,34 +428,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
     var refresh = function(root, state) {
         loadKpis(root, state);
-        if (state.dashboardkey === 'coordinator' && state.currentTab && state.currentTab !== 'kpis') {
-            loadVisuals(root, state, state.currentTab);
+        if (state.currentDrilldown) {
+            loadDrilldown(root, state, state.currentDrilldown);
             return;
         }
-        if (state.dashboardkey === 'clientmanager') {
-            loadVisuals(root, state, state.currentTab || 'overview');
-            return;
-        }
-        loadDrilldown(root, state, state.currentDrilldown || 'owner_total_active_users');
-    };
-
-    var drilldownForTab = function(tabkey) {
-        var map = {
-            kpis: 'owner_total_active_users',
-            overview: 'owner_compliance',
-            compliance: 'owner_compliance',
-            turnover: 'owner_total_active_users',
-            quality: 'owner_compliance',
-            proctoring: 'owner_compliance',
-            forecast: 'owner_expiring_documents',
-            server: 'owner_server_disk',
-            capacity: 'owner_server_disk',
-            performance: 'owner_server_disk',
-            errorlog: 'owner_server_disk',
-            settings: 'owner_server_disk'
-        };
-
-        return map[tabkey] || 'owner_total_active_users';
+        loadVisuals(root, state, state.currentTab || 'overview');
     };
 
     var bindEvents = function(root, state) {
@@ -510,13 +487,14 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }
 
                 overrides.status = '';
-                state.currentDrilldown = 'owner_compliance';
-                loadDrilldown(root, state, 'owner_compliance', overrides);
+                state.currentDrilldown = 'company_compliance';
+                loadDrilldown(root, state, 'company_compliance', overrides);
                 return;
             }
 
             var kpi = event.target.closest('[data-drilldown]');
             if (kpi && root.contains(kpi)) {
+                state.currentTab = '';
                 loadDrilldown(root, state, kpi.getAttribute('data-drilldown'));
                 return;
             }
@@ -528,15 +506,8 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     item.classList.toggle('is-active', active);
                     item.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
-                if (state.dashboardkey === 'coordinator' && tab.getAttribute('data-tab') !== 'kpis') {
-                    loadVisuals(root, state, tab.getAttribute('data-tab'));
-                    return;
-                }
-                if (state.dashboardkey === 'clientmanager') {
-                    loadVisuals(root, state, tab.getAttribute('data-tab'));
-                    return;
-                }
-                loadDrilldown(root, state, drilldownForTab(tab.getAttribute('data-tab')));
+                state.currentDrilldown = '';
+                loadVisuals(root, state, tab.getAttribute('data-tab'));
             }
         });
     };
@@ -550,7 +521,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         var state = {
             contextid: contextid,
             dashboardkey: root.getAttribute('data-dashboardkey') || '',
-            currentTab: root.getAttribute('data-dashboardkey') === 'clientmanager' ? 'overview' : ''
+            currentTab: 'overview'
         };
 
         bindEvents(root, state);
