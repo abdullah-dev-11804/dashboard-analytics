@@ -27,23 +27,13 @@
         </div>
 
         <section class="da-filter-band" data-region="filter-band">
+            <span class="da-filter-label">FILTER:</span>
             <div class="da-filter-grid" data-region="filter-bar">
                 <div class="da-loading">{{#str}}loading, block_dashboardanalytics{{/str}}</div>
             </div>
-            <div class="da-filter-actions">
-                <label class="da-field da-field-search">
-                    <span>{{#str}}filter:search, block_dashboardanalytics{{/str}}</span>
-                    <input type="search" data-filter="search" autocomplete="off">
-                </label>
-                <label class="da-field">
-                    <span>{{#str}}filter:status, block_dashboardanalytics{{/str}}</span>
-                    <select data-filter="status">
-                        <option value="">{{#str}}filter:statusall, block_dashboardanalytics{{/str}}</option>
-                        <option value="expired">{{#str}}filter:statusexpired, block_dashboardanalytics{{/str}}</option>
-                        <option value="expiring">{{#str}}filter:statusexpiring, block_dashboardanalytics{{/str}}</option>
-                    </select>
-                </label>
-            </div>
+            <button type="button" class="da-active-filter-chip" data-action="clear-filters">
+                Active filters: All ×
+            </button>
         </section>
 
         <section class="da-kpi-strip" data-region="kpi-strip" aria-live="polite">
@@ -66,4 +56,3 @@
         <div class="da-empty">{{#str}}error:noaccess, block_dashboardanalytics{{/str}}</div>
     {{/hasaccess}}
 </div>
-

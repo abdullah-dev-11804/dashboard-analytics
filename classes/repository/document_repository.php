@@ -574,7 +574,7 @@ class document_repository {
         ];
     }
 
-    private function source(): ?array {
+    public function source(): ?array {
         global $CFG, $DB;
 
         $table = $this->identifier(get_config('block_dashboardanalytics', 'documenttable'));
@@ -616,6 +616,7 @@ class document_repository {
             'courseid' => $courseid,
             'expiry' => $expiry,
             'origin' => isset($columns['origin']) ? 'origin' : '',
+            'status' => isset($columns['status']) ? 'status' : '',
         ];
     }
 
@@ -767,7 +768,7 @@ class document_repository {
         return $items;
     }
 
-    private function expiry_sql(string $alias, array $source): string {
+    public function expiry_sql(string $alias, array $source): string {
         $fallback = '0';
         if (!empty($source['courseid'])) {
             $fallback = "COALESCE(ccdash.timecompleted, 0) + (COALESCE(cfdash.intvalue, cfdash.decvalue, cfdash.value, 0) * 86400)";
@@ -780,7 +781,7 @@ class document_repository {
         return $fallback;
     }
 
-    private function expiry_join_sql(string $alias, array $source): string {
+    public function expiry_join_sql(string $alias, array $source): string {
         if (empty($source['courseid'])) {
             return '';
         }

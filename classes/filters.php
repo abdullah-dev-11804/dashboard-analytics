@@ -23,6 +23,7 @@ class filters {
             'departments' => self::text_list($decoded['departments'] ?? $decoded['departmentids'] ?? []),
             'locations' => self::text_list($decoded['locations'] ?? $decoded['locationids'] ?? []),
             'positions' => self::text_list($decoded['positions'] ?? $decoded['positionids'] ?? []),
+            'daterange' => self::date_range($decoded['daterange'] ?? 'last12months'),
             'status' => self::status($decoded['status'] ?? ''),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
         ];
@@ -94,5 +95,11 @@ class filters {
     private static function status($value): string {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
         return in_array($value, ['expired', 'expiring', 'active', 'nodocument'], true) ? $value : '';
+    }
+
+    private static function date_range($value): string {
+        $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
+        $allowed = ['last30days', 'last90days', 'last6months', 'last12months'];
+        return in_array($value, $allowed, true) ? $value : 'last12months';
     }
 }

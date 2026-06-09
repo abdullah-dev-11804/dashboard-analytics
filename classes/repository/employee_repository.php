@@ -234,8 +234,24 @@ class employee_repository {
 
         if (!empty($filters['departments'])) {
             [$insql, $inparams] = $DB->get_in_or_equal($filters['departments'], SQL_PARAMS_NAMED, $prefix . 'department');
-            $where[] = "{$alias}.department {$insql}";
-            $params += $inparams;
+            if ($this->profile_field_exists('department')) {
+                $dataalias = 'uiddep' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $fieldalias = 'uifdep' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $fieldkey = $prefix . 'departmentfield';
+                $where[] = "EXISTS (
+                                SELECT 1
+                                  FROM {user_info_data} {$dataalias}
+                                  JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
+                                 WHERE {$dataalias}.userid = {$alias}.id
+                                   AND {$fieldalias}.shortname = :{$fieldkey}
+                                   AND {$dataalias}.data {$insql}
+                             )";
+                $params[$fieldkey] = 'department';
+                $params += $inparams;
+            } else {
+                $where[] = "{$alias}.department {$insql}";
+                $params += $inparams;
+            }
         }
 
         if (!empty($filters['locations'])) {
@@ -275,5 +291,11 @@ class employee_repository {
             'sql' => implode(' AND ', $where),
             'params' => $params,
         ];
+    }
+
+    private function profile_field_exists(string $shortname): bool {
+        global $DB;
+
+        return $DB->record_exists('user_info_field', ['shortname' => $shortname]);
     }
 }

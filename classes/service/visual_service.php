@@ -4,10 +4,10 @@
 namespace block_dashboardanalytics\service;
 
 use block_dashboardanalytics\permissions;
-use block_dashboardanalytics\repository\company_repository;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
+use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
 
 defined('MOODLE_INTERNAL') || die();
@@ -31,6 +31,10 @@ class visual_service {
             return $this->overview($filters);
         }
 
+        if ($tabkey === 'kpis') {
+            return $this->company_pending('KPI Strip', 'Use the KPI cards above as the primary KPI strip. Detailed KPI drilldowns open when a card is selected.');
+        }
+
         if ($tabkey === 'compliance') {
             return $this->compliance($filters);
         }
@@ -43,6 +47,14 @@ class visual_service {
             return $this->forecast($filters);
         }
 
+        if ($tabkey === 'quality') {
+            return $this->company_pending('Training Quality', 'Training quality analytics are pending quiz and completion metric integration.');
+        }
+
+        if ($tabkey === 'server') {
+            return $this->company_pending('Server', 'Server capacity and performance analytics are pending server metric collection integration.');
+        }
+
         if ($tabkey === 'turnover') {
             return $this->company_pending('Staff Turnover', 'Staff turnover analytics are pending final data-source confirmation.');
         }
@@ -51,15 +63,17 @@ class visual_service {
     }
 
     private function overview(array $filters): array {
-        $documents = new document_repository();
-        $companies = new company_repository();
+        $overview = new overview_repository();
 
         return [
             'title' => 'Overview',
-            'description' => 'Coordinator snapshot of compliance status and company-level performance.',
+            'description' => 'Company snapshot based on active enrolled user-course compliance checks.',
             'panels' => [
-                $this->panel('documentstatus', 'Document status distribution', 'donut', 'Active, expiring, expired and missing document coverage.', $documents->status_items($filters)),
-                $this->panel('companycompliance', 'Compliance by company', 'bar', 'Worst companies are shown first so company users can act quickly.', $companies->compliance_items($filters)),
+                $this->panel('compliancetrend', 'Compliance Trend', 'line', 'Last-period compliance by company. Each point is aggregated from user-course enrolment status.', $overview->compliance_trend_items($filters)),
+                $this->panel('companycompliance', 'Company Compliance Ranking', 'bar', 'Worst companies are shown first. Compliance requires every active enrolled course to be Active or Expiring.', $overview->company_compliance_items($filters)),
+                $this->panel('documentstatus', 'Document Status Distribution', 'donut', 'Active, expiring, expired and missing certification checks across enrolled courses.', $overview->status_distribution_items($filters)),
+                $this->panel('riskcompany', 'Expired vs Expiring by Company', 'grouped', 'Companies ordered by total at-risk certification checks.', $overview->expired_expiring_by_company_items($filters)),
+                $this->panel('coursecompliance', 'Course Non-compliance', 'bar', 'Courses with the highest share of expired or missing documents among enrolled participants.', $overview->course_non_compliance_items($filters)),
             ],
         ];
     }

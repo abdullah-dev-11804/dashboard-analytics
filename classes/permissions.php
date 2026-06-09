@@ -89,11 +89,14 @@ class permissions {
     public static function dashboard_tabs(string $dashboardkey): array {
         $tabs = [
             self::DASHBOARD_COMPANY => [
+                ['key' => 'kpis', 'label' => 'KPI Strip'],
                 ['key' => 'overview', 'label' => 'Overview'],
                 ['key' => 'compliance', 'label' => 'Compliance'],
                 ['key' => 'turnover', 'label' => 'Staff Turnover'],
+                ['key' => 'quality', 'label' => 'Training Quality'],
                 ['key' => 'proctoring', 'label' => 'Proctoring'],
                 ['key' => 'forecast', 'label' => 'Forecast'],
+                ['key' => 'server', 'label' => 'Server'],
             ],
             self::DASHBOARD_CLIENT => [
                 ['key' => 'overview', 'label' => 'Overview'],

@@ -26,23 +26,17 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
     var readFilters = function(root, overrides) {
         var filters = {};
-        Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(group) {
-            var key = group.getAttribute('data-filter-group');
-            var checked = Array.prototype.slice.call(group.querySelectorAll('[data-filter-option]:checked'))
-                .map(function(option) {
-                    return option.value;
-                });
-            filters[key] = checked;
-        });
-
         Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
-            filters[select.getAttribute('data-filter-group')] = selectedValues(select);
+            var key = select.getAttribute('data-filter-group');
+            if (key === 'daterange') {
+                filters[key] = select.value || 'last12months';
+            } else {
+                filters[key] = selectedValues(select);
+            }
         });
 
-        var status = root.querySelector('[data-filter="status"]');
-        var search = root.querySelector('[data-filter="search"]');
-        filters.status = status ? status.value : '';
-        filters.search = search ? search.value : '';
+        filters.status = '';
+        filters.search = '';
 
         if (overrides) {
             Object.keys(overrides).forEach(function(key) {
@@ -72,33 +66,36 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
         container.innerHTML = groups.map(function(group) {
             var options = group.options || [];
-            var optionhtml = options.length ? options.map(function(option) {
-                return '<label class="da-filter-option">'
-                    + '<input type="checkbox" data-filter-option value="' + escapeHtml(option.value) + '">'
-                    + '<span>' + escapeHtml(option.label) + '</span>'
-                    + '</label>';
-            }).join('') : '<div class="da-filter-empty">No options</div>';
+            var allLabel = group.key === 'daterange' ? '' : '<option value="">All ' + escapeHtml(group.label.toLowerCase()) + '</option>';
+            var optionhtml = options.map(function(option) {
+                var selected = group.key === 'daterange' && option.value === 'last12months' ? ' selected' : '';
+                return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+            }).join('');
 
-            return '<div class="da-filter-menu" data-filter-group="' + escapeHtml(group.key) + '">'
-                + '<button type="button" class="da-filter-trigger" aria-expanded="false">'
-                + '<span>' + escapeHtml(group.label) + '</span>'
-                + '<strong data-filter-count>All</strong>'
-                + '</button>'
-                + '<div class="da-filter-popover" hidden>'
+            return '<select class="da-filter-select" data-filter-group="' + escapeHtml(group.key) + '" aria-label="' + escapeHtml(group.label) + '">'
+                + allLabel
                 + optionhtml
-                + '</div>'
-                + '</div>';
+                + '</select>';
         }).join('');
+
+        updateFilterCounts(root);
     };
 
     var updateFilterCounts = function(root) {
-        Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(group) {
-            var count = group.querySelectorAll('[data-filter-option]:checked').length;
-            var label = group.querySelector('[data-filter-count]');
-            if (label) {
-                label.textContent = count ? count + ' selected' : 'All';
+        var active = [];
+        Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
+            var key = select.getAttribute('data-filter-group');
+            var option = select.options[select.selectedIndex];
+            if (!option || option.value === '' || (key === 'daterange' && option.value === 'last12months')) {
+                return;
             }
+            active.push(option.textContent);
         });
+
+        var chip = root.querySelector('[data-action="clear-filters"]');
+        if (chip) {
+            chip.textContent = active.length ? 'Active filters: ' + active.join(', ') + ' ×' : 'Active filters: All ×';
+        }
     };
 
     var renderKpis = function(root, cards) {
@@ -215,6 +212,27 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
             if (!items.length) {
                 body = '<div class="da-empty">No matching data.</div>';
+            } else if (panel.type === 'line') {
+                body = '<div class="da-line-chart">' + items.map(function(item) {
+                    var segments = item.segments || [];
+                    var points = segments.map(function(segment, index) {
+                        var x = segments.length <= 1 ? 0 : (index / (segments.length - 1)) * 100;
+                        var y = 100 - Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                        return x.toFixed(1) + ',' + y.toFixed(1);
+                    }).join(' ');
+                    var ticks = segments.map(function(segment) {
+                        return '<span title="' + escapeHtml(segment.label + ': ' + segment.value + '%') + '"></span>';
+                    }).join('');
+                    return '<div class="da-line-row">'
+                        + '<div class="da-line-label"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>'
+                        + '<svg class="da-line-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                        + '<line x1="0" y1="20" x2="100" y2="20" class="da-line-reference"></line>'
+                        + '<polyline points="' + escapeHtml(points) + '" class="da-line-path da-line-path-' + escapeHtml(item.status) + '"></polyline>'
+                        + '</svg>'
+                        + '<div class="da-line-ticks">' + ticks + '</div>'
+                        + '<div class="da-bar-meta">' + escapeHtml(item.meta) + '</div>'
+                        + '</div>';
+                }).join('') + '</div>';
             } else if (panel.type === 'cards') {
                 body = '<div class="da-mini-cards">' + items.map(function(item) {
                     return '<div class="da-mini-card da-mini-card-' + escapeHtml(item.status) + '">'
@@ -439,7 +457,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         var timer = null;
 
         root.addEventListener('change', function(event) {
-            if (event.target.matches('[data-filter-option], [data-filter="status"]')) {
+            if (event.target.matches('select[data-filter-group]')) {
                 updateFilterCounts(root);
                 refresh(root, state);
             }
@@ -471,6 +489,16 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     trigger.setAttribute('aria-expanded', expanded ? 'false' : 'true');
                     popover.hidden = expanded;
                 }
+                return;
+            }
+
+            var clearFilters = event.target.closest('[data-action="clear-filters"]');
+            if (clearFilters && root.contains(clearFilters)) {
+                Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
+                    select.value = select.getAttribute('data-filter-group') === 'daterange' ? 'last12months' : '';
+                });
+                updateFilterCounts(root);
+                refresh(root, state);
                 return;
             }
 
@@ -518,10 +546,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return;
         }
 
+        var activeTab = root.querySelector('[data-tab].is-active');
         var state = {
             contextid: contextid,
             dashboardkey: root.getAttribute('data-dashboardkey') || '',
-            currentTab: 'overview'
+            currentTab: activeTab ? activeTab.getAttribute('data-tab') : 'overview'
         };
 
         bindEvents(root, state);
