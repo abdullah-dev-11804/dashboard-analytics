@@ -72,6 +72,12 @@ class overview_repository {
             $counts[$row['status']]++;
         }
 
+        $this->debug_log('status_distribution_items counts', [
+            'filters' => $filters,
+            'rowcount' => count($rows),
+            'counts' => $counts,
+        ]);
+
         $total = max(1, array_sum($counts));
         return [
             $this->status_item('Active', $counts['Active'], $total, 'ok'),
@@ -214,6 +220,10 @@ class overview_repository {
         $companyrepo = new company_repository();
         $source = $documents->source();
         if ($source === null || $source['courseid'] === '') {
+            $this->debug_log('enrolment_status_rows source unavailable', [
+                'source' => $source,
+                'filters' => $filters,
+            ]);
             return [];
         }
 
@@ -255,6 +265,13 @@ class overview_repository {
             $params += $inparams;
         }
 
+        $this->debug_log('enrolment_status_rows starting', [
+            'source' => $source,
+            'filters' => $filters,
+            'basewhere' => $basewhere,
+            'params' => $params,
+        ]);
+
         $select = "u.id AS userid,
                        c.id AS courseid,
                        c.fullname AS coursename,
@@ -285,10 +302,22 @@ class overview_repository {
                              {$select}" .
             implode(' AND ', array_merge($basewhere, ['d.id IS NULL']));
 
-        $records = $DB->get_records_sql($documentssql, $params, 0, 5000);
-        $records += $DB->get_records_sql($nodocssql, $params, 0, 5000);
+        $documentrecords = $DB->get_records_sql($documentssql, $params, 0, 5000);
+        $nodocumentrecords = $DB->get_records_sql($nodocssql, $params, 0, 5000);
+        $records = $documentrecords + $nodocumentrecords;
+
+        $this->debug_log('enrolment_status_rows query results', [
+            'documentrowcount' => count($documentrecords),
+            'nodocumentrowcount' => count($nodocumentrecords),
+            'mergedrowcount' => count($records),
+            'documentssql' => $documentssql,
+            'nodocssql' => $nodocssql,
+        ]);
+
         $rows = [];
+        $samples = [];
         foreach ($records as $record) {
+            $status = $this->status_for_row((int)$record->documentid, (int)$record->expirytime, $reportdate);
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
@@ -300,9 +329,27 @@ class overview_repository {
                 'course' => format_string((string)$record->coursename),
                 'documentid' => (int)$record->documentid,
                 'expirytime' => (int)$record->expirytime,
-                'status' => $this->status_for_row((int)$record->documentid, (int)$record->expirytime, $reportdate),
+                'status' => $status,
             ];
+
+            if (count($samples) < 10) {
+                $samples[] = [
+                    'userid' => (int)$record->userid,
+                    'courseid' => (int)$record->courseid,
+                    'course' => (string)$record->coursename,
+                    'documentid' => (int)$record->documentid,
+                    'expirytime' => (int)$record->expirytime,
+                    'status' => $status,
+                    'company' => (string)$record->companyname,
+                ];
+            }
         }
+
+        $this->debug_log('enrolment_status_rows samples', [
+            'reportdate' => $reportdate,
+            'samplecount' => count($samples),
+            'samples' => $samples,
+        ]);
 
         return $rows;
     }
@@ -400,5 +447,14 @@ class overview_repository {
 
     private function validity_days_sql(string $alias): string {
         return "COALESCE(NULLIF({$alias}.intvalue, 0), NULLIF({$alias}.decvalue, 0), NULLIF({$alias}.value, ''), 1)";
+    }
+
+    private function debug_log(string $label, array $context = []): void {
+        $encoded = json_encode($context);
+        if ($encoded === false) {
+            $encoded = 'context_encoding_failed';
+        }
+
+        error_log('[block_dashboardanalytics][overview_repository] ' . $label . ' ' . $encoded);
     }
 }
