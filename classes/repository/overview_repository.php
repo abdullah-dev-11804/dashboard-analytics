@@ -5,6 +5,10 @@ namespace block_dashboardanalytics\repository;
 
 defined('MOODLE_INTERNAL') || die();
 
+ini_set('log_errors', '1');
+ini_set('error_log', '/tmp/ncasign-debug.log');
+
+
 class overview_repository {
 
     public function compliance_trend_items(array $filters): array {
@@ -324,17 +328,20 @@ class overview_repository {
 
     private function status_for_row(int $documentid, int $expirytime, int $reportdate): string {
         if ($documentid <= 0 || $expirytime <= 0) {
+            error_log('No Document');
             return 'No document';
         }
 
         if ($expirytime <= $reportdate) {
+            error_log('Expired');
             return 'Expired';
         }
 
         if ($expirytime <= $reportdate + (30 * DAYSECS)) {
+            error_log('Expiring');
             return 'Expiring';
         }
-
+        error_log('Active');
         return 'Active';
     }
 
