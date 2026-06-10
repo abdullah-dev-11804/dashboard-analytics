@@ -337,11 +337,11 @@ class overview_repository {
                 $samples[] = [
                     'userid' => (int)$record->userid,
                     'courseid' => (int)$record->courseid,
-                    'course' => (string)$record->coursename,
+                    'course' => $this->truncate_text((string)$record->coursename, 120),
                     'documentid' => (int)$record->documentid,
                     'expirytime' => (int)$record->expirytime,
                     'status' => $status,
-                    'company' => (string)$record->companyname,
+                    'company' => $this->truncate_text((string)$record->companyname, 80),
                 ];
             }
         }
@@ -451,12 +451,28 @@ class overview_repository {
     }
 
     private function debug_log(string $label, array $context = []): void {
-        $encoded = json_encode($context);
+        $encoded = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($encoded === false) {
             $encoded = 'context_encoding_failed';
         }
 
         $line = '[' . date('Y-m-d H:i:s') . '] [block_dashboardanalytics][overview_repository] ' . $label . ' ' . $encoded . PHP_EOL;
         @file_put_contents('/tmp/dashboardanalytics-overview-debug.log', $line, FILE_APPEND);
+    }
+
+    private function truncate_text(string $value, int $limit): string {
+        $value = trim($value);
+        if (class_exists('\core_text')) {
+            if (\core_text::strlen($value) <= $limit) {
+                return $value;
+            }
+            return \core_text::substr($value, 0, $limit - 3) . '...';
+        }
+
+        if (strlen($value) <= $limit) {
+            return $value;
+        }
+
+        return substr($value, 0, $limit - 3) . '...';
     }
 }
