@@ -257,7 +257,6 @@ class overview_repository {
             $userfilter['sql'],
             'c.visible = 1',
             'c.id <> :siteid',
-            'cc.timecompleted > 0',
         ];
 
         if (!empty($filters['courseids'])) {
@@ -273,35 +272,68 @@ class overview_repository {
             'params' => $params,
         ]);
 
-        $select = "u.id AS userid,
-                       c.id AS courseid,
-                       c.fullname AS coursename,
-                       u.firstname,
-                       u.lastname,
-                       u.city,
-                       {$departmentselect},
-                       {$positionselect},
-                       {$companysql['select']},
-                       d.id AS documentid,
-                       {$expiryselect}
-                  FROM {user} u
-                  JOIN {course_completions} cc ON cc.userid = u.id AND cc.timecompleted > 0
-                  JOIN {course} c ON c.id = cc.course
-                  LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
-                  LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
-                       {$companysql['join']}
-                       {$departmentjoin}
-                       {$positionjoin}
-                       {$docjoin}
-                 WHERE ";
+        $documentssql = "SELECT " . $DB->sql_concat("'doc-'", 'd.id') . " AS rowid,
+                                u.id AS userid,
+                                c.id AS courseid,
+                                c.fullname AS coursename,
+                                u.firstname,
+                                u.lastname,
+                                u.city,
+                                {$departmentselect},
+                                {$positionselect},
+                                {$companysql['select']},
+                                d.id AS documentid,
+                                {$expiryselect}
+                           FROM {{$source['table']}} d
+                           JOIN {user} u ON u.id = d.{$source['userid']}
+                           JOIN {course} c ON c.id = d.{$source['courseid']}
+                      LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
+                      LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
+                      LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
+                                {$companysql['join']}
+                                {$departmentjoin}
+                                {$positionjoin}
+                          WHERE " . implode(' AND ', array_merge($basewhere, [
+                              "d.id = (
+                                  SELECT MAX(d2.id)
+                                    FROM {{$source['table']}} d2
+                                   WHERE d2.{$source['userid']} = d.{$source['userid']}
+                                     AND d2.{$source['courseid']} = d.{$source['courseid']}
+                                     AND (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)
+                                     AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')
+                              )",
+                              "(d.{$source['origin']} <> 'demo_job' OR d.{$source['origin']} IS NULL)",
+                              "d.{$source['status']} IN ('completed_manual', 'completed_auto')",
+                          ]));
 
-        $documentssql = "SELECT d.id AS rowid,
-                                {$select}" .
-            implode(' AND ', array_merge($basewhere, ['d.id IS NOT NULL']));
-
-        $nodocssql = "SELECT " . $DB->sql_concat('u.id', "'-'", 'c.id') . " AS rowid,
-                             {$select}" .
-            implode(' AND ', array_merge($basewhere, ['d.id IS NULL']));
+        $nodocssql = "SELECT " . $DB->sql_concat("'nodoc-'", 'ue.id') . " AS rowid,
+                             u.id AS userid,
+                             c.id AS courseid,
+                             c.fullname AS coursename,
+                             u.firstname,
+                             u.lastname,
+                             u.city,
+                             {$departmentselect},
+                             {$positionselect},
+                             {$companysql['select']},
+                             COALESCE(d.id, 0) AS documentid,
+                             {$expiryselect}
+                        FROM {user} u
+                        JOIN {user_enrolments} ue ON ue.userid = u.id AND ue.status = 0
+                        JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
+                        JOIN {course} c ON c.id = e.courseid
+                   LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
+                   LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
+                   LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
+                             {$companysql['join']}
+                             {$departmentjoin}
+                             {$positionjoin}
+                             {$docjoin}
+                       WHERE " . implode(' AND ', array_merge($basewhere, [
+                           'ue.status = 0',
+                           'e.status = 0',
+                           'd.id IS NULL',
+                       ]));
 
         $documentrecords = $DB->get_records_sql($documentssql, $params, 0, 5000);
         $nodocumentrecords = $DB->get_records_sql($nodocssql, $params, 0, 5000);
