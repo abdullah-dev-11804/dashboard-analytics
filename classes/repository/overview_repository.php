@@ -456,6 +456,7 @@ class overview_repository {
             $encoded = 'context_encoding_failed';
         }
 
-        error_log('[block_dashboardanalytics][overview_repository] ' . $label . ' ' . $encoded);
+        $line = '[' . date('Y-m-d H:i:s') . '] [block_dashboardanalytics][overview_repository] ' . $label . ' ' . $encoded . PHP_EOL;
+        @file_put_contents('/tmp/dashboardanalytics-overview-debug.log', $line, FILE_APPEND);
     }
 }
