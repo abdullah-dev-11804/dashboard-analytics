@@ -255,7 +255,6 @@ class overview_repository {
         $docjoin = $this->latest_document_join_sql($source, 'u', 'c', 'd');
         $basewhere = [
             $userfilter['sql'],
-            'c.visible = 1',
             'c.id <> :siteid',
         ];
 
