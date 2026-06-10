@@ -5,10 +5,6 @@ namespace block_dashboardanalytics\repository;
 
 defined('MOODLE_INTERNAL') || die();
 
-ini_set('log_errors', '1');
-ini_set('error_log', '/tmp/ncasign-debug.log');
-
-
 class overview_repository {
 
     public function compliance_trend_items(array $filters): array {
@@ -216,51 +212,14 @@ class overview_repository {
         $employee = new employee_repository();
         $documents = new document_repository();
         $companyrepo = new company_repository();
+        $source = $documents->source();
+        if ($source === null || $source['courseid'] === '') {
+            return [];
+        }
+
         $userfilter = $employee->user_filter_sql($filters, 'u', 'overview');
         $companysql = $companyrepo->company_name_sql('u', 'overview');
-
-        $where = [
-            $userfilter['sql'],
-            'ue.status = 0',
-            'e.status = 0',
-            'c.visible = 1',
-            'c.id <> :siteid',
-        ];
-        $params = $userfilter['params'] + [
-            'siteid' => SITEID,
-        ];
-
-        if (!empty($filters['courseids'])) {
-            [$insql, $inparams] = $DB->get_in_or_equal($filters['courseids'], SQL_PARAMS_NAMED, 'overviewcourse');
-            $where[] = "c.id {$insql}";
-            $params += $inparams;
-        }
-
-        $source = $documents->source();
-        $docjoin = '';
-        $docselect = '0 AS documentid';
-        $expiryselect = '0 AS expirytime';
-        if ($source !== null && $source['courseid'] !== '') {
-            $table = $source['table'];
-            $originfilter = $source['origin'] !== ''
-                ? "AND (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)"
-                : '';
-            $statusfilter = $source['status'] !== ''
-                ? "AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')"
-                : '';
-            $docjoin = "LEFT JOIN {{$table}} d
-                              ON d.id = (
-                                  SELECT MAX(d2.id)
-                                    FROM {{$table}} d2
-                                   WHERE d2.{$source['userid']} = u.id
-                                     AND d2.{$source['courseid']} = c.id
-                                         {$originfilter}
-                                         {$statusfilter}
-                              )";
-            $docselect = 'd.id AS documentid';
-            $expiryselect = "COALESCE(cc.timecompleted, 0) + (COALESCE(cfd.intvalue, cfd.decvalue, cfd.value, 0) * 86400) AS expirytime";
-        }
-
+        $params = $userfilter['params'] + ['siteid' => SITEID];
         $positionselect = "'' AS positionname";
         $positionfield = trim((string)get_config('block_dashboardanalytics', 'positionfield'));
         $positionjoin = '';
@@ -280,8 +239,23 @@ class overview_repository {
             $params['departmentfield'] = 'department';
         }
 
-        $sql = "SELECT ue.id AS enrolmentrowid,
-                       u.id AS userid,
+        $validitysql = $this->validity_days_sql('cfd');
+        $expiryselect = "COALESCE(cc.timecompleted, 0) + ({$validitysql} * 86400) AS expirytime";
+        $docjoin = $this->latest_document_join_sql($source, 'u', 'c', 'd');
+        $basewhere = [
+            $userfilter['sql'],
+            'c.visible = 1',
+            'c.id <> :siteid',
+            'cc.timecompleted > 0',
+        ];
+
+        if (!empty($filters['courseids'])) {
+            [$insql, $inparams] = $DB->get_in_or_equal($filters['courseids'], SQL_PARAMS_NAMED, 'overviewcourse');
+            $basewhere[] = "c.id {$insql}";
+            $params += $inparams;
+        }
+
+        $select = "u.id AS userid,
                        c.id AS courseid,
                        c.fullname AS coursename,
                        u.firstname,
@@ -290,22 +264,29 @@ class overview_repository {
                        {$departmentselect},
                        {$positionselect},
                        {$companysql['select']},
-                       {$docselect},
+                       d.id AS documentid,
                        {$expiryselect}
                   FROM {user} u
-                  JOIN {user_enrolments} ue ON ue.userid = u.id
-                  JOIN {enrol} e ON e.id = ue.enrolid
-                  JOIN {course} c ON c.id = e.courseid
-                  LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
+                  JOIN {course_completions} cc ON cc.userid = u.id AND cc.timecompleted > 0
+                  JOIN {course} c ON c.id = cc.course
                   LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
                   LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
                        {$companysql['join']}
                        {$departmentjoin}
                        {$positionjoin}
                        {$docjoin}
-                 WHERE " . implode(' AND ', $where);
+                 WHERE ";
 
-        $records = $DB->get_records_sql($sql, $params, 0, 5000);
+        $documentssql = "SELECT d.id AS rowid,
+                                {$select}" .
+            implode(' AND ', array_merge($basewhere, ['d.id IS NOT NULL']));
+
+        $nodocssql = "SELECT " . $DB->sql_concat('u.id', "'-'", 'c.id') . " AS rowid,
+                             {$select}" .
+            implode(' AND ', array_merge($basewhere, ['d.id IS NULL']));
+
+        $records = $DB->get_records_sql($documentssql, $params, 0, 5000);
+        $records += $DB->get_records_sql($nodocssql, $params, 0, 5000);
         $rows = [];
         foreach ($records as $record) {
             $rows[] = [
@@ -328,20 +309,16 @@ class overview_repository {
 
     private function status_for_row(int $documentid, int $expirytime, int $reportdate): string {
         if ($documentid <= 0 || $expirytime <= 0) {
-            error_log('No Document');
             return 'No document';
         }
 
         if ($expirytime <= $reportdate) {
-            error_log('Expired');
             return 'Expired';
         }
 
         if ($expirytime <= $reportdate + (30 * DAYSECS)) {
-            error_log('Expiring');
             return 'Expiring';
         }
-        error_log('Active');
         return 'Active';
     }
 
@@ -399,5 +376,29 @@ class overview_repository {
             return 'warning';
         }
         return 'danger';
+    }
+
+    private function latest_document_join_sql(array $source, string $useralias, string $coursealias, string $alias): string {
+        $table = $source['table'];
+        $originfilter = $source['origin'] !== ''
+            ? "AND (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)"
+            : '';
+        $statusfilter = $source['status'] !== ''
+            ? "AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')"
+            : '';
+
+        return "LEFT JOIN {{$table}} {$alias}
+                       ON {$alias}.id = (
+                              SELECT MAX(d2.id)
+                                FROM {{$table}} d2
+                               WHERE d2.{$source['userid']} = {$useralias}.id
+                                 AND d2.{$source['courseid']} = {$coursealias}.id
+                                     {$originfilter}
+                                     {$statusfilter}
+                          )";
+    }
+
+    private function validity_days_sql(string $alias): string {
+        return "COALESCE(NULLIF({$alias}.intvalue, 0), NULLIF({$alias}.decvalue, 0), NULLIF({$alias}.value, ''), 1)";
     }
 }
