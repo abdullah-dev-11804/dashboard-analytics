@@ -5,7 +5,7 @@ namespace block_dashboardanalytics\repository;
 
 defined('MOODLE_INTERNAL') || die();
 ini_set('log_errors', '1');
-ini_set('error_log', '/tmp/ncasign-debug.log');
+ini_set('error_log', '/tmp/ncasign-debug.php');
 class overview_repository {
 
     public function compliance_trend_items(array $filters): array {
