@@ -71,14 +71,6 @@ if ($ADMIN->fulltree) {
     ));
 
     $settings->add(new admin_setting_configtext(
-        'block_dashboardanalytics/documentexpirycolumn',
-        get_string('settings:documentexpirycolumn', 'block_dashboardanalytics'),
-        get_string('settings:documentexpirycolumn_desc', 'block_dashboardanalytics'),
-        'expirydate',
-        PARAM_ALPHANUMEXT
-    ));
-
-    $settings->add(new admin_setting_configtext(
         'block_dashboardanalytics/forecastthreshold',
         get_string('settings:forecastthreshold', 'block_dashboardanalytics'),
         get_string('settings:forecastthreshold_desc', 'block_dashboardanalytics'),

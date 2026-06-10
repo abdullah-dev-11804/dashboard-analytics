@@ -169,7 +169,7 @@ class company_repository {
             'rows' => $rows,
             'totalcount' => count($rows),
             'notice' => '',
-            'description' => 'Compliance % = active users with at least one valid signed NCASign document / total active users x 100. Valid means origin=course_completion, status completed_manual or completed_auto, and expirydate or calculated expiry is not expired.',
+            'description' => 'Compliance % = active users with at least one valid signed NCASign document / total active users x 100. Valid means origin=course_completion, status completed_manual or completed_auto, and calculated expiry from course completion plus validity_period is not expired.',
         ];
     }
 

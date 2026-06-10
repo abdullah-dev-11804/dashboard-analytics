@@ -104,7 +104,7 @@ class kpi_service {
                     'status' => $documentcounts['configured'] ? ($documentcounts['expiring'] > 0 ? 'warning' : 'ok') : 'muted',
                     'trend' => $documentcounts['configured'] ? 'Next 30 days' : 'Data pending',
                     'drilldownkey' => 'company_expiring_documents',
-                    'help' => 'NCASign documents with expirydate in the next 30 days where origin is not demo_job.',
+                    'help' => 'NCASign documents expiring in the next 30 days, calculated from course completion plus the course validity_period, where origin is not demo_job.',
                 ],
                 [
                     'key' => 'expired',
@@ -114,7 +114,7 @@ class kpi_service {
                     'status' => $documentcounts['configured'] ? ($documentcounts['expired'] > 0 ? 'danger' : 'ok') : 'muted',
                     'trend' => $documentcounts['configured'] ? 'Past expiry date' : 'Data pending',
                     'drilldownkey' => 'company_expired_documents',
-                    'help' => 'NCASign documents with expirydate in the past where origin is not demo_job.',
+                    'help' => 'NCASign documents already expired based on course completion plus the course validity_period, where origin is not demo_job.',
                 ],
                 [
                     'key' => 'edsqueue',

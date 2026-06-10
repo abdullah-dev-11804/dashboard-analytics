@@ -580,13 +580,10 @@ class document_repository {
         $table = $this->identifier(get_config('block_dashboardanalytics', 'documenttable'));
         $userid = $this->identifier(get_config('block_dashboardanalytics', 'documentuseridcolumn') ?: 'userid');
         $courseid = $this->identifier(get_config('block_dashboardanalytics', 'documentcourseidcolumn') ?: 'courseid');
-        $expiry = $this->identifier(get_config('block_dashboardanalytics', 'documentexpirycolumn') ?: 'expirydate');
-
         if ($table === '' && $this->table_exists('local_ncasign_jobs')) {
             $table = 'local_ncasign_jobs';
             $userid = 'userid';
             $courseid = 'courseid';
-            $expiry = 'expirydate';
         }
 
         if ($table === '' || $userid === '') {
@@ -602,10 +599,6 @@ class document_repository {
             return null;
         }
 
-        if ($expiry !== '' && !isset($columns[$expiry])) {
-            $expiry = '';
-        }
-
         if ($courseid !== '' && !isset($columns[$courseid])) {
             $courseid = '';
         }
@@ -614,7 +607,7 @@ class document_repository {
             'table' => $table,
             'userid' => $userid,
             'courseid' => $courseid,
-            'expiry' => $expiry,
+            'expiry' => '',
             'origin' => isset($columns['origin']) ? 'origin' : '',
             'status' => isset($columns['status']) ? 'status' : '',
         ];
@@ -769,16 +762,11 @@ class document_repository {
     }
 
     public function expiry_sql(string $alias, array $source): string {
-        $fallback = '0';
-        if (!empty($source['courseid'])) {
-            $fallback = "COALESCE(ccdash.timecompleted, 0) + (COALESCE(cfdash.intvalue, cfdash.decvalue, cfdash.value, 0) * 86400)";
+        if (empty($source['courseid'])) {
+            return '0';
         }
 
-        if (!empty($source['expiry'])) {
-            return "COALESCE(NULLIF({$alias}.{$source['expiry']}, 0), {$fallback})";
-        }
-
-        return $fallback;
+        return "COALESCE(ccdash.timecompleted, 0) + (COALESCE(cfdash.intvalue, cfdash.decvalue, cfdash.value, 0) * 86400)";
     }
 
     public function expiry_join_sql(string $alias, array $source): string {

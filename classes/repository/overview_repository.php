@@ -254,9 +254,7 @@ class overview_repository {
                                          {$statusfilter}
                               )";
             $docselect = 'd.id AS documentid';
-            $expiryselect = $source['expiry'] !== ''
-                ? "COALESCE(NULLIF(d.{$source['expiry']}, 0), COALESCE(cc.timecompleted, 0) + (COALESCE(cfd.intvalue, cfd.decvalue, cfd.value, 0) * 86400)) AS expirytime"
-                : "COALESCE(cc.timecompleted, 0) + (COALESCE(cfd.intvalue, cfd.decvalue, cfd.value, 0) * 86400) AS expirytime";
+            $expiryselect = "COALESCE(cc.timecompleted, 0) + (COALESCE(cfd.intvalue, cfd.decvalue, cfd.value, 0) * 86400) AS expirytime";
         }
 
         $positionselect = "'' AS positionname";
