@@ -310,7 +310,10 @@ class server_repository {
             return null;
         }
 
-        $cores = (int)trim((string)@shell_exec('nproc 2>/dev/null'));
+        $cores = 0;
+        if (function_exists('shell_exec')) {
+            $cores = (int)trim((string)@\shell_exec('nproc 2>/dev/null'));
+        }
         if ($cores <= 0) {
             $cores = 1;
         }
