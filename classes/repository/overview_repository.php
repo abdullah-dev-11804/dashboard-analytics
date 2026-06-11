@@ -11,28 +11,37 @@ class overview_repository {
     public function compliance_trend_items(array $filters): array {
         $months = $this->month_windows($filters);
         $current = $this->company_compliance_items($filters, 8);
-        $companies = array_slice(array_column($current, 'label'), 0, 5);
+        $companies = array_slice(array_column($current, 'label'), 0, 4);
+        $seriesstatuses = ['info', 'danger', 'warning', 'ok', 'muted'];
 
         $items = [];
-        foreach ($companies as $company) {
+        foreach ($months as $month) {
+            $summaries = $this->company_summaries($filters, $month['end']);
+            $summarymap = [];
+            foreach ($summaries as $summary) {
+                $summarymap[$summary['label']] = $summary;
+            }
+
             $segments = [];
-            foreach ($months as $month) {
-                $summary = $this->company_summary_by_label($filters, $company, $month['end']);
+            $maxpercent = 1.0;
+            foreach ($companies as $index => $company) {
+                $summary = $summarymap[$company] ?? ['percent' => 0.0, 'total' => 0, 'compliant' => 0];
+                $percent = (float)$summary['percent'];
+                $maxpercent = max($maxpercent, $percent);
                 $segments[] = [
-                    'label' => $month['label'],
-                    'value' => (string)$summary['percent'],
-                    'percent' => (float)$summary['percent'],
-                    'status' => $this->status_for_percent((float)$summary['percent']),
+                    'label' => $company,
+                    'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : '0%',
+                    'percent' => $percent,
+                    'status' => $seriesstatuses[$index % count($seriesstatuses)],
                 ];
             }
 
-            $last = end($segments);
             $items[] = [
-                'label' => $company,
-                'value' => $last ? $last['value'] . '%' : '0%',
-                'percent' => $last ? (float)$last['percent'] : 0.0,
-                'status' => $last ? $last['status'] : 'muted',
-                'meta' => '12-month compliance trend',
+                'label' => $month['label'],
+                'value' => '',
+                'percent' => $maxpercent,
+                'status' => 'info',
+                'meta' => 'Monthly compliance by company',
                 'segments' => $segments,
             ];
         }

@@ -69,7 +69,7 @@ class visual_service {
             'title' => 'Overview',
             'description' => 'Company snapshot based on active enrolled user-course compliance checks.',
             'panels' => [
-                $this->panel('compliancetrend', 'Compliance Trend', 'line', 'Last-period compliance by company. Each point is aggregated from user-course enrolment status.', $overview->compliance_trend_items($filters)),
+                $this->panel('compliancetrend', 'Compliance Trend', 'grouped', 'Monthly compliance by company across the selected period.', $overview->compliance_trend_items($filters)),
                 $this->panel('companycompliance', 'Company Compliance Ranking', 'bar', 'Worst companies are shown first. Compliance requires every active enrolled course to be Active or Expiring.', $overview->company_compliance_items($filters)),
                 $this->panel('documentstatus', 'Document Status Distribution', 'donut', 'Active, expiring, expired and missing certification checks across enrolled courses.', $overview->status_distribution_items($filters)),
                 $this->panel('riskcompany', 'Expired vs Expiring by Company', 'grouped', 'Companies ordered by total at-risk certification checks.', $overview->expired_expiring_by_company_items($filters)),
