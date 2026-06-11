@@ -235,9 +235,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }).join('') + '</div>';
             } else if (panel.type === 'cards') {
                 body = '<div class="da-mini-cards">' + items.map(function(item) {
+                    var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                    var progress = width > 0 ? '<div class="da-mini-card-progress"><span class="da-mini-card-progress-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"></span></div>' : '';
                     return '<div class="da-mini-card da-mini-card-' + escapeHtml(item.status) + '">'
                         + '<span>' + escapeHtml(item.label) + '</span>'
                         + '<strong>' + escapeHtml(item.value) + '</strong>'
+                        + progress
                         + '<em>' + escapeHtml(item.meta) + '</em>'
                         + '</div>';
                 }).join('') + '</div>';

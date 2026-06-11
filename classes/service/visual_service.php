@@ -9,6 +9,7 @@ use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
+use block_dashboardanalytics\repository\server_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -32,7 +33,7 @@ class visual_service {
         }
 
         if ($tabkey === 'kpis') {
-            return $this->company_pending('KPI Strip', 'Use the KPI cards above as the primary KPI strip. Detailed KPI drilldowns open when a card is selected.');
+            return $this->company_kpi_strip();
         }
 
         if ($tabkey === 'compliance') {
@@ -74,6 +75,18 @@ class visual_service {
                 $this->panel('documentstatus', 'Document Status Distribution', 'donut', 'Active, expiring, expired and missing certification checks across enrolled courses.', $overview->status_distribution_items($filters)),
                 $this->panel('riskcompany', 'Expired vs Expiring by Company', 'grouped', 'Companies ordered by total at-risk certification checks.', $overview->expired_expiring_by_company_items($filters)),
                 $this->panel('coursecompliance', 'Course Non-compliance', 'bar', 'Courses with the highest share of expired or missing documents among enrolled participants.', $overview->course_non_compliance_items($filters)),
+            ],
+        ];
+    }
+
+    private function company_kpi_strip(): array {
+        $server = new server_repository();
+
+        return [
+            'title' => 'KPI Strip',
+            'description' => 'Operational platform health summary for the admin dashboard.',
+            'panels' => [
+                $this->panel('adminkpistrip', 'Platform Health', 'cards', 'Users Online, Disk, RAM, CPU, DB and Cron status. Historical drill-downs stay in the Server tab.', $server->admin_kpi_cards()),
             ],
         ];
     }

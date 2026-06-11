@@ -497,14 +497,41 @@
     border: 1px solid var(--da-border);
     border-left: 4px solid var(--da-blue);
     border-radius: 8px;
-    padding: .65rem;
+    padding: .75rem;
     display: flex;
     flex-direction: column;
-    gap: .2rem;
+    gap: .35rem;
+    min-height: 132px;
+}
+
+.block-dashboardanalytics .da-mini-card span {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--da-muted);
 }
 
 .block-dashboardanalytics .da-mini-card strong {
     font-size: 1.35rem;
+    line-height: 1.1;
+}
+
+.block-dashboardanalytics .da-mini-card-progress {
+    width: 100%;
+    height: .36rem;
+    border-radius: 999px;
+    background: #edf2f7;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-mini-card-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+}
+
+.block-dashboardanalytics .da-mini-card em {
+    font-size: .74rem;
+    line-height: 1.45;
 }
 
 .block-dashboardanalytics .da-mini-card-ok {
