@@ -95,7 +95,7 @@ class visual_service {
             'title' => 'KPI Strip',
             'description' => 'Company-scoped compliance and staff summary.',
             'panels' => [
-                $this->panel('companykpistrip', 'Company KPI Strip', 'cards', 'Total Active Staff, Company Compliance, Expiring <30 Days and Expired Now.', $cards),
+                $this->panel('companykpistrip', 'Company KPI Strip', 'cards', 'Total Active Staff, Company Compliance, Expiring within 30 days, and Expired Now.', $cards),
             ],
         ];
     }
