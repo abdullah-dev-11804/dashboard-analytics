@@ -37,6 +37,22 @@ class filters {
             return $filters;
         }
 
+        if ($dashboardkey === permissions::DASHBOARD_COMPANY && !is_siteadmin($userid)) {
+            $companies = new company_repository();
+            $scope = $companies->scope_filters_for_user($userid);
+            if (!empty($scope['companyids'])) {
+                $filters['companyids'] = $scope['companyids'];
+                $filters['companies'] = [];
+                return $filters;
+            }
+
+            if (!empty($scope['companies'])) {
+                $filters['companies'] = $scope['companies'];
+                $filters['companyids'] = [];
+                return $filters;
+            }
+        }
+
         if ($dashboardkey !== permissions::DASHBOARD_CLIENT) {
             return $filters;
         }

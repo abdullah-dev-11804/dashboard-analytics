@@ -4,12 +4,12 @@
 namespace block_dashboardanalytics\service;
 
 use block_dashboardanalytics\permissions;
+use block_dashboardanalytics\service\kpi_service;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
-use block_dashboardanalytics\repository\server_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -33,7 +33,7 @@ class visual_service {
         }
 
         if ($tabkey === 'kpis') {
-            return $this->company_kpi_strip();
+            return $this->company_kpi_strip($filters);
         }
 
         if ($tabkey === 'compliance') {
@@ -79,14 +79,23 @@ class visual_service {
         ];
     }
 
-    private function company_kpi_strip(): array {
-        $server = new server_repository();
+    private function company_kpi_strip(array $filters): array {
+        $kpis = new kpi_service();
+        $cards = array_map(static function(array $card): array {
+            return [
+                'label' => $card['label'],
+                'value' => $card['value'],
+                'percent' => 0.0,
+                'status' => $card['status'],
+                'meta' => trim(($card['trend'] !== '' ? $card['trend'] . ' · ' : '') . $card['help']),
+            ];
+        }, $kpis->cards($filters, permissions::DASHBOARD_COMPANY));
 
         return [
             'title' => 'KPI Strip',
-            'description' => 'Operational platform health summary for the admin dashboard.',
+            'description' => 'Company-scoped compliance and staff summary.',
             'panels' => [
-                $this->panel('adminkpistrip', 'Platform Health', 'cards', 'Users Online, Disk, RAM, CPU, DB and Cron status. Historical drill-downs stay in the Server tab.', $server->admin_kpi_cards()),
+                $this->panel('companykpistrip', 'Company KPI Strip', 'cards', 'Total Active Staff, Company Compliance, Expiring <30 Days and Expired Now.', $cards),
             ],
         ];
     }

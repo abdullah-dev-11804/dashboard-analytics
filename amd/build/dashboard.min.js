@@ -118,6 +118,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 + (card.unit ? ' <small>' + escapeHtml(card.unit) + '</small>' : '')
                 + '</span>'
                 + (card.trend ? '<span class="da-kpi-trend">' + escapeHtml(card.trend) + '</span>' : '')
+                + (card.help ? '<span class="da-kpi-hint">' + escapeHtml(card.help) + '</span>' : '')
                 + '</button>';
         }).join('');
     };

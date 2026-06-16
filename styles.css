@@ -215,6 +215,10 @@
     border-left-color: var(--da-red);
 }
 
+.block-dashboardanalytics .da-kpi-info {
+    border-left-color: var(--da-blue);
+}
+
 .block-dashboardanalytics .da-kpi-muted {
     border-left-color: #a9b2bf;
 }
@@ -223,6 +227,20 @@
 .block-dashboardanalytics .da-kpi-trend {
     color: var(--da-muted);
     font-size: .76rem;
+}
+
+.block-dashboardanalytics .da-kpi-trend {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: .18rem .42rem;
+    border-radius: 999px;
+    background: #eef3f8;
+}
+
+.block-dashboardanalytics .da-kpi-hint {
+    color: var(--da-muted);
+    font-size: .74rem;
+    line-height: 1.35;
 }
 
 .block-dashboardanalytics .da-kpi-value {

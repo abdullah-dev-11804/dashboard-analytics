@@ -7,6 +7,7 @@ use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
+use block_dashboardanalytics\repository\overview_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -16,6 +17,7 @@ class kpi_service {
         $employees = new employee_repository();
         $documents = new document_repository();
         $eds = new eds_repository();
+        $overview = new overview_repository();
 
         $totalstaff = $employees->count_active_users($filters);
         $documentcounts = $documents->status_counts($filters);
@@ -75,66 +77,57 @@ class kpi_service {
         }
 
         if ($dashboardkey === permissions::DASHBOARD_COMPANY) {
+            $currentreport = $overview->overall_employee_compliance_summary($filters);
+            $previousmonth = (new \DateTimeImmutable('last day of previous month 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
+            $previousreport = $overview->overall_employee_compliance_summary($filters, $previousmonth);
+            $statuscounts = $overview->status_counts($filters);
+
+            $compliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : 'No enrolled staff';
+            $compliancestatus = $currentreport['total'] > 0
+                ? ($currentreport['percent'] >= 80 ? 'ok' : ($currentreport['percent'] >= 70 ? 'warning' : 'danger'))
+                : 'muted';
+            $compliancetrend = $this->percent_delta_badge((float)$currentreport['percent'], (float)$previousreport['percent'], 'vs last mo');
+
             return [
                 [
                     'key' => 'totalactiveusers',
-                    'label' => 'Total active users',
+                    'label' => 'Total active staff',
                     'value' => (string)$totalstaff,
                     'unit' => '',
-                    'status' => 'ok',
-                    'trend' => 'Company aggregate',
+                    'status' => 'info',
+                    'trend' => '',
                     'drilldownkey' => 'company_total_active_users',
-                    'help' => 'Company aggregate of active Moodle users where deleted=0 and suspended=0. No individual names are shown.',
+                    'help' => 'by dept · location · position',
                 ],
                 [
                     'key' => 'compliance',
-                    'label' => get_string('kpi:compliance', 'block_dashboardanalytics'),
+                    'label' => 'Company compliance',
                     'value' => $compliancevalue,
                     'unit' => '',
                     'status' => $compliancestatus,
-                    'trend' => $compliancesummary['validusers'] . ' / ' . $compliancesummary['totalactiveusers'] . ' users',
+                    'trend' => $compliancetrend,
                     'drilldownkey' => 'company_compliance',
-                    'help' => 'Compliance = active users with at least one valid signed NCASign document divided by total active users.',
+                    'help' => 'by dept · location · course',
                 ],
                 [
                     'key' => 'expiring30',
-                    'label' => get_string('kpi:expiring30', 'block_dashboardanalytics'),
-                    'value' => $documentcounts['configured'] ? (string)$documentcounts['expiring'] : 'Pending',
+                    'label' => 'Expiring <30 days',
+                    'value' => (string)$statuscounts['expiring'],
                     'unit' => '',
-                    'status' => $documentcounts['configured'] ? ($documentcounts['expiring'] > 0 ? 'warning' : 'ok') : 'muted',
-                    'trend' => $documentcounts['configured'] ? 'Next 30 days' : 'Data pending',
+                    'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
+                    'trend' => '',
                     'drilldownkey' => 'company_expiring_documents',
-                    'help' => 'NCASign documents expiring in the next 30 days, calculated from course completion plus the course validity_period, where origin is not demo_job.',
+                    'help' => 'employee list',
                 ],
                 [
                     'key' => 'expired',
-                    'label' => get_string('kpi:expired', 'block_dashboardanalytics'),
-                    'value' => $documentcounts['configured'] ? (string)$documentcounts['expired'] : 'Pending',
+                    'label' => 'Expired now',
+                    'value' => (string)$statuscounts['expired'],
                     'unit' => '',
-                    'status' => $documentcounts['configured'] ? ($documentcounts['expired'] > 0 ? 'danger' : 'ok') : 'muted',
-                    'trend' => $documentcounts['configured'] ? 'Past expiry date' : 'Data pending',
+                    'status' => $statuscounts['expired'] > 0 ? 'danger' : 'ok',
+                    'trend' => '',
                     'drilldownkey' => 'company_expired_documents',
-                    'help' => 'NCASign documents already expired based on course completion plus the course validity_period, where origin is not demo_job.',
-                ],
-                [
-                    'key' => 'edsqueue',
-                    'label' => 'EDS Queue',
-                    'value' => (string)$edsqueue,
-                    'unit' => '',
-                    'status' => $edsqueue > 0 ? 'warning' : 'ok',
-                    'trend' => 'Pending manual',
-                    'drilldownkey' => 'company_eds_queue',
-                    'help' => 'Pending manual EDS signatures from NCASign, using the current expected signer only.',
-                ],
-                [
-                    'key' => 'acwavr',
-                    'label' => 'ACW/AVR report',
-                    'value' => 'Pending',
-                    'unit' => '',
-                    'status' => 'muted',
-                    'trend' => 'Excel export',
-                    'drilldownkey' => 'company_compliance',
-                    'help' => 'Act of Completed Works report export will sync course completion counts from Moodle for the selected company and month.',
+                    'help' => 'urgent action list',
                 ],
             ];
         }
@@ -203,5 +196,14 @@ class kpi_service {
                 'help' => 'Status of the configured compliance document source.',
             ],
         ];
+    }
+
+    private function percent_delta_badge(float $current, float $previous, string $suffix): string {
+        $delta = round($current - $previous, 1);
+        if (abs($delta) < 0.1) {
+            return 'flat · ' . $suffix;
+        }
+
+        return ($delta > 0 ? 'up ' : 'down ') . abs($delta) . '% ' . $suffix;
     }
 }
