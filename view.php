@@ -35,5 +35,5 @@ $PAGE->requires->js_call_amd('block_dashboardanalytics/dashboard', 'init', [$con
 $renderer = $PAGE->get_renderer('block_dashboardanalytics');
 
 echo $OUTPUT->header();
-echo $renderer->render(new dashboard($context));
+echo $renderer->render(new dashboard($context, true));
 echo $OUTPUT->footer();

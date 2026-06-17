@@ -10,9 +10,11 @@ defined('MOODLE_INTERNAL') || die();
 class dashboard implements \renderable, \templatable {
 
     private \context $context;
+    private bool $fullpage;
 
-    public function __construct(\context $context) {
+    public function __construct(\context $context, bool $fullpage = false) {
         $this->context = $context;
+        $this->fullpage = $fullpage;
     }
 
     public function export_for_template(\renderer_base $output): array {
@@ -23,6 +25,7 @@ class dashboard implements \renderable, \templatable {
                 'contextid' => $this->context->id,
                 'dashboardkey' => '',
                 'dashboardname' => '',
+                'fullpage' => $this->fullpage,
                 'tabs' => [],
             ];
         }
@@ -32,8 +35,8 @@ class dashboard implements \renderable, \templatable {
             'contextid' => $this->context->id,
             'dashboardkey' => $dashboardkey,
             'dashboardname' => permissions::dashboard_name($dashboardkey),
+            'fullpage' => $this->fullpage,
             'tabs' => permissions::dashboard_tabs($dashboardkey),
         ];
     }
 }
-

@@ -306,7 +306,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }).join('') + '</div>';
             }
 
-            return '<article class="da-visual-panel">'
+            return '<article class="da-visual-panel" data-panel-key="' + escapeHtml(panel.key) + '">'
                 + '<h5>' + escapeHtml(panel.title) + '</h5>'
                 + '<p>' + escapeHtml(panel.description) + '</p>'
                 + body
