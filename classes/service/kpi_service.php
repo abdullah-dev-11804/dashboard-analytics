@@ -111,7 +111,7 @@ class kpi_service {
                 ],
                 [
                     'key' => 'expiring30',
-                    'label' => 'Expiring <30 days',
+                    'label' => 'Expiring within 30 days',
                     'value' => (string)$statuscounts['expiring'],
                     'unit' => '',
                     'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
