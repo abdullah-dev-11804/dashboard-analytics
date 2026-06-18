@@ -8,67 +8,6 @@ ini_set('log_errors', '1');
 ini_set('error_log', '/tmp/ncasign-debug.log');
 class overview_repository {
 
-    public function overall_employee_compliance_summary(array $filters, ?int $reportdate = null): array {
-        $reportdate = $reportdate ?? $this->current_report_date();
-        $rows = $this->enrolment_status_rows($filters, $reportdate);
-        $users = [];
-
-        foreach ($rows as $row) {
-            if (!isset($users[$row['userid']])) {
-                $users[$row['userid']] = ['total' => 0, 'bad' => 0];
-            }
-
-            $users[$row['userid']]['total']++;
-            if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
-                $users[$row['userid']]['bad']++;
-            }
-        }
-
-        $total = 0;
-        $compliant = 0;
-        foreach ($users as $user) {
-            if ($user['total'] <= 0) {
-                continue;
-            }
-
-            $total++;
-            if ($user['bad'] === 0) {
-                $compliant++;
-            }
-        }
-
-        return [
-            'total' => $total,
-            'compliant' => $compliant,
-            'percent' => $total > 0 ? round(($compliant / $total) * 100, 1) : 0.0,
-        ];
-    }
-
-    public function status_counts(array $filters, ?int $reportdate = null): array {
-        $reportdate = $reportdate ?? $this->current_report_date();
-        $rows = $this->enrolment_status_rows($filters, $reportdate);
-        $counts = [
-            'active' => 0,
-            'expiring' => 0,
-            'expired' => 0,
-            'nodocument' => 0,
-        ];
-
-        foreach ($rows as $row) {
-            if ($row['status'] === 'Active') {
-                $counts['active']++;
-            } else if ($row['status'] === 'Expiring') {
-                $counts['expiring']++;
-            } else if ($row['status'] === 'Expired') {
-                $counts['expired']++;
-            } else if ($row['status'] === 'No document') {
-                $counts['nodocument']++;
-            }
-        }
-
-        return $counts;
-    }
-
     public function compliance_trend_items(array $filters): array {
         $months = $this->month_windows($filters);
         $current = $this->company_compliance_items($filters, 8);
