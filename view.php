@@ -30,10 +30,13 @@ $PAGE->set_heading($dashboardname);
 $PAGE->set_secondary_navigation(false);
 $PAGE->add_body_class('path-block-dashboardanalytics-view');
 $PAGE->requires->css(new moodle_url('/blocks/dashboardanalytics/styles.css'));
+$PAGE->requires->css(new moodle_url('/blocks/dashboardanalytics/view.css'));
 $PAGE->requires->js_call_amd('block_dashboardanalytics/dashboard', 'init', [$context->id]);
 
 $renderer = $PAGE->get_renderer('block_dashboardanalytics');
 
 echo $OUTPUT->header();
+echo html_writer::start_div('dashboardanalytics-page');
 echo $renderer->render(new dashboard($context, true));
+echo html_writer::end_div();
 echo $OUTPUT->footer();
