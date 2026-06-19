@@ -23,7 +23,12 @@ class filters {
             'departments' => self::text_list($decoded['departments'] ?? $decoded['departmentids'] ?? []),
             'locations' => self::text_list($decoded['locations'] ?? $decoded['locationids'] ?? []),
             'positions' => self::text_list($decoded['positions'] ?? $decoded['positionids'] ?? []),
+            'personnelcategories' => self::text_list($decoded['personnelcategories'] ?? []),
+            'sites' => self::text_list($decoded['sites'] ?? []),
+            'educations' => self::text_list($decoded['educations'] ?? []),
             'daterange' => self::date_range($decoded['daterange'] ?? 'last12months'),
+            'customstart' => self::date_input($decoded['customstart'] ?? ''),
+            'customend' => self::date_input($decoded['customend'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
         ];
@@ -115,7 +120,24 @@ class filters {
 
     private static function date_range($value): string {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
-        $allowed = ['last30days', 'last90days', 'last6months', 'last12months'];
+        $allowed = [
+            'day',
+            'week',
+            'month',
+            '6months',
+            'year',
+            'alltime',
+            'customrange',
+            'last30days',
+            'last90days',
+            'last6months',
+            'last12months',
+        ];
         return in_array($value, $allowed, true) ? $value : 'last12months';
+    }
+
+    private static function date_input($value): string {
+        $value = trim((string)$value);
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : '';
     }
 }

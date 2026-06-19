@@ -120,7 +120,7 @@ class overview_repository {
         foreach (array_slice($summaries, 0, $limit) as $summary) {
             $items[] = [
                 'label' => $summary['label'],
-                'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : 'No enrolled users',
+                'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
                 'percent' => (float)$summary['percent'],
                 'status' => $summary['total'] > 0 ? $this->status_for_percent((float)$summary['percent']) : 'muted',
                 'meta' => $summary['compliant'] . ' compliant / ' . $summary['total'] . ' enrolled employees',
@@ -151,10 +151,10 @@ class overview_repository {
 
         $total = max(1, array_sum($counts));
         return [
-            $this->status_item('Active', $counts['Active'], $total, 'ok'),
-            $this->status_item('Expiring', $counts['Expiring'], $total, 'warning'),
-            $this->status_item('Expired', $counts['Expired'], $total, 'danger'),
-            $this->status_item('No document', $counts['No document'], $total, 'muted'),
+            $this->status_item(get_string('label:active', 'block_dashboardanalytics'), $counts['Active'], $total, 'ok'),
+            $this->status_item(get_string('label:expiring', 'block_dashboardanalytics'), $counts['Expiring'], $total, 'warning'),
+            $this->status_item(get_string('label:expired', 'block_dashboardanalytics'), $counts['Expired'], $total, 'danger'),
+            $this->status_item(get_string('label:nodocument', 'block_dashboardanalytics'), $counts['No document'], $total, 'muted'),
         ];
     }
 
@@ -162,7 +162,7 @@ class overview_repository {
         $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
         $companies = [];
         foreach ($rows as $row) {
-            $company = $row['company'] ?: 'Unassigned';
+            $company = $row['company'] ?: get_string('label:unassigned', 'block_dashboardanalytics');
             if (!isset($companies[$company])) {
                 $companies[$company] = ['expired' => 0, 'expiring' => 0];
             }
@@ -483,11 +483,37 @@ class overview_repository {
 
     private function month_windows(array $filters): array {
         $daterange = $filters['daterange'] ?? 'last12months';
-        $count = $daterange === 'last6months' ? 6 : 12;
-        if ($daterange === 'last90days') {
-            $count = 3;
-        } else if ($daterange === 'last30days') {
+        $count = 12;
+        if (in_array($daterange, ['6months', 'last6months'], true)) {
+            $count = 6;
+        } else if (in_array($daterange, ['day', 'week', 'month', 'last30days'], true)) {
             $count = 1;
+        } else if ($daterange === 'last90days') {
+            $count = 3;
+        } else if ($daterange === 'alltime') {
+            $count = 24;
+        }
+
+        if ($daterange === 'customrange' && !empty($filters['customstart']) && !empty($filters['customend'])) {
+            $start = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $filters['customstart'] . ' 00:00:00', new \DateTimeZone('Asia/Almaty'));
+            $end = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $filters['customend'] . ' 23:59:59', new \DateTimeZone('Asia/Almaty'));
+            if ($start && $end && $start <= $end) {
+                $months = [];
+                $cursor = $start->modify('first day of this month 00:00:00');
+                $limit = 0;
+                while ($cursor <= $end && $limit < 24) {
+                    $windowend = $cursor->modify('last day of this month 23:59:59');
+                    $months[] = [
+                        'label' => userdate($windowend->getTimestamp(), '%b %y'),
+                        'end' => min($windowend->getTimestamp(), $end->getTimestamp()),
+                    ];
+                    $cursor = $cursor->modify('+1 month');
+                    $limit++;
+                }
+                if ($months) {
+                    return $months;
+                }
+            }
         }
 
         $months = [];
@@ -508,12 +534,13 @@ class overview_repository {
     }
 
     private function status_item(string $label, int $count, int $total, string $status): array {
+        $percent = round(($count / max(1, $total)) * 100, 1);
         return [
             'label' => $label,
             'value' => (string)$count,
-            'percent' => round(($count / max(1, $total)) * 100, 1),
+            'percent' => $percent,
             'status' => $status,
-            'meta' => round(($count / max(1, $total)) * 100, 1) . '% of checks',
+            'meta' => get_string('meta:percentofchecks', 'block_dashboardanalytics', $percent),
         ];
     }
 

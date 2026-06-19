@@ -31,26 +31,26 @@ class compliance_service {
 
         if ($drilldownkey === 'company_total_active_users') {
             $companies = new company_repository();
-            return $this->result('Total active users - company aggregate (no individual names)', $companies->active_user_aggregate($filters));
+            return $this->result(get_string('drilldown:title:totalactiveusers', 'block_dashboardanalytics'), $companies->active_user_aggregate($filters));
         }
 
         if ($drilldownkey === 'company_eds_queue' || $drilldownkey === 'client_eds_queue') {
             $eds = new eds_repository();
-            return $this->result('EDS Queue - pending manual signatures', $eds->pending_manual_rows($filters, $page, $perpage));
+            return $this->result(get_string('drilldown:title:edsqueue', 'block_dashboardanalytics'), $eds->pending_manual_rows($filters, $page, $perpage));
         }
 
         if ($drilldownkey === 'client_total_staff') {
             $employees = new employee_repository();
             $result = $employees->get_staff_rows($filters, $page, $perpage, $showidentity);
-            return $this->result('Total staff', $result);
+            return $this->result(get_string('drilldown:title:totalstaff', 'block_dashboardanalytics'), $result);
         }
 
         if ($drilldownkey === 'employee_courses') {
-            return $this->result('My courses', [
+            return $this->result(get_string('drilldown:title:mycourses', 'block_dashboardanalytics'), [
                 'columns' => [],
                 'rows' => [],
                 'totalcount' => 0,
-                'notice' => 'Course requirements are data pending for the employee dashboard integration slice.',
+                'notice' => get_string('drilldown:notice:coursespending', 'block_dashboardanalytics'),
             ]);
         }
 
@@ -67,9 +67,9 @@ class compliance_service {
         $result = $documents->document_rows($filters, $status, $page, $perpage, $showidentity);
 
         $title = $drilldownkey === 'employee_documents'
-            ? 'My certificates and protocols'
+            ? get_string('drilldown:title:mydocuments', 'block_dashboardanalytics')
             : ($drilldownkey === 'company_compliance' || $drilldownkey === 'client_compliance'
-            ? 'Compliance - document status by employee'
+            ? get_string('drilldown:title:compliance', 'block_dashboardanalytics')
             : get_string('complianceactiontable', 'block_dashboardanalytics'));
 
         return $this->result($title, $result);

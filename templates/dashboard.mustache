@@ -27,13 +27,18 @@
         </div>
 
         <section class="da-filter-band" data-region="filter-band">
-            <span class="da-filter-label">FILTER:</span>
+            <span class="da-filter-label">{{#str}}filter:label, block_dashboardanalytics{{/str}}</span>
             <div class="da-filter-grid" data-region="filter-bar">
                 <div class="da-loading">{{#str}}loading, block_dashboardanalytics{{/str}}</div>
             </div>
-            <button type="button" class="da-active-filter-chip" data-action="clear-filters">
-                Active filters: All ×
-            </button>
+            <div class="da-filter-actions">
+                <button type="button" class="da-filter-add" data-action="toggle-add-filter">
+                    {{#str}}filter:add, block_dashboardanalytics{{/str}}
+                </button>
+                <button type="button" class="da-active-filter-chip" data-action="clear-filters">
+                    {{#str}}filter:clearall, block_dashboardanalytics{{/str}}
+                </button>
+            </div>
         </section>
 
         <section class="da-kpi-strip" data-region="kpi-strip" aria-live="polite">

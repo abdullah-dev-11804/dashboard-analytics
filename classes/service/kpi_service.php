@@ -35,43 +35,43 @@ class kpi_service {
             return [
                 [
                     'key' => 'personalstatus',
-                    'label' => 'My training status',
-                    'value' => $documentcounts['configured'] ? $compliancevalue : 'Pending',
+                    'label' => get_string('kpi:mytrainingstatus', 'block_dashboardanalytics'),
+                    'value' => $documentcounts['configured'] ? $compliancevalue : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                     'unit' => '',
                     'status' => $documentcounts['configured'] ? $compliancestatus : 'muted',
-                    'trend' => $documentcounts['configured'] ? 'Personal scope' : 'Data pending',
+                    'trend' => $documentcounts['configured'] ? get_string('kpi:help:scopepersonal', 'block_dashboardanalytics') : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
                     'drilldownkey' => 'employee_documents',
-                    'help' => 'Personal document status for the logged-in employee. Expiry details depend on the document validity milestone.',
+                    'help' => get_string('kpi:help:personalstatus', 'block_dashboardanalytics'),
                 ],
                 [
                     'key' => 'certificates',
-                    'label' => 'Certificates',
-                    'value' => $documentcounts['configured'] ? (string)$documentcounts['total'] : 'Pending',
+                    'label' => get_string('kpi:certificates', 'block_dashboardanalytics'),
+                    'value' => $documentcounts['configured'] ? (string)$documentcounts['total'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                     'unit' => '',
                     'status' => $documentcounts['configured'] ? 'ok' : 'muted',
-                    'trend' => 'My documents',
+                    'trend' => get_string('kpi:help:mydocuments', 'block_dashboardanalytics'),
                     'drilldownkey' => 'employee_documents',
-                    'help' => 'Signed certificate/protocol rows linked to this employee.',
+                    'help' => get_string('kpi:help:personaldocuments', 'block_dashboardanalytics'),
                 ],
                 [
                     'key' => 'expiring30',
                     'label' => get_string('kpi:expiring30', 'block_dashboardanalytics'),
-                    'value' => $documentcounts['configured'] ? (string)$documentcounts['expiring'] : 'Pending',
+                    'value' => $documentcounts['configured'] ? (string)$documentcounts['expiring'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                     'unit' => '',
                     'status' => $documentcounts['expiring'] > 0 ? 'warning' : ($documentcounts['configured'] ? 'ok' : 'muted'),
-                    'trend' => $documentcounts['configured'] ? 'Next 30 days' : 'Data pending',
+                    'trend' => $documentcounts['configured'] ? get_string('kpi:help:next30days', 'block_dashboardanalytics') : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
                     'drilldownkey' => 'employee_documents',
-                    'help' => 'Personal documents expiring within 30 days once validity data is available.',
+                    'help' => get_string('kpi:help:personaldocuments30', 'block_dashboardanalytics'),
                 ],
                 [
                     'key' => 'courses',
-                    'label' => 'Courses',
-                    'value' => 'Pending',
+                    'label' => get_string('kpi:courses', 'block_dashboardanalytics'),
+                    'value' => get_string('kpi:value:pending', 'block_dashboardanalytics'),
                     'unit' => '',
                     'status' => 'muted',
-                    'trend' => 'LMS integration',
+                    'trend' => get_string('kpi:help:lmsintegration', 'block_dashboardanalytics'),
                     'drilldownkey' => 'employee_courses',
-                    'help' => 'Required/current course list will be connected during the employee dashboard integration slice.',
+                    'help' => get_string('kpi:help:personalcourses', 'block_dashboardanalytics'),
                 ],
             ];
         }
@@ -82,52 +82,52 @@ class kpi_service {
             $previousreport = $overview->overall_employee_compliance_summary($filters, $previousmonth);
             $statuscounts = $overview->status_counts($filters);
 
-            $compliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : 'No enrolled staff';
+            $compliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics');
             $compliancestatus = $currentreport['total'] > 0
                 ? ($currentreport['percent'] >= 80 ? 'ok' : ($currentreport['percent'] >= 70 ? 'warning' : 'danger'))
                 : 'muted';
-            $compliancetrend = $this->percent_delta_badge((float)$currentreport['percent'], (float)$previousreport['percent'], 'vs last mo');
+            $compliancetrend = $this->percent_delta_badge((float)$currentreport['percent'], (float)$previousreport['percent'], get_string('kpi:trend:vslastmo', 'block_dashboardanalytics'));
 
             return [
                 [
                     'key' => 'totalactiveusers',
-                    'label' => 'Total active staff',
+                    'label' => get_string('kpi:totalstaff', 'block_dashboardanalytics'),
                     'value' => (string)$totalstaff,
                     'unit' => '',
                     'status' => 'info',
                     'trend' => '',
                     'drilldownkey' => 'company_total_active_users',
-                    'help' => 'by dept · location · position',
+                    'help' => get_string('kpi:help:bydeptlocationposition', 'block_dashboardanalytics'),
                 ],
                 [
                     'key' => 'compliance',
-                    'label' => 'Company compliance',
+                    'label' => get_string('kpi:companycompliance', 'block_dashboardanalytics'),
                     'value' => $compliancevalue,
                     'unit' => '',
                     'status' => $compliancestatus,
                     'trend' => $compliancetrend,
                     'drilldownkey' => 'company_compliance',
-                    'help' => 'by dept · location · course',
+                    'help' => get_string('kpi:help:bydeptlocationcourse', 'block_dashboardanalytics'),
                 ],
                 [
                     'key' => 'expiring30',
-                    'label' => 'Expiring within 30 days',
+                    'label' => get_string('kpi:expiring30long', 'block_dashboardanalytics'),
                     'value' => (string)$statuscounts['expiring'],
                     'unit' => '',
                     'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
                     'trend' => '',
                     'drilldownkey' => 'company_expiring_documents',
-                    'help' => 'employee list',
+                    'help' => get_string('kpi:help:employeelist', 'block_dashboardanalytics'),
                 ],
                 [
                     'key' => 'expired',
-                    'label' => 'Expired now',
+                    'label' => get_string('kpi:expirednow', 'block_dashboardanalytics'),
                     'value' => (string)$statuscounts['expired'],
                     'unit' => '',
                     'status' => $statuscounts['expired'] > 0 ? 'danger' : 'ok',
                     'trend' => '',
                     'drilldownkey' => 'company_expired_documents',
-                    'help' => 'urgent action list',
+                    'help' => get_string('kpi:help:urgentactionlist', 'block_dashboardanalytics'),
                 ],
             ];
         }
@@ -141,7 +141,7 @@ class kpi_service {
                 'status' => 'ok',
                 'trend' => '',
                 'drilldownkey' => 'client_total_staff',
-                'help' => 'Active confirmed Moodle users in the current filter scope.',
+                'help' => get_string('kpi:help:activeconfirmedusers', 'block_dashboardanalytics'),
             ],
             [
                 'key' => 'compliance',
@@ -152,48 +152,48 @@ class kpi_service {
                 'trend' => '',
                 'drilldownkey' => 'client_compliance',
                 'help' => $documentcounts['configured']
-                    ? 'Percentage of configured document rows that are active and not expiring within 30 days.'
-                    : 'Configure the certificate/document table in block settings to calculate compliance.',
+                    ? get_string('kpi:help:clientcomplianceconfigured', 'block_dashboardanalytics')
+                    : get_string('kpi:help:clientcompliancepending', 'block_dashboardanalytics'),
             ],
             [
                 'key' => 'expiring30',
                 'label' => get_string('kpi:expiring30', 'block_dashboardanalytics'),
-                'value' => $documentcounts['configured'] ? (string)$documentcounts['expiring'] : 'Pending',
+                'value' => $documentcounts['configured'] ? (string)$documentcounts['expiring'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                 'unit' => '',
                 'status' => $documentcounts['configured'] ? ($documentcounts['expiring'] > 0 ? 'warning' : 'ok') : 'muted',
-                'trend' => $documentcounts['configured'] ? '' : 'Data pending',
+                'trend' => $documentcounts['configured'] ? '' : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
                 'drilldownkey' => 'client_expiring_documents',
-                'help' => 'Documents expiring in the next 30 days.',
+                'help' => get_string('kpi:help:documents30', 'block_dashboardanalytics'),
             ],
             [
                 'key' => 'expired',
                 'label' => get_string('kpi:expired', 'block_dashboardanalytics'),
-                'value' => $documentcounts['configured'] ? (string)$documentcounts['expired'] : 'Pending',
+                'value' => $documentcounts['configured'] ? (string)$documentcounts['expired'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                 'unit' => '',
                 'status' => $documentcounts['configured'] ? ($documentcounts['expired'] > 0 ? 'danger' : 'ok') : 'muted',
-                'trend' => $documentcounts['configured'] ? '' : 'Data pending',
+                'trend' => $documentcounts['configured'] ? '' : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
                 'drilldownkey' => 'client_expired_documents',
-                'help' => 'Documents whose configured expiry timestamp is already in the past.',
+                'help' => get_string('kpi:help:documentsexpired', 'block_dashboardanalytics'),
             ],
             [
                 'key' => 'edsqueue',
-                'label' => 'EDS Queue',
+                'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
                 'value' => (string)$edsqueue,
                 'unit' => '',
                 'status' => $edsqueue > 0 ? 'warning' : 'ok',
-                'trend' => 'Pending manual',
+                'trend' => get_string('panel:pendingmanual', 'block_dashboardanalytics'),
                 'drilldownkey' => 'client_eds_queue',
-                'help' => 'Pending manual EDS signatures from NCASign for the current client scope.',
+                'help' => get_string('kpi:help:edsqueue', 'block_dashboardanalytics'),
             ],
             [
                 'key' => 'documentsource',
                 'label' => get_string('kpi:documentsource', 'block_dashboardanalytics'),
-                'value' => $documentcounts['configured'] ? 'Ready' : 'Pending',
+                'value' => $documentcounts['configured'] ? get_string('kpi:documentsourceready', 'block_dashboardanalytics') : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                 'unit' => '',
                 'status' => $documentcounts['configured'] ? 'ok' : 'muted',
                 'trend' => '',
                 'drilldownkey' => 'client_compliance',
-                'help' => 'Status of the configured compliance document source.',
+                'help' => get_string('kpi:help:documentsource', 'block_dashboardanalytics'),
             ],
         ];
     }
@@ -201,9 +201,13 @@ class kpi_service {
     private function percent_delta_badge(float $current, float $previous, string $suffix): string {
         $delta = round($current - $previous, 1);
         if (abs($delta) < 0.1) {
-            return 'flat · ' . $suffix;
+            return get_string('kpi:trend:flat', 'block_dashboardanalytics', $suffix);
         }
 
-        return ($delta > 0 ? 'up ' : 'down ') . abs($delta) . '% ' . $suffix;
+        if ($delta > 0) {
+            return get_string('kpi:trend:up', 'block_dashboardanalytics', (object)['delta' => abs($delta), 'suffix' => $suffix]);
+        }
+
+        return get_string('kpi:trend:down', 'block_dashboardanalytics', (object)['delta' => abs($delta), 'suffix' => $suffix]);
     }
 }

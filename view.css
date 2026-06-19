@@ -73,6 +73,13 @@
     align-items: center;
 }
 
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-actions {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-label {
     color: #49576a;
     font-size: .76rem;
@@ -80,7 +87,8 @@
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-select,
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-active-filter-chip {
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-active-filter-chip,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-add {
     min-height: 2.5rem;
     border-radius: 10px;
     font-size: .84rem;
@@ -95,6 +103,10 @@
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-active-filter-chip {
     padding: .4rem .85rem;
     font-weight: 600;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-add {
+    padding: .4rem .85rem;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip {

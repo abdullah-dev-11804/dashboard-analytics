@@ -131,10 +131,10 @@ class document_repository {
         $total = max(1, (int)$counts['total'] + (int)$counts['nodocument']);
 
         return [
-            $this->visual_item('Active', (int)$counts['active'], $total, 'ok'),
-            $this->visual_item('Expiring', (int)$counts['expiring'], $total, 'warning'),
-            $this->visual_item('Expired', (int)$counts['expired'], $total, 'danger'),
-            $this->visual_item('No document', (int)$counts['nodocument'], $total, 'muted'),
+            $this->visual_item(get_string('label:active', 'block_dashboardanalytics'), (int)$counts['active'], $total, 'ok'),
+            $this->visual_item(get_string('label:expiring', 'block_dashboardanalytics'), (int)$counts['expiring'], $total, 'warning'),
+            $this->visual_item(get_string('label:expired', 'block_dashboardanalytics'), (int)$counts['expired'], $total, 'danger'),
+            $this->visual_item(get_string('label:nodocument', 'block_dashboardanalytics'), (int)$counts['nodocument'], $total, 'muted'),
         ];
     }
 
@@ -201,7 +201,10 @@ class document_repository {
                 'value' => $item['value'],
                 'percent' => round(($item['rawtotal'] / $max) * 100, 1),
                 'status' => $item['expired'] > 0 ? 'danger' : 'warning',
-                'meta' => $item['expired'] . ' expired, ' . $item['expiring'] . ' expiring',
+                'meta' => get_string('meta:expiredexpiring', 'block_dashboardanalytics', (object)[
+                    'expired' => $item['expired'],
+                    'expiring' => $item['expiring'],
+                ]),
             ];
         }
 
@@ -252,7 +255,7 @@ class document_repository {
                 'value' => (string)$affected,
                 'percent' => round(($affected / $max) * 100, 1),
                 'status' => $affected > 20 ? 'danger' : ($affected > 10 ? 'warning' : 'ok'),
-                'meta' => 'Expired or expiring soon',
+                'meta' => get_string('meta:expiredorsoon', 'block_dashboardanalytics'),
             ];
         }
 
@@ -786,38 +789,38 @@ class document_repository {
 
     private function compliance_status(float $compliance): string {
         if ($compliance >= 80) {
-            return 'Green';
+            return get_string('label:green', 'block_dashboardanalytics');
         }
 
         if ($compliance >= 70) {
-            return 'Amber';
+            return get_string('label:amber', 'block_dashboardanalytics');
         }
 
-        return 'Red';
+        return get_string('label:red', 'block_dashboardanalytics');
     }
 
     private function status_label(int $expiry): string {
         if ($expiry < time()) {
-            return 'Expired';
+            return get_string('label:expired', 'block_dashboardanalytics');
         }
 
         if ($expiry <= time() + (30 * DAYSECS)) {
-            return 'Expiring';
+            return get_string('label:expiring', 'block_dashboardanalytics');
         }
 
-        return 'Active';
+        return get_string('label:active', 'block_dashboardanalytics');
     }
 
     private function columns(): array {
         return [
-            ['key' => 'employee', 'label' => 'Employee'],
-            ['key' => 'company', 'label' => 'Company'],
-            ['key' => 'department', 'label' => 'Department'],
-            ['key' => 'location', 'label' => 'Location'],
-            ['key' => 'course', 'label' => 'Course'],
-            ['key' => 'expiry', 'label' => 'Expiry date'],
-            ['key' => 'days', 'label' => 'Days remaining'],
-            ['key' => 'status', 'label' => 'Status'],
+            ['key' => 'employee', 'label' => get_string('label:employee', 'block_dashboardanalytics')],
+            ['key' => 'company', 'label' => get_string('label:company', 'block_dashboardanalytics')],
+            ['key' => 'department', 'label' => get_string('label:department', 'block_dashboardanalytics')],
+            ['key' => 'location', 'label' => get_string('label:location', 'block_dashboardanalytics')],
+            ['key' => 'course', 'label' => get_string('label:course', 'block_dashboardanalytics')],
+            ['key' => 'expiry', 'label' => get_string('label:expirydate', 'block_dashboardanalytics')],
+            ['key' => 'days', 'label' => get_string('label:daysremaining', 'block_dashboardanalytics')],
+            ['key' => 'status', 'label' => get_string('label:status', 'block_dashboardanalytics')],
         ];
     }
 }

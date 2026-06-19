@@ -22,7 +22,10 @@ class employee_repository {
         global $DB;
 
         $filter = $this->user_filter_sql($filters, 'u', 'staffrows');
-        $sql = "SELECT u.id, u.firstname, u.lastname, u.email, u.department, u.city, u.timecreated, u.suspended
+        $departmentexpr = $this->dimension_expr('departments', 'u', 'staffrowsdept');
+        $locationexpr = $this->dimension_expr('locations', 'u', 'staffrowsloc');
+        $sql = "SELECT u.id, u.firstname, u.lastname, u.email, {$departmentexpr} AS departmentname,
+                       {$locationexpr} AS locationname, u.timecreated, u.suspended
                   FROM {user} u
                  WHERE {$filter['sql']}
               ORDER BY u.lastname ASC, u.firstname ASC";
@@ -34,9 +37,9 @@ class employee_repository {
             $rows[] = [
                 'cells' => [
                     ['key' => 'employee', 'value' => $showidentity ? fullname($record) : get_string('hiddenuser')],
-                    ['key' => 'department', 'value' => (string)$record->department],
-                    ['key' => 'location', 'value' => (string)$record->city],
-                    ['key' => 'status', 'value' => $record->suspended ? 'Suspended' : 'Active'],
+                    ['key' => 'department', 'value' => (string)$record->departmentname],
+                    ['key' => 'location', 'value' => (string)$record->locationname],
+                    ['key' => 'status', 'value' => $record->suspended ? get_string('label:suspended', 'block_dashboardanalytics') : get_string('label:active', 'block_dashboardanalytics')],
                     ['key' => 'created', 'value' => userdate((int)$record->timecreated, get_string('strftimedate'))],
                 ],
             ];
@@ -44,11 +47,11 @@ class employee_repository {
 
         return [
             'columns' => [
-                ['key' => 'employee', 'label' => 'Employee'],
-                ['key' => 'department', 'label' => 'Department'],
-                ['key' => 'location', 'label' => 'Location'],
-                ['key' => 'status', 'label' => 'Status'],
-                ['key' => 'created', 'label' => 'Created'],
+                ['key' => 'employee', 'label' => get_string('label:employee', 'block_dashboardanalytics')],
+                ['key' => 'department', 'label' => get_string('label:department', 'block_dashboardanalytics')],
+                ['key' => 'location', 'label' => get_string('label:location', 'block_dashboardanalytics')],
+                ['key' => 'status', 'label' => get_string('label:status', 'block_dashboardanalytics')],
+                ['key' => 'created', 'label' => get_string('label:created', 'block_dashboardanalytics')],
             ],
             'rows' => $rows,
             'totalcount' => $this->count_active_users($filters),
@@ -62,12 +65,13 @@ class employee_repository {
         $params = $filter['params'];
         $params['createdsince'] = time() - ($days * DAYSECS);
 
-        $sql = "SELECT COALESCE(NULLIF(u.department, ''), 'Unassigned') AS department,
+        $departmentexpr = $this->dimension_expr('departments', 'u', 'newstaffrisk');
+        $sql = "SELECT {$departmentexpr} AS department,
                        COUNT(1) AS newstaff
                   FROM {user} u
                  WHERE {$filter['sql']}
                    AND u.timecreated >= :createdsince
-              GROUP BY COALESCE(NULLIF(u.department, ''), 'Unassigned')
+              GROUP BY {$departmentexpr}
               ORDER BY newstaff DESC";
 
         $records = $DB->get_records_sql($sql, $params, 0, $limit);
@@ -84,7 +88,7 @@ class employee_repository {
                 'value' => (string)$count,
                 'percent' => round(($count / $max) * 100, 1),
                 'status' => $count > 20 ? 'danger' : ($count > 10 ? 'warning' : 'ok'),
-                'meta' => 'created in last ' . $days . ' days',
+                'meta' => get_string('meta:createdlastdays', 'block_dashboardanalytics', $days),
             ];
         }
 
@@ -95,8 +99,8 @@ class employee_repository {
         global $DB;
 
         $allowed = [
-            'department' => "COALESCE(NULLIF(u.department, ''), 'Unassigned')",
-            'location' => "COALESCE(NULLIF(u.city, ''), 'Unassigned')",
+            'department' => $this->dimension_expr('departments', 'u', 'userdimdept'),
+            'location' => $this->dimension_expr('locations', 'u', 'userdimloc'),
         ];
 
         $expr = $allowed[$dimension] ?? $allowed['department'];
@@ -123,7 +127,7 @@ class employee_repository {
                 'value' => (string)$count,
                 'percent' => round(($count / $max) * 100, 1),
                 'status' => 'info',
-                'meta' => 'active users',
+                'meta' => get_string('meta:activeusers', 'block_dashboardanalytics'),
             ];
         }
 
@@ -134,13 +138,15 @@ class employee_repository {
         global $DB;
 
         $filter = $this->user_filter_sql($filters, 'u', 'staffdist');
-        $sql = "SELECT COALESCE(NULLIF(u.city, ''), 'Unassigned') AS location,
-                       COALESCE(NULLIF(u.department, ''), 'Unassigned') AS department,
+        $locationexpr = $this->dimension_expr('locations', 'u', 'staffdistloc');
+        $departmentexpr = $this->dimension_expr('departments', 'u', 'staffdistdept');
+        $sql = "SELECT {$locationexpr} AS location,
+                       {$departmentexpr} AS department,
                        COUNT(1) AS usercount
                   FROM {user} u
                  WHERE {$filter['sql']}
-              GROUP BY COALESCE(NULLIF(u.city, ''), 'Unassigned'),
-                       COALESCE(NULLIF(u.department, ''), 'Unassigned')
+              GROUP BY {$locationexpr},
+                       {$departmentexpr}
               ORDER BY location ASC, usercount DESC";
 
         $records = $DB->get_records_sql($sql, $filter['params']);
@@ -171,7 +177,7 @@ class employee_repository {
                 'value' => (string)array_sum(array_map('intval', array_column($segments, 'value'))),
                 'percent' => 100.0,
                 'status' => 'info',
-                'meta' => 'headcount by department',
+                'meta' => get_string('meta:headcountbydepartment', 'block_dashboardanalytics'),
                 'segments' => array_slice($segments, 0, 4),
             ];
         }
@@ -233,51 +239,27 @@ class employee_repository {
         }
 
         if (!empty($filters['departments'])) {
-            [$insql, $inparams] = $DB->get_in_or_equal($filters['departments'], SQL_PARAMS_NAMED, $prefix . 'department');
-            if ($this->profile_field_exists('department')) {
-                $dataalias = 'uiddep' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldalias = 'uifdep' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldkey = $prefix . 'departmentfield';
-                $where[] = "EXISTS (
-                                SELECT 1
-                                  FROM {user_info_data} {$dataalias}
-                                  JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
-                                 WHERE {$dataalias}.userid = {$alias}.id
-                                   AND {$fieldalias}.shortname = :{$fieldkey}
-                                   AND {$dataalias}.data {$insql}
-                             )";
-                $params[$fieldkey] = 'department';
-                $params += $inparams;
-            } else {
-                $where[] = "{$alias}.department {$insql}";
-                $params += $inparams;
-            }
+            $this->append_profile_field_filter($where, $params, $filters['departments'], $this->profile_field_shortnames('departments'), 'department', $alias, $prefix . 'department');
         }
 
         if (!empty($filters['locations'])) {
-            [$insql, $inparams] = $DB->get_in_or_equal($filters['locations'], SQL_PARAMS_NAMED, $prefix . 'location');
-            $where[] = "{$alias}.city {$insql}";
-            $params += $inparams;
+            $this->append_profile_field_filter($where, $params, $filters['locations'], $this->profile_field_shortnames('locations'), 'city', $alias, $prefix . 'location');
         }
 
         if (!empty($filters['positions'])) {
-            $positionfield = trim((string)get_config('block_dashboardanalytics', 'positionfield'));
-            if ($positionfield !== '') {
-                [$insql, $inparams] = $DB->get_in_or_equal($filters['positions'], SQL_PARAMS_NAMED, $prefix . 'position');
-                $dataalias = 'uid' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldalias = 'uif' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldkey = $prefix . 'positionfield';
-                $where[] = "EXISTS (
-                                SELECT 1
-                                  FROM {user_info_data} {$dataalias}
-                                  JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
-                                 WHERE {$dataalias}.userid = {$alias}.id
-                                   AND {$fieldalias}.shortname = :{$fieldkey}
-                                   AND {$dataalias}.data {$insql}
-                             )";
-                $params[$fieldkey] = $positionfield;
-                $params += $inparams;
-            }
+            $this->append_profile_field_filter($where, $params, $filters['positions'], $this->profile_field_shortnames('positions'), '', $alias, $prefix . 'position');
+        }
+
+        if (!empty($filters['personnelcategories'])) {
+            $this->append_profile_field_filter($where, $params, $filters['personnelcategories'], $this->profile_field_shortnames('personnelcategories'), '', $alias, $prefix . 'personnelcategory');
+        }
+
+        if (!empty($filters['sites'])) {
+            $this->append_profile_field_filter($where, $params, $filters['sites'], $this->profile_field_shortnames('sites'), '', $alias, $prefix . 'site');
+        }
+
+        if (!empty($filters['educations'])) {
+            $this->append_profile_field_filter($where, $params, $filters['educations'], $this->profile_field_shortnames('educations'), '', $alias, $prefix . 'education');
         }
 
         if (!empty($filters['search'])) {
@@ -297,5 +279,92 @@ class employee_repository {
         global $DB;
 
         return $DB->record_exists('user_info_field', ['shortname' => $shortname]);
+    }
+
+    private function append_profile_field_filter(
+        array &$where,
+        array &$params,
+        array $values,
+        array $shortnames,
+        string $fallbackcolumn,
+        string $alias,
+        string $prefix
+    ): void {
+        global $DB;
+
+        [$insql, $inparams] = $DB->get_in_or_equal($values, SQL_PARAMS_NAMED, $prefix);
+        $shortname = $this->existing_profile_field($shortnames);
+        if ($shortname !== '') {
+            $dataalias = 'uid' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $fieldalias = 'uif' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $fieldkey = $prefix . 'field';
+            $where[] = "EXISTS (
+                            SELECT 1
+                              FROM {user_info_data} {$dataalias}
+                              JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
+                             WHERE {$dataalias}.userid = {$alias}.id
+                               AND {$fieldalias}.shortname = :{$fieldkey}
+                               AND {$dataalias}.data {$insql}
+                         )";
+            $params[$fieldkey] = $shortname;
+            $params += $inparams;
+            return;
+        }
+
+        if ($fallbackcolumn !== '') {
+            $where[] = "{$alias}.{$fallbackcolumn} {$insql}";
+            $params += $inparams;
+        }
+    }
+
+    private function existing_profile_field(array $shortnames): string {
+        foreach ($shortnames as $shortname) {
+            if ($shortname !== '' && $this->profile_field_exists($shortname)) {
+                return $shortname;
+            }
+        }
+        return '';
+    }
+
+    private function profile_field_shortnames(string $key): array {
+        if ($key === 'departments') {
+            return ['Department', 'department'];
+        }
+        if ($key === 'locations') {
+            return ['Region'];
+        }
+        if ($key === 'positions') {
+            return array_values(array_filter(['Job_Title', trim((string)get_config('block_dashboardanalytics', 'positionfield'))]));
+        }
+        if ($key === 'personnelcategories') {
+            return ['PersonnelCategory'];
+        }
+        if ($key === 'sites') {
+            return ['Site'];
+        }
+        if ($key === 'educations') {
+            return ['edu'];
+        }
+        return [];
+    }
+
+    private function dimension_expr(string $key, string $alias, string $prefix): string {
+        $fallback = $key === 'departments'
+            ? "{$alias}.department"
+            : ($key === 'locations' ? "{$alias}.city" : "''");
+        $shortname = $this->existing_profile_field($this->profile_field_shortnames($key));
+        if ($shortname === '') {
+            return "COALESCE(NULLIF({$fallback}, ''), '" . get_string('label:unassigned', 'block_dashboardanalytics') . "')";
+        }
+
+        $escaped = addslashes($shortname);
+        return "COALESCE(NULLIF((
+                    SELECT uid.data
+                      FROM {user_info_data} uid
+                      JOIN {user_info_field} uif ON uif.id = uid.fieldid
+                     WHERE uid.userid = {$alias}.id
+                       AND uif.shortname = '{$escaped}'
+                     LIMIT 1
+                ), ''), " . ($fallback !== "''" ? "NULLIF({$fallback}, '')" : "''") . ", '" . get_string('label:unassigned', 'block_dashboardanalytics') . "')";
     }
 }

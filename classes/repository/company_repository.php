@@ -159,17 +159,17 @@ class company_repository {
 
         return [
             'columns' => [
-                ['key' => 'company', 'label' => 'Company'],
-                ['key' => 'activeusers', 'label' => 'Active users'],
-                ['key' => 'validusers', 'label' => 'Valid signed users'],
-                ['key' => 'compliance', 'label' => 'Compliance %'],
-                ['key' => 'status', 'label' => 'Status'],
-                ['key' => 'action', 'label' => 'Action'],
+                ['key' => 'company', 'label' => get_string('label:company', 'block_dashboardanalytics')],
+                ['key' => 'activeusers', 'label' => get_string('label:activeusers', 'block_dashboardanalytics')],
+                ['key' => 'validusers', 'label' => get_string('label:validusers', 'block_dashboardanalytics')],
+                ['key' => 'compliance', 'label' => get_string('label:compliancepercent', 'block_dashboardanalytics')],
+                ['key' => 'status', 'label' => get_string('label:status', 'block_dashboardanalytics')],
+                ['key' => 'action', 'label' => get_string('label:action', 'block_dashboardanalytics')],
             ],
             'rows' => $rows,
             'totalcount' => count($rows),
             'notice' => '',
-            'description' => 'Compliance % = active users with at least one valid signed NCASign document / total active users x 100. Valid means origin=course_completion, status completed_manual or completed_auto, and calculated expiry from course completion plus validity_period is not expired.',
+            'description' => '',
         ];
     }
 
@@ -203,7 +203,10 @@ class company_repository {
                 'value' => $summary['compliance'] . '%',
                 'percent' => (float)$summary['compliance'],
                 'status' => strtolower($summary['status']),
-                'meta' => $summary['validusers'] . ' / ' . $summary['totalactiveusers'] . ' valid users',
+                'meta' => get_string('meta:validusers', 'block_dashboardanalytics', (object)[
+                    'valid' => $summary['validusers'],
+                    'total' => $summary['totalactiveusers'],
+                ]),
             ];
         }
 

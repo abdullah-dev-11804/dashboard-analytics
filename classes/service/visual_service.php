@@ -49,15 +49,24 @@ class visual_service {
         }
 
         if ($tabkey === 'quality') {
-            return $this->company_pending('Training Quality', 'Training quality analytics are pending quiz and completion metric integration.');
+            return $this->company_pending(
+                get_string('panel:quality:title', 'block_dashboardanalytics'),
+                get_string('panel:quality:pending', 'block_dashboardanalytics')
+            );
         }
 
         if ($tabkey === 'server') {
-            return $this->company_pending('Server', 'Server capacity and performance analytics are pending server metric collection integration.');
+            return $this->company_pending(
+                get_string('panel:server:title', 'block_dashboardanalytics'),
+                get_string('panel:server:pending', 'block_dashboardanalytics')
+            );
         }
 
         if ($tabkey === 'turnover') {
-            return $this->company_pending('Staff Turnover', 'Staff turnover analytics are pending final data-source confirmation.');
+            return $this->company_pending(
+                get_string('panel:turnover:title', 'block_dashboardanalytics'),
+                get_string('panel:turnover:pending', 'block_dashboardanalytics')
+            );
         }
 
         return $this->overview($filters);
@@ -67,14 +76,14 @@ class visual_service {
         $overview = new overview_repository();
 
         return [
-            'title' => 'Overview',
-            'description' => 'Company snapshot based on active enrolled user-course compliance checks.',
+            'title' => get_string('panel:overview:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:overview:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('compliancetrend', 'Compliance Trend', 'grouped', 'Monthly compliance by company across the selected period.', $overview->compliance_trend_items($filters)),
-                $this->panel('companycompliance', 'Company Compliance Ranking', 'bar', 'Worst companies are shown first. Compliance requires every active enrolled course to be Active or Expiring.', $overview->company_compliance_items($filters)),
-                $this->panel('documentstatus', 'Document Status Distribution', 'donut', 'Active, expiring, expired and missing certification checks across enrolled courses.', $overview->status_distribution_items($filters)),
-                $this->panel('riskcompany', 'Expired vs Expiring by Company', 'grouped', 'Companies ordered by total at-risk certification checks.', $overview->expired_expiring_by_company_items($filters)),
-                $this->panel('coursecompliance', 'Course Non-compliance', 'bar', 'Courses with the highest share of expired or missing documents among enrolled participants.', $overview->course_non_compliance_items($filters)),
+                $this->panel('compliancetrend', get_string('panel:compliancetrend:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:compliancetrend:description', 'block_dashboardanalytics'), $overview->compliance_trend_items($filters)),
+                $this->panel('companycompliance', get_string('panel:companycompliance:title', 'block_dashboardanalytics'), 'bar', get_string('panel:companycompliance:description', 'block_dashboardanalytics'), $overview->company_compliance_items($filters)),
+                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
+                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $overview->expired_expiring_by_company_items($filters)),
+                $this->panel('coursecompliance', get_string('panel:coursecompliance:title', 'block_dashboardanalytics'), 'bar', get_string('panel:coursecompliance:description', 'block_dashboardanalytics'), $overview->course_non_compliance_items($filters)),
             ],
         ];
     }
@@ -92,10 +101,10 @@ class visual_service {
         }, $kpis->cards($filters, permissions::DASHBOARD_COMPANY));
 
         return [
-            'title' => 'KPI Strip',
-            'description' => 'Company-scoped compliance and staff summary.',
+            'title' => get_string('panel:companykpis:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:companykpis:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('companykpistrip', 'Company KPI Strip', 'cards', 'Total Active Staff, Company Compliance, Expiring within 30 days, and Expired Now.', $cards),
+                $this->panel('companykpistrip', get_string('panel:companykpistrip:title', 'block_dashboardanalytics'), 'cards', get_string('panel:companykpistrip:description', 'block_dashboardanalytics'), $cards),
             ],
         ];
     }
@@ -106,17 +115,17 @@ class visual_service {
         $edsrows = $eds->pending_manual_rows($filters, 0, 1);
 
         return [
-            'title' => 'Compliance',
-            'description' => 'Operational compliance visuals for expired, expiring and pending signature work.',
+            'title' => get_string('panel:compliance:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:compliance:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('riskcompany', 'Expired and expiring by company', 'bar', 'Companies ordered by total at-risk document count.', $documents->risk_by_company_items($filters)),
-                $this->panel('riskcourse', 'Non-compliance by course', 'bar', 'Courses with documents already expired or expiring within 30 days.', $documents->noncompliance_by_course_items($filters)),
-                $this->panel('edsqueue', 'EDS queue', 'cards', 'Pending manual signatures waiting for the current expected signer.', [[
-                    'label' => 'Pending manual',
+                $this->panel('riskcompany', get_string('panel:riskcompanyshort:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcompanyshort:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
+                $this->panel('riskcourse', get_string('panel:riskcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters)),
+                $this->panel('edsqueue', get_string('panel:edsqueue:title', 'block_dashboardanalytics'), 'cards', get_string('panel:edsqueue:description', 'block_dashboardanalytics'), [[
+                    'label' => get_string('panel:pendingmanual', 'block_dashboardanalytics'),
                     'value' => (string)$edsrows['totalcount'],
                     'percent' => min(100, (float)$edsrows['totalcount']),
                     'status' => $edsrows['totalcount'] > 0 ? 'warning' : 'ok',
-                    'meta' => 'NCASign signer queue',
+                    'meta' => get_string('panel:pendingmanualmeta', 'block_dashboardanalytics'),
                 ]]),
             ],
         ];
@@ -127,35 +136,35 @@ class visual_service {
 
         if ($proctoring->has_data($filters)) {
             return [
-                'title' => 'Proctoring',
-                'description' => 'Quilgo trust score distribution and company-level proctoring risk.',
+                'title' => get_string('panel:proctoring:title', 'block_dashboardanalytics'),
+                'description' => get_string('panel:proctoring:description', 'block_dashboardanalytics'),
                 'panels' => [
-                    $this->panel('trustdistribution', 'Trust score distribution', 'donut', 'Attempts grouped into Trusted, Review, Suspicious and Flagged bands.', $proctoring->trust_distribution_items($filters)),
-                    $this->panel('companytrust', 'Average trust score by company', 'bar', 'Companies with lower average trust scores appear first.', $proctoring->company_average_items($filters)),
+                    $this->panel('trustdistribution', get_string('panel:trustdistribution:title', 'block_dashboardanalytics'), 'donut', get_string('panel:trustdistribution:description', 'block_dashboardanalytics'), $proctoring->trust_distribution_items($filters)),
+                    $this->panel('companytrust', get_string('panel:companytrust:title', 'block_dashboardanalytics'), 'bar', get_string('panel:companytrust:description', 'block_dashboardanalytics'), $proctoring->company_average_items($filters)),
                 ],
             ];
         }
 
         if ($proctoring->has_reports($filters)) {
             return [
-                'title' => 'Proctoring',
-                'description' => 'Quilgo report rows exist, but stat is empty so trust scores are not available yet. Showing proctoring coverage instead.',
+                'title' => get_string('panel:proctoring:title', 'block_dashboardanalytics'),
+                'description' => get_string('panel:proctoring:partialdata', 'block_dashboardanalytics'),
                 'panels' => [
-                    $this->panel('proctoringcoverage', 'Proctoring coverage', 'donut', 'Attempts with Quilgo proctoring enabled versus reports without proctoring enabled.', $proctoring->coverage_items($filters)),
-                    $this->panel('proctoringfeatures', 'Capture features', 'cards', 'Camera, screen, force mode and captured errors from Quilgo report rows.', $proctoring->feature_items($filters)),
+                    $this->panel('proctoringcoverage', get_string('panel:proctoringcoverage:title', 'block_dashboardanalytics'), 'donut', get_string('panel:proctoringcoverage:description', 'block_dashboardanalytics'), $proctoring->coverage_items($filters)),
+                    $this->panel('proctoringfeatures', get_string('panel:proctoringfeatures:title', 'block_dashboardanalytics'), 'cards', get_string('panel:proctoringfeatures:description', 'block_dashboardanalytics'), $proctoring->feature_items($filters)),
                 ],
             ];
         }
 
         return [
-            'title' => 'Proctoring',
-            'description' => 'No Quilgo report rows were found for the current filters.',
+            'title' => get_string('panel:proctoring:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:proctoring:nodata', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('trustdistribution', 'Trust score distribution', 'donut', 'No parsable Quilgo trust scores yet.', [
-                    ['label' => 'Trusted', 'value' => '0', 'percent' => 0.0, 'status' => 'ok', 'meta' => '90-100'],
-                    ['label' => 'Review', 'value' => '0', 'percent' => 0.0, 'status' => 'warning', 'meta' => '70-89'],
-                    ['label' => 'Suspicious', 'value' => '0', 'percent' => 0.0, 'status' => 'warning', 'meta' => '50-69'],
-                    ['label' => 'Flagged', 'value' => '0', 'percent' => 0.0, 'status' => 'danger', 'meta' => '0-49'],
+                $this->panel('trustdistribution', get_string('panel:trustdistribution:title', 'block_dashboardanalytics'), 'donut', get_string('panel:trustdistribution:description', 'block_dashboardanalytics'), [
+                    ['label' => get_string('panel:trusttrusted', 'block_dashboardanalytics'), 'value' => '0', 'percent' => 0.0, 'status' => 'ok', 'meta' => '90-100'],
+                    ['label' => get_string('panel:trustreview', 'block_dashboardanalytics'), 'value' => '0', 'percent' => 0.0, 'status' => 'warning', 'meta' => '70-89'],
+                    ['label' => get_string('panel:trustsuspicious', 'block_dashboardanalytics'), 'value' => '0', 'percent' => 0.0, 'status' => 'warning', 'meta' => '50-69'],
+                    ['label' => get_string('panel:trustflagged', 'block_dashboardanalytics'), 'value' => '0', 'percent' => 0.0, 'status' => 'danger', 'meta' => '0-49'],
                 ]),
             ],
         ];
@@ -165,11 +174,11 @@ class visual_service {
         $documents = new document_repository();
 
         return [
-            'title' => 'Forecast',
-            'description' => 'Scheduling pressure based on upcoming NCASign document expiry dates.',
+            'title' => get_string('panel:forecast:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:forecast:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('expirywindows', '30/60/90 day workload', 'cards', 'At-a-glance retraining load for the next three windows.', $documents->forecast_window_items($filters)),
-                $this->panel('forecastcompany', 'Upcoming risk by company', 'bar', 'Companies with the most expired or soon-expiring documents.', $documents->risk_by_company_items($filters)),
+                $this->panel('expirywindows', get_string('panel:expirywindows:title', 'block_dashboardanalytics'), 'cards', get_string('panel:expirywindows:description', 'block_dashboardanalytics'), $documents->forecast_window_items($filters)),
+                $this->panel('forecastcompany', get_string('panel:forecastcompany:title', 'block_dashboardanalytics'), 'bar', get_string('panel:forecastcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
             ],
         ];
     }
@@ -195,12 +204,12 @@ class visual_service {
         $employees = new employee_repository();
 
         return [
-            'title' => 'Overview',
-            'description' => 'Client dashboard view focused on department, location and site-level compliance.',
+            'title' => get_string('panel:clientoverview:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:clientoverview:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('clientdocumentstatus', 'Document status distribution', 'donut', 'Active, expiring, expired and missing document coverage for the current scope.', $documents->status_items($filters)),
-                $this->panel('staffdistribution', 'Staff distribution - department x location', 'grouped', 'Headcount per location, split by department.', $employees->staff_distribution_by_location_items($filters)),
-                $this->panel('certstatusdepartment', 'Certification status by department', 'stacked', 'Active, expiring and expired document counts by department.', $documents->certification_status_stacked_items($filters, 'department')),
+                $this->panel('clientdocumentstatus', get_string('panel:clientdocumentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:clientdocumentstatus:description', 'block_dashboardanalytics'), $documents->status_items($filters)),
+                $this->panel('staffdistribution', get_string('panel:staffdistribution:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:staffdistribution:description', 'block_dashboardanalytics'), $employees->staff_distribution_by_location_items($filters)),
+                $this->panel('certstatusdepartment', get_string('panel:certstatusdepartment:title', 'block_dashboardanalytics'), 'stacked', get_string('panel:certstatusdepartment:description', 'block_dashboardanalytics'), $documents->certification_status_stacked_items($filters, 'department')),
             ],
         ];
     }
@@ -209,12 +218,12 @@ class visual_service {
         $documents = new document_repository();
 
         return [
-            'title' => 'Compliance',
-            'description' => 'Compliance breakdowns for the client dashboard scope.',
+            'title' => get_string('panel:clientcompliance:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:clientcompliance:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('expiredexpiringdepartment', 'Expired & expiring - by department', 'grouped', 'Expired now versus expiring within 30 days.', $documents->expired_expiring_grouped_items($filters, 'department')),
-                $this->panel('expiredexpiringlocation', 'Expired & expiring - by location', 'grouped', 'Expired now versus expiring within 30 days.', $documents->expired_expiring_grouped_items($filters, 'location')),
-                $this->panel('coursecompliance', 'Non-compliance by course', 'bar', 'Courses with documents expired or expiring soon.', $documents->noncompliance_by_course_items($filters)),
+                $this->panel('expiredexpiringdepartment', get_string('panel:expiredexpiringdepartment:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:expiredexpiringdepartment:description', 'block_dashboardanalytics'), $documents->expired_expiring_grouped_items($filters, 'department')),
+                $this->panel('expiredexpiringlocation', get_string('panel:expiredexpiringlocation:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:expiredexpiringlocation:description', 'block_dashboardanalytics'), $documents->expired_expiring_grouped_items($filters, 'location')),
+                $this->panel('coursecompliance', get_string('panel:coursecompliance:title', 'block_dashboardanalytics'), 'bar', get_string('panel:coursecompliance:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters)),
             ],
         ];
     }
@@ -223,12 +232,12 @@ class visual_service {
         $documents = new document_repository();
 
         return [
-            'title' => '30/60/90 days',
-            'description' => 'Upcoming expiry workload for the current client dashboard scope.',
+            'title' => get_string('panel:clientforecast:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:clientforecast:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('clientexpirywindows', '30/60/90 day expiry workload', 'cards', 'Retraining load by upcoming expiry window.', $documents->forecast_window_items($filters)),
-                $this->panel('weeklyforecast', '13-week expiry forecast histogram', 'histogram', 'Week-by-week expiry pressure across the next quarter.', $documents->weekly_expiry_histogram_items($filters)),
-                $this->panel('clientforecastcourse', 'Upcoming expiry by course', 'bar', 'Courses contributing most to near-term retraining pressure.', $documents->noncompliance_by_course_items($filters)),
+                $this->panel('clientexpirywindows', get_string('panel:clientexpirywindows:title', 'block_dashboardanalytics'), 'cards', get_string('panel:clientexpirywindows:description', 'block_dashboardanalytics'), $documents->forecast_window_items($filters)),
+                $this->panel('weeklyforecast', get_string('panel:weeklyforecast:title', 'block_dashboardanalytics'), 'histogram', get_string('panel:weeklyforecast:description', 'block_dashboardanalytics'), $documents->weekly_expiry_histogram_items($filters)),
+                $this->panel('clientforecastcourse', get_string('panel:clientforecastcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:clientforecastcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters)),
             ],
         ];
     }
@@ -238,11 +247,11 @@ class visual_service {
         $documents = new document_repository();
 
         return [
-            'title' => 'New staff',
-            'description' => 'New-staff onboarding risk and certification coverage.',
+            'title' => get_string('panel:newstaff:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:newstaff:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('newstaffrisk', 'New staff by department', 'bar', 'New users created in the last 90 days, grouped by department.', $employees->new_staff_risk_items($filters)),
-                $this->panel('newstaffcoverage', 'Current document coverage', 'donut', 'Document coverage for the currently filtered user scope.', $documents->status_items($filters)),
+                $this->panel('newstaffrisk', get_string('panel:newstaffrisk:title', 'block_dashboardanalytics'), 'bar', get_string('panel:newstaffrisk:description', 'block_dashboardanalytics'), $employees->new_staff_risk_items($filters)),
+                $this->panel('newstaffcoverage', get_string('panel:newstaffcoverage:title', 'block_dashboardanalytics'), 'donut', get_string('panel:newstaffcoverage:description', 'block_dashboardanalytics'), $documents->status_items($filters)),
             ],
         ];
     }
@@ -252,23 +261,26 @@ class visual_service {
 
         if ($tabkey === 'certificates') {
             return [
-                'title' => 'Certificates',
-                'description' => 'Personal certificates and protocols linked to your Moodle account.',
+                'title' => get_string('panel:certificates:title', 'block_dashboardanalytics'),
+                'description' => get_string('panel:certificates:description', 'block_dashboardanalytics'),
                 'panels' => [
-                    $this->panel('employeedocumentstatus', 'My document status', 'donut', 'Expiry-based status will become exact once document validity data is available.', $documents->status_items($filters)),
+                    $this->panel('employeedocumentstatus', get_string('panel:employeedocumentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:employeedocumentstatus:description', 'block_dashboardanalytics'), $documents->status_items($filters)),
                 ],
             ];
         }
 
         if ($tabkey === 'courses') {
-            return $this->company_pending('Courses', 'Required course and progress data is pending LMS integration for the employee dashboard.');
+            return $this->company_pending(
+                get_string('panel:courses:title', 'block_dashboardanalytics'),
+                get_string('panel:courses:description', 'block_dashboardanalytics')
+            );
         }
 
         return [
-            'title' => 'Overview',
-            'description' => 'Personal training status for the logged-in employee.',
+            'title' => get_string('panel:overview:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:certificates:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('employeedocumentstatus', 'My document status', 'donut', 'Personal certificate/protocol rows linked to your account.', $documents->status_items($filters)),
+                $this->panel('employeedocumentstatus', get_string('panel:employeedocumentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:certificates:description', 'block_dashboardanalytics'), $documents->status_items($filters)),
             ],
         ];
     }
@@ -278,12 +290,12 @@ class visual_service {
             'title' => $title,
             'description' => $description,
             'panels' => [
-                $this->panel('pending', 'Data pending', 'cards', $description, [[
-                    'label' => 'Coming soon',
-                    'value' => 'Pending',
+                $this->panel('pending', get_string('kpi:help:datapending', 'block_dashboardanalytics'), 'cards', $description, [[
+                    'label' => get_string('kpi:help:datapending', 'block_dashboardanalytics'),
+                    'value' => get_string('kpi:value:pending', 'block_dashboardanalytics'),
                     'percent' => 0.0,
                     'status' => 'muted',
-                    'meta' => 'Next milestone',
+                    'meta' => get_string('kpi:help:lmsintegration', 'block_dashboardanalytics'),
                 ]]),
             ],
         ];

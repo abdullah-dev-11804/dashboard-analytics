@@ -101,24 +101,24 @@ class eds_repository {
 
     private function status_badge(int $dayswaiting): string {
         if ($dayswaiting < 2) {
-            return 'OK';
+            return get_string('label:ok', 'block_dashboardanalytics');
         }
 
         if ($dayswaiting <= 5) {
-            return 'Urgent';
+            return get_string('label:urgent', 'block_dashboardanalytics');
         }
 
-        return 'Critical';
+        return get_string('label:critical', 'block_dashboardanalytics');
     }
 
     private function columns(): array {
         return [
-            ['key' => 'docid', 'label' => 'Document'],
-            ['key' => 'company', 'label' => 'Company'],
-            ['key' => 'course', 'label' => 'Course'],
-            ['key' => 'expectedsigner', 'label' => 'Expected signer'],
-            ['key' => 'dayswaiting', 'label' => 'Days waiting'],
-            ['key' => 'statusbadge', 'label' => 'Status'],
+            ['key' => 'docid', 'label' => get_string('label:document', 'block_dashboardanalytics')],
+            ['key' => 'company', 'label' => get_string('label:company', 'block_dashboardanalytics')],
+            ['key' => 'course', 'label' => get_string('label:course', 'block_dashboardanalytics')],
+            ['key' => 'expectedsigner', 'label' => get_string('label:expectedsigner', 'block_dashboardanalytics')],
+            ['key' => 'dayswaiting', 'label' => get_string('label:dayswaiting', 'block_dashboardanalytics')],
+            ['key' => 'statusbadge', 'label' => get_string('label:status', 'block_dashboardanalytics')],
         ];
     }
 

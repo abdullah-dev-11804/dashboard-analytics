@@ -89,25 +89,25 @@ class permissions {
     public static function dashboard_tabs(string $dashboardkey): array {
         $tabs = [
             self::DASHBOARD_COMPANY => [
-                ['key' => 'kpis', 'label' => 'KPI Strip'],
-                ['key' => 'overview', 'label' => 'Overview'],
-                ['key' => 'compliance', 'label' => 'Compliance'],
-                ['key' => 'turnover', 'label' => 'Staff Turnover'],
-                ['key' => 'quality', 'label' => 'Training Quality'],
-                ['key' => 'proctoring', 'label' => 'Proctoring'],
-                ['key' => 'forecast', 'label' => 'Forecast'],
-                ['key' => 'server', 'label' => 'Server'],
+                ['key' => 'kpis', 'label' => get_string('tab:kpis', 'block_dashboardanalytics')],
+                ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
+                ['key' => 'compliance', 'label' => get_string('tab:compliance', 'block_dashboardanalytics')],
+                ['key' => 'turnover', 'label' => get_string('tab:turnover', 'block_dashboardanalytics')],
+                ['key' => 'quality', 'label' => get_string('tab:quality', 'block_dashboardanalytics')],
+                ['key' => 'proctoring', 'label' => get_string('tab:proctoring', 'block_dashboardanalytics')],
+                ['key' => 'forecast', 'label' => get_string('tab:forecast', 'block_dashboardanalytics')],
+                ['key' => 'server', 'label' => get_string('tab:server', 'block_dashboardanalytics')],
             ],
             self::DASHBOARD_CLIENT => [
-                ['key' => 'overview', 'label' => 'Overview'],
-                ['key' => 'compliance', 'label' => 'Compliance'],
-                ['key' => 'expiry', 'label' => '30/60/90 days'],
-                ['key' => 'newstaff', 'label' => 'New staff'],
+                ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
+                ['key' => 'compliance', 'label' => get_string('tab:compliance', 'block_dashboardanalytics')],
+                ['key' => 'expiry', 'label' => get_string('tab:expiry', 'block_dashboardanalytics')],
+                ['key' => 'newstaff', 'label' => get_string('tab:newstaff', 'block_dashboardanalytics')],
             ],
             self::DASHBOARD_EMPLOYEE => [
-                ['key' => 'overview', 'label' => 'Overview'],
-                ['key' => 'certificates', 'label' => 'Certificates'],
-                ['key' => 'courses', 'label' => 'Courses'],
+                ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
+                ['key' => 'certificates', 'label' => get_string('tab:certificates', 'block_dashboardanalytics')],
+                ['key' => 'courses', 'label' => get_string('tab:courses', 'block_dashboardanalytics')],
             ],
         ];
 

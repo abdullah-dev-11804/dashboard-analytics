@@ -23,17 +23,21 @@ class dimension_repository {
             'key' => 'departments',
             'label' => get_string('filter:departments', 'block_dashboardanalytics'),
             'multiple' => true,
-            'options' => $this->departments($scopefilters),
+            'options' => $this->profile_field_options($scopefilters, ['Department', 'department'], 'u.department'),
         ];
 
         $groups[] = [
             'key' => 'locations',
             'label' => get_string('filter:locations', 'block_dashboardanalytics'),
             'multiple' => true,
-            'options' => $this->locations($scopefilters),
+            'options' => $this->profile_field_options($scopefilters, ['Region'], 'u.city'),
         ];
 
-        $positions = $this->positions($scopefilters);
+        $positions = $this->profile_field_options(
+            $scopefilters,
+            array_values(array_filter(['Job_Title', trim((string)get_config('block_dashboardanalytics', 'positionfield'))])),
+            ''
+        );
         if ($positions) {
             $groups[] = [
                 'key' => 'positions',
@@ -44,14 +48,48 @@ class dimension_repository {
         }
 
         $groups[] = [
+            'key' => 'personnelcategories',
+            'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options($scopefilters, ['PersonnelCategory'], ''),
+        ];
+
+        $groups[] = [
+            'key' => 'sites',
+            'label' => get_string('filter:sites', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options($scopefilters, ['Site'], ''),
+        ];
+
+        $groups[] = [
+            'key' => 'educations',
+            'label' => get_string('filter:educations', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options($scopefilters, ['edu'], ''),
+        ];
+
+        $courses = $this->courses($scopefilters);
+        if ($courses) {
+            $groups[] = [
+                'key' => 'courseids',
+                'label' => get_string('filter:courses', 'block_dashboardanalytics'),
+                'multiple' => true,
+                'options' => $courses,
+            ];
+        }
+
+        $groups[] = [
             'key' => 'daterange',
             'label' => get_string('filter:daterange', 'block_dashboardanalytics'),
             'multiple' => false,
             'options' => [
-                ['value' => 'last30days', 'label' => get_string('filter:last30days', 'block_dashboardanalytics')],
-                ['value' => 'last90days', 'label' => get_string('filter:last90days', 'block_dashboardanalytics')],
-                ['value' => 'last6months', 'label' => get_string('filter:last6months', 'block_dashboardanalytics')],
-                ['value' => 'last12months', 'label' => get_string('filter:last12months', 'block_dashboardanalytics')],
+                ['value' => 'day', 'label' => get_string('filter:day', 'block_dashboardanalytics')],
+                ['value' => 'week', 'label' => get_string('filter:week', 'block_dashboardanalytics')],
+                ['value' => 'month', 'label' => get_string('filter:month', 'block_dashboardanalytics')],
+                ['value' => '6months', 'label' => get_string('filter:6months', 'block_dashboardanalytics')],
+                ['value' => 'year', 'label' => get_string('filter:year', 'block_dashboardanalytics')],
+                ['value' => 'alltime', 'label' => get_string('filter:alltime', 'block_dashboardanalytics')],
+                ['value' => 'customrange', 'label' => get_string('filter:customrange', 'block_dashboardanalytics')],
             ],
         ];
 
@@ -60,13 +98,14 @@ class dimension_repository {
         }));
     }
 
-    private function departments(array $scopefilters): array {
+    private function profile_field_options(array $scopefilters, array $shortnames, string $fallbackexpr): array {
         global $DB;
 
         $employee = new employee_repository();
-        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimensiondepartment');
+        $prefix = 'dimension' . preg_replace('/[^a-z0-9]/i', '', implode('', $shortnames));
+        $filter = $employee->user_filter_sql($scopefilters, 'u', $prefix);
 
-        $profilefield = $this->department_profile_field();
+        $profilefield = $this->existing_profile_field($shortnames);
         if ($profilefield !== '') {
             $sql = "SELECT DISTINCT uid.data
                       FROM {user_info_data} uid
@@ -80,51 +119,36 @@ class dimension_repository {
             return $this->text_options($DB->get_fieldset_sql($sql, ['shortname' => $profilefield] + $filter['params']));
         }
 
-        $sql = "SELECT DISTINCT u.department
-                  FROM {user} u
-                 WHERE {$filter['sql']}
-                   AND u.department <> ''
-              ORDER BY u.department ASC";
-
-        return $this->text_options($DB->get_fieldset_sql($sql, $filter['params']));
-    }
-
-    private function locations(array $scopefilters): array {
-        global $DB;
-
-        $employee = new employee_repository();
-        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimensionlocation');
-
-        $sql = "SELECT DISTINCT u.city
-                  FROM {user} u
-                 WHERE {$filter['sql']}
-                   AND u.city <> ''
-              ORDER BY u.city ASC";
-
-        return $this->text_options($DB->get_fieldset_sql($sql, $filter['params']));
-    }
-
-    private function positions(array $scopefilters): array {
-        global $DB;
-
-        $positionfield = trim((string)get_config('block_dashboardanalytics', 'positionfield'));
-        if ($positionfield === '') {
+        if ($fallbackexpr === '') {
             return [];
         }
 
-        $employee = new employee_repository();
-        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimensionposition');
+        $sql = "SELECT DISTINCT {$fallbackexpr} AS value
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+                   AND {$fallbackexpr} <> ''
+              ORDER BY value ASC";
 
-        $sql = "SELECT DISTINCT uid.data
-                  FROM {user_info_data} uid
-                  JOIN {user_info_field} uif ON uif.id = uid.fieldid
-                  JOIN {user} u ON u.id = uid.userid
-                 WHERE uif.shortname = :shortname
-                   AND uid.data <> ''
-                   AND {$filter['sql']}
-              ORDER BY uid.data ASC";
+        return $this->text_options($DB->get_fieldset_sql($sql, $filter['params']));
+    }
 
-        return $this->text_options($DB->get_fieldset_sql($sql, ['shortname' => $positionfield] + $filter['params']));
+    private function courses(array $scopefilters): array {
+        global $DB;
+
+        $sql = "SELECT c.id, c.fullname
+                  FROM {course} c
+                 WHERE c.id > 1
+              ORDER BY c.fullname ASC";
+
+        $records = $DB->get_records_sql($sql);
+        $options = [];
+        foreach ($records as $record) {
+            $options[] = [
+                'value' => (string)(int)$record->id,
+                'label' => format_string((string)$record->fullname),
+            ];
+        }
+        return $options;
     }
 
     private function text_options(array $values): array {
@@ -138,8 +162,13 @@ class dimension_repository {
         return $options;
     }
 
-    private function department_profile_field(): string {
-        return $this->profile_field_exists('department') ? 'department' : '';
+    private function existing_profile_field(array $shortnames): string {
+        foreach ($shortnames as $shortname) {
+            if ($this->profile_field_exists($shortname)) {
+                return $shortname;
+            }
+        }
+        return '';
     }
 
     private function profile_field_exists(string $shortname): bool {
