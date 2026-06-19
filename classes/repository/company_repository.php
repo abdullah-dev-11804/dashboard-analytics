@@ -14,7 +14,7 @@ class company_repository {
     public function get_company_options(array $filters = []): array {
         global $DB;
 
-        if ($this->has_iomad_tables()) {
+        if ($this->has_iomad_tables() && empty($filters['companies'])) {
             $where = '';
             $params = [];
             if (!empty($filters['companyids'])) {
@@ -32,22 +32,39 @@ class company_repository {
             return $options;
         }
 
-        $where = ["deleted = 0", "department <> ''"];
-        $params = [];
-        if (!empty($filters['companies'])) {
-            [$insql, $params] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, 'companynameoption');
-            $where[] = "department {$insql}";
+        $profilefield = $this->company_profile_shortname();
+        if ($profilefield === '') {
+            return [];
         }
 
-        $sql = "SELECT DISTINCT department
-                  FROM {user}
+        $params = ['companyprofileshortname' => $profilefield];
+        $where = [
+            "u.deleted = 0",
+            "uid.data <> ''",
+            "uif.shortname = :companyprofileshortname",
+        ];
+
+        if (!empty($filters['companies'])) {
+            [$insql, $inparams] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, 'companynameoption');
+            $where[] = "uid.data {$insql}";
+            $params += $inparams;
+        }
+
+        $sql = "SELECT DISTINCT uid.data
+                  FROM {user_info_data} uid
+                  JOIN {user_info_field} uif ON uif.id = uid.fieldid
+                  JOIN {user} u ON u.id = uid.userid
                  WHERE " . implode(' AND ', $where) . "
-              ORDER BY department ASC";
+              ORDER BY uid.data ASC";
 
         return $this->text_options($DB->get_fieldset_sql($sql, $params));
     }
 
-    public function company_filter_key(): string {
+    public function company_filter_key(array $filters = []): string {
+        if (!empty($filters['companies'])) {
+            return 'companies';
+        }
+
         return $this->has_iomad_tables() ? 'companyids' : 'companies';
     }
 
@@ -64,32 +81,52 @@ class company_repository {
                 }
             }
 
-            return ['companyids' => array_values(array_unique($companyids))];
+            $companyids = array_values(array_unique($companyids));
+            if ($companyids) {
+                return ['companyids' => $companyids];
+            }
         }
 
-        $department = (string)$DB->get_field('user', 'department', ['id' => $userid], IGNORE_MISSING);
-        $department = trim($department);
-        return $department === '' ? [] : ['companies' => [$department]];
+        $companyname = $this->profile_company_for_user($userid);
+        if ($companyname === '') {
+            return [];
+        }
+
+        if ($this->has_iomad_tables()) {
+            $mappedid = (int)$DB->get_field('company', 'id', ['name' => $companyname], IGNORE_MISSING);
+            if ($mappedid > 0) {
+                return ['companyids' => [$mappedid]];
+            }
+        }
+
+        return ['companies' => [$companyname]];
     }
 
     public function company_name_sql(string $useralias, string $prefix): array {
+        $profilejoin = $this->company_profile_join_sql($useralias, $prefix);
+
         if ($this->has_iomad_tables()) {
             $companyuseralias = 'cu' . preg_replace('/[^a-z0-9]/i', '', $prefix);
             $companyalias = 'co' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $expr = $profilejoin['dataalias'] !== ''
+                ? "COALESCE(NULLIF({$companyalias}.name, ''), NULLIF({$profilejoin['dataalias']}.data, ''))"
+                : "NULLIF({$companyalias}.name, '')";
             return [
                 'join' => "LEFT JOIN {company_users} {$companyuseralias} ON {$companyuseralias}.userid = {$useralias}.id
-                           LEFT JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid",
-                'expr' => "{$companyalias}.name",
+                           LEFT JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid
+                           {$profilejoin['join']}",
+                'expr' => $expr,
                 'idexpr' => "{$companyalias}.id",
-                'select' => "{$companyalias}.name AS companyname",
+                'select' => "{$expr} AS companyname",
             ];
         }
 
+        $expr = $profilejoin['dataalias'] !== '' ? "NULLIF({$profilejoin['dataalias']}.data, '')" : "NULL";
         return [
-            'join' => '',
-            'expr' => "{$useralias}.department",
+            'join' => $profilejoin['join'],
+            'expr' => $expr,
             'idexpr' => 'NULL',
-            'select' => "{$useralias}.department AS companyname",
+            'select' => "{$expr} AS companyname",
         ];
     }
 
@@ -99,19 +136,71 @@ class company_repository {
         if ($this->has_iomad_tables() && !empty($filters['companyids'])) {
             [$insql, $inparams] = $DB->get_in_or_equal($filters['companyids'], SQL_PARAMS_NAMED, $prefix . 'company');
             $companyuseralias = 'cuf' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-            $where[] = "EXISTS (
+            $clauses = ["EXISTS (
                             SELECT 1
                               FROM {company_users} {$companyuseralias}
                              WHERE {$companyuseralias}.userid = {$useralias}.id
                                AND {$companyuseralias}.companyid {$insql}
-                         )";
+                         )"];
             $params += $inparams;
+
+            $companynames = $this->company_names_by_ids($filters['companyids']);
+            $profilefield = $this->company_profile_shortname();
+            if ($profilefield !== '' && $companynames) {
+                [$nameinsql, $nameparams] = $DB->get_in_or_equal($companynames, SQL_PARAMS_NAMED, $prefix . 'companyfallback');
+                $dataalias = 'uidcf' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $fieldalias = 'uifcf' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $fieldkey = $prefix . 'companyfallbackfield';
+                $clauses[] = "EXISTS (
+                                  SELECT 1
+                                    FROM {user_info_data} {$dataalias}
+                                    JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
+                                   WHERE {$dataalias}.userid = {$useralias}.id
+                                     AND {$fieldalias}.shortname = :{$fieldkey}
+                                     AND {$dataalias}.data {$nameinsql}
+                               )";
+                $params[$fieldkey] = $profilefield;
+                $params += $nameparams;
+            }
+
+            $where[] = '(' . implode(' OR ', $clauses) . ')';
             return;
         }
 
         if (!empty($filters['companies'])) {
             [$insql, $inparams] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, $prefix . 'companyname');
-            $where[] = "{$useralias}.department {$insql}";
+            $clauses = [];
+            if ($this->has_iomad_tables()) {
+                $companyuseralias = 'cut' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $companyalias = 'cot' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $clauses[] = "EXISTS (
+                                SELECT 1
+                                  FROM {company_users} {$companyuseralias}
+                                  JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid
+                                 WHERE {$companyuseralias}.userid = {$useralias}.id
+                                   AND {$companyalias}.name {$insql}
+                             )";
+            }
+
+            $profilefield = $this->company_profile_shortname();
+            if ($profilefield !== '') {
+                $dataalias = 'uidct' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $fieldalias = 'uifct' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+                $fieldkey = $prefix . 'companytextfield';
+                $clauses[] = "EXISTS (
+                                SELECT 1
+                                  FROM {user_info_data} {$dataalias}
+                                  JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
+                                 WHERE {$dataalias}.userid = {$useralias}.id
+                                   AND {$fieldalias}.shortname = :{$fieldkey}
+                                   AND {$dataalias}.data {$insql}
+                             )";
+                $params[$fieldkey] = $profilefield;
+            }
+
+            if ($clauses) {
+                $where[] = '(' . implode(' OR ', $clauses) . ')';
+            }
             $params += $inparams;
         }
     }
@@ -218,23 +307,10 @@ class company_repository {
     }
 
     private function filters_for_company(array $filters, string $companyname): array {
-        if ($this->has_iomad_tables()) {
-            return $filters;
+        if ($companyname !== '') {
+            $filters['companies'] = [$companyname];
         }
-
-        $filters['companies'] = [$companyname];
         return $filters;
-    }
-
-    private function text_options(array $values): array {
-        $options = [];
-        foreach ($values as $value) {
-            $value = trim((string)$value);
-            if ($value !== '') {
-                $options[] = ['value' => $value, 'label' => $value];
-            }
-        }
-        return $options;
     }
 
     private function table_exists(string $tablename): bool {
@@ -242,5 +318,76 @@ class company_repository {
 
         require_once($CFG->libdir . '/xmldb/xmldb_table.php');
         return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+    }
+
+    private function company_profile_shortname(): string {
+        global $DB;
+
+        return $DB->record_exists('user_info_field', ['shortname' => 'Company']) ? 'Company' : '';
+    }
+
+    private function profile_company_for_user(int $userid): string {
+        global $DB;
+
+        $shortname = $this->company_profile_shortname();
+        if ($shortname === '') {
+            return '';
+        }
+
+        $sql = "SELECT uid.data
+                  FROM {user_info_data} uid
+                  JOIN {user_info_field} uif ON uif.id = uid.fieldid
+                 WHERE uid.userid = :userid
+                   AND uif.shortname = :shortname";
+
+        return trim((string)$DB->get_field_sql($sql, ['userid' => $userid, 'shortname' => $shortname]));
+    }
+
+    private function company_names_by_ids(array $companyids): array {
+        global $DB;
+
+        $companyids = array_values(array_filter(array_map('intval', $companyids)));
+        if (!$companyids) {
+            return [];
+        }
+
+        [$insql, $params] = $DB->get_in_or_equal($companyids, SQL_PARAMS_NAMED, 'companynamebyid');
+        $sql = "SELECT name
+                  FROM {company}
+                 WHERE id {$insql}";
+
+        return $this->text_options($DB->get_fieldset_sql($sql, $params), true);
+    }
+
+    private function company_profile_join_sql(string $useralias, string $prefix): array {
+        $shortname = $this->company_profile_shortname();
+        if ($shortname === '') {
+            return [
+                'join' => '',
+                'dataalias' => '',
+            ];
+        }
+
+        $suffix = preg_replace('/[^a-z0-9]/i', '', $prefix);
+        $fieldalias = 'uifcomp' . $suffix;
+        $dataalias = 'uidcomp' . $suffix;
+        $escaped = addslashes($shortname);
+
+        return [
+            'join' => "LEFT JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.shortname = '{$escaped}'
+                       LEFT JOIN {user_info_data} {$dataalias} ON {$dataalias}.fieldid = {$fieldalias}.id AND {$dataalias}.userid = {$useralias}.id",
+            'dataalias' => $dataalias,
+        ];
+    }
+
+    private function text_options(array $values, bool $raw = false): array {
+        $options = [];
+        foreach ($values as $value) {
+            $value = trim((string)$value);
+            if ($value !== '') {
+                $options[] = $raw ? $value : ['value' => $value, 'label' => $value];
+            }
+        }
+        return $options;
     }
 }

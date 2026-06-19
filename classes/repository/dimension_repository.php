@@ -12,7 +12,7 @@ class dimension_repository {
 
         $groups = [
             [
-                'key' => $companyrepo->company_filter_key(),
+                'key' => $companyrepo->company_filter_key($scopefilters),
                 'label' => get_string('filter:companies', 'block_dashboardanalytics'),
                 'multiple' => true,
                 'options' => $companyrepo->get_company_options($scopefilters),
