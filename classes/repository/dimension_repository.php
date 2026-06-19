@@ -102,7 +102,11 @@ class dimension_repository {
         global $DB;
 
         $employee = new employee_repository();
-        $prefix = 'dimension' . preg_replace('/[^a-z0-9]/i', '', implode('', $shortnames));
+        $seed = implode('_', $shortnames);
+        if ($seed === '') {
+            $seed = $fallbackexpr !== '' ? $fallbackexpr : 'generic';
+        }
+        $prefix = 'dimflt' . substr(sha1($seed), 0, 8);
         $filter = $employee->user_filter_sql($scopefilters, 'u', $prefix);
 
         $profilefield = $this->existing_profile_field($shortnames);
