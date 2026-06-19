@@ -655,6 +655,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             filters: JSON.stringify(readFilters(root, state))
         }).then(function(response) {
             state.currentTab = tabkey;
+            setActiveTab(root, tabkey);
             renderVisuals(root, response);
             persistState(root, state);
         }).catch(Notification.exception);
@@ -668,6 +669,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return;
         }
         loadVisuals(root, state, state.currentTab || 'overview');
+    };
+
+    var setActiveTab = function(root, tabkey) {
+        Array.prototype.slice.call(root.querySelectorAll('[data-tab]')).forEach(function(item) {
+            var active = item.getAttribute('data-tab') === tabkey;
+            item.classList.toggle('is-active', active);
+            item.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
     };
 
     var toggleAddFilterMenu = function(root) {
@@ -789,11 +798,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var tab = event.target.closest('[data-tab]');
             if (tab && root.contains(tab)) {
-                Array.prototype.slice.call(root.querySelectorAll('[data-tab]')).forEach(function(item) {
-                    var active = item === tab;
-                    item.classList.toggle('is-active', active);
-                    item.setAttribute('aria-selected', active ? 'true' : 'false');
-                });
+                setActiveTab(root, tab.getAttribute('data-tab'));
                 state.currentDrilldown = '';
                 loadVisuals(root, state, tab.getAttribute('data-tab'));
                 return;
@@ -829,6 +834,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         state.activeFilterKeys = Array.isArray(saved.activeFilterKeys) ? saved.activeFilterKeys : [];
         state.persistedFilters = saved.filters || {};
         state.currentTab = saved.currentTab || state.currentTab;
+        setActiveTab(root, state.currentTab);
 
         Str.get_strings(stringList).then(function(values) {
             strings.loading = values[0];
