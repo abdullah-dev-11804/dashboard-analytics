@@ -88,6 +88,74 @@ class server_repository {
         ];
     }
 
+    public function inline_capacity_rows(): array {
+        global $CFG;
+
+        $path = !empty($CFG->dataroot) ? $CFG->dataroot : sys_get_temp_dir();
+        $disktotal = @disk_total_space($path);
+        $diskfree = @disk_free_space($path);
+        $diskused = ($disktotal && $diskfree !== false) ? ($disktotal - $diskfree) : 0;
+        $diskpercent = ($disktotal && $disktotal > 0 && $diskfree !== false) ? round(($diskused / $disktotal) * 100, 1) : null;
+
+        $memoryused = memory_get_usage(true);
+        $memorylimit = $this->memory_limit_bytes();
+        $memorypercent = $memorylimit > 0 ? round(($memoryused / $memorylimit) * 100, 1) : null;
+
+        $cpuload = $this->cpu_load_average();
+        $cpupercent = $this->cpu_percent();
+        $cpucores = $this->cpu_core_count();
+
+        $dbsize = $this->database_size_bytes();
+        $dbpercent = ($dbsize !== null && $disktotal && $disktotal > 0) ? round(($dbsize / $disktotal) * 100, 1) : null;
+
+        $rows = [
+            $this->inline_metric_row(
+                'Disk',
+                $diskpercent,
+                $diskpercent !== null ? $diskpercent . '%' : 'N/A',
+                $diskpercent !== null ? $this->format_bytes($diskused) . ' of ' . $this->format_bytes($disktotal) . ' · ' . $this->status_word($diskpercent) : 'Disk metrics unavailable',
+                $diskpercent !== null ? $this->status_for_percent($diskpercent) : 'muted'
+            ),
+            $this->inline_metric_row(
+                'RAM',
+                $memorypercent,
+                $memorypercent !== null ? $memorypercent . '%' : 'N/A',
+                $memorypercent !== null ? $this->format_bytes($memoryused) . ' of ' . $this->format_bytes($memorylimit) . ' · ' . $this->status_word($memorypercent) : 'Memory limit unavailable',
+                $memorypercent !== null ? $this->status_for_percent($memorypercent) : 'muted'
+            ),
+            $this->inline_metric_row(
+                'CPU (1-min)',
+                $cpupercent,
+                $cpupercent !== null ? $cpupercent . '%' : 'N/A',
+                'Load avg ' . ($cpuload !== null ? $cpuload : 'N/A') . ($cpucores > 0 ? ' · ' . $cpucores . ' cores' : '') . ' · ' . ($cpupercent !== null ? $this->status_word($cpupercent) : 'Unavailable'),
+                $cpupercent !== null ? $this->status_for_percent($cpupercent) : 'muted'
+            ),
+            $this->inline_metric_row(
+                'Database',
+                $dbpercent,
+                $dbpercent !== null ? $dbpercent . '%' : ($dbsize !== null ? $this->format_bytes($dbsize) : 'N/A'),
+                $dbsize !== null
+                    ? $this->format_bytes($dbsize) . ($disktotal && $disktotal > 0 ? ' of ' . $this->format_bytes($disktotal) : '') . ' · Monitor'
+                    : 'Database size unavailable',
+                $dbpercent !== null ? 'info' : ($dbsize !== null ? 'info' : 'muted')
+            ),
+        ];
+
+        return [
+            'columns' => [
+                ['key' => 'metric', 'label' => 'Metric'],
+                ['key' => 'value', 'label' => 'Value'],
+                ['key' => 'meta', 'label' => 'Meta'],
+                ['key' => 'percent', 'label' => 'Percent'],
+                ['key' => 'statuskey', 'label' => 'Status key'],
+            ],
+            'rows' => $rows,
+            'totalcount' => count($rows),
+            'notice' => '',
+            'description' => 'sental_server_metrics — latest collected_at per metric. Amber at 70%, Red at 90%.',
+        ];
+    }
+
     private function metric_row(string $metric, string $current, string $used, string $total): array {
         $status = 'OK';
         if (substr($current, -1) === '%') {
@@ -102,6 +170,18 @@ class server_repository {
                 ['key' => 'used', 'value' => $used],
                 ['key' => 'total', 'value' => $total],
                 ['key' => 'status', 'value' => $status],
+            ],
+        ];
+    }
+
+    private function inline_metric_row(string $metric, ?float $percent, string $value, string $meta, string $status): array {
+        return [
+            'cells' => [
+                ['key' => 'metric', 'value' => $metric],
+                ['key' => 'value', 'value' => $value],
+                ['key' => 'meta', 'value' => $meta],
+                ['key' => 'percent', 'value' => $percent !== null ? (string)$percent : '0'],
+                ['key' => 'statuskey', 'value' => $status],
             ],
         ];
     }
@@ -310,15 +390,27 @@ class server_repository {
             return null;
         }
 
+        $cores = $this->cpu_core_count();
+
+        return round(min(100, (((float)$load) / $cores) * 100), 1);
+    }
+
+    private function cpu_core_count(): int {
         $cores = 0;
         if (function_exists('shell_exec')) {
             $cores = (int)trim((string)@\shell_exec('nproc 2>/dev/null'));
         }
-        if ($cores <= 0) {
-            $cores = 1;
-        }
+        return $cores > 0 ? $cores : 1;
+    }
 
-        return round(min(100, (((float)$load) / $cores) * 100), 1);
+    private function status_word(float $percent): string {
+        if ($percent >= 90) {
+            return 'Critical';
+        }
+        if ($percent >= 70) {
+            return 'Warning';
+        }
+        return 'OK';
     }
 
     private function last_cron_run(): int {

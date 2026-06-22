@@ -81,6 +81,7 @@ $string['js:previous'] = 'Назад';
 $string['js:next'] = 'Вперёд';
 $string['js:perpage'] = 'Строк на странице';
 $string['js:page'] = 'Страница {$a}';
+$string['js:gotoservertab'] = 'Перейти на вкладку сервера';
 
 $string['kpi:activecourses'] = 'Активные курсы';
 $string['kpi:compliance'] = 'Соответствие';

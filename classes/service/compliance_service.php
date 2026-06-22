@@ -42,7 +42,7 @@ class compliance_service {
 
         if ($drilldownkey === 'company_server_disk') {
             $server = new server_repository();
-            return $this->result(get_string('drilldown:title:serverdisk', 'block_dashboardanalytics'), $server->disk_rows());
+            return $this->result(get_string('drilldown:title:serverdisk', 'block_dashboardanalytics'), $server->inline_capacity_rows());
         }
 
         if ($drilldownkey === 'client_total_staff') {

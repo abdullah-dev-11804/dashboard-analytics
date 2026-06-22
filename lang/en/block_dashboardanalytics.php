@@ -81,6 +81,7 @@ $string['js:previous'] = 'Previous';
 $string['js:next'] = 'Next';
 $string['js:perpage'] = 'Rows per page';
 $string['js:page'] = 'Page {$a}';
+$string['js:gotoservertab'] = 'Go to Server tab';
 
 $string['kpi:activecourses'] = 'Active courses';
 $string['kpi:compliance'] = 'Compliance';

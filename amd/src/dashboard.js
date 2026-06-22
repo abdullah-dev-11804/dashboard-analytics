@@ -24,7 +24,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         previous: 'Previous',
         next: 'Next',
         perPage: 'Rows per page',
-        page: 'Page {$a}'
+        page: 'Page {$a}',
+        goToServerTab: 'Go to Server tab'
     };
 
     var stringList = [
@@ -50,7 +51,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:previous', component: 'block_dashboardanalytics'},
         {key: 'js:next', component: 'block_dashboardanalytics'},
         {key: 'js:perpage', component: 'block_dashboardanalytics'},
-        {key: 'js:page', component: 'block_dashboardanalytics'}
+        {key: 'js:page', component: 'block_dashboardanalytics'},
+        {key: 'js:gotoservertab', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -390,6 +392,35 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         if (!data.rows || !data.rows.length) {
             container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            return;
+        }
+
+        if (state.currentDrilldown === 'company_server_disk') {
+            count.textContent = data.description || '';
+            var metricTiles = data.rows.map(function(row) {
+                var cellsByKey = {};
+                (row.cells || []).forEach(function(cell) {
+                    cellsByKey[cell.key] = cell.value;
+                });
+                var statusKey = cellsByKey.statuskey || 'muted';
+                var percent = Math.max(0, Math.min(100, Number(cellsByKey.percent) || 0));
+                return '<article class="da-server-metric da-server-metric-' + escapeHtml(statusKey) + '">'
+                    + '<div class="da-server-metric-head">'
+                    + '<strong>' + escapeHtml(cellsByKey.metric || '') + '</strong>'
+                    + '<span class="da-server-metric-value da-text-' + escapeHtml(statusKey) + '">' + escapeHtml(cellsByKey.value || '') + '</span>'
+                    + '</div>'
+                    + '<div class="da-server-metric-track"><span class="da-server-metric-fill da-bar-fill-' + escapeHtml(statusKey) + '" style="width:' + percent + '%"></span></div>'
+                    + '<div class="da-server-metric-meta">' + escapeHtml(cellsByKey.meta || '') + '</div>'
+                    + '</article>';
+            }).join('');
+
+            var serverAction = root.querySelector('[data-tab="server"]')
+                ? '<div class="da-server-metric-actions"><button type="button" class="da-row-action" data-action="goto-tab" data-tab="server">'
+                    + escapeHtml(text('goToServerTab', 'Go to Server tab')) + '</button></div>'
+                : '';
+
+            container.innerHTML = '<div class="da-server-metrics-panel"><div class="da-server-metrics-grid">'
+                + metricTiles + '</div>' + serverAction + '</div>';
             return;
         }
 
@@ -863,6 +894,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var gotoTab = event.target.closest('[data-action="goto-tab"]');
+            if (gotoTab && root.contains(gotoTab)) {
+                var targettab = gotoTab.getAttribute('data-tab');
+                if (targettab && root.querySelector('[data-tab="' + targettab + '"]')) {
+                    setActiveTab(root, targettab);
+                    state.currentTab = targettab;
+                    state.currentDrilldown = '';
+                    state.currentDrilldownOverrides = null;
+                    state.currentDrilldownPage = 0;
+                    loadVisuals(root, state, targettab);
+                }
+                return;
+            }
+
             var pager = event.target.closest('[data-action="drilldown-page"]');
             if (pager && root.contains(pager) && !pager.disabled && state.currentDrilldown) {
                 loadDrilldown(
@@ -976,6 +1021,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.next = values[20];
             strings.perPage = values[21];
             strings.page = values[22];
+            strings.goToServerTab = values[23];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {
