@@ -302,22 +302,26 @@ class overview_repository {
         $companysql = $companyrepo->company_name_sql('u', 'overview');
         $params = $userfilter['params'] + ['siteid' => SITEID];
         $positionselect = "'' AS positionname";
-        $positionfield = trim((string)get_config('block_dashboardanalytics', 'positionfield'));
+        $positionfield = $this->existing_user_profile_field_shortname(array_values(array_filter([
+            trim((string)get_config('block_dashboardanalytics', 'positionfield')),
+            'Job_Title',
+        ])));
         $positionjoin = '';
         if ($positionfield !== '') {
-            $positionjoin = "LEFT JOIN {user_info_field} uifpos ON uifpos.shortname = :positionfield
+            $escapedpositionfield = addslashes($positionfield);
+            $positionjoin = "LEFT JOIN {user_info_field} uifpos ON uifpos.shortname = '{$escapedpositionfield}'
                              LEFT JOIN {user_info_data} uidpos ON uidpos.fieldid = uifpos.id AND uidpos.userid = u.id";
             $positionselect = 'uidpos.data AS positionname';
-            $params['positionfield'] = $positionfield;
         }
 
         $departmentselect = 'u.department AS departmentname';
         $departmentjoin = '';
-        if ($DB->record_exists('user_info_field', ['shortname' => 'department'])) {
-            $departmentjoin = "LEFT JOIN {user_info_field} uifdep ON uifdep.shortname = :departmentfield
+        $departmentfield = $this->existing_user_profile_field_shortname(['Department', 'department']);
+        if ($departmentfield !== '') {
+            $escapeddepartmentfield = addslashes($departmentfield);
+            $departmentjoin = "LEFT JOIN {user_info_field} uifdep ON uifdep.shortname = '{$escapeddepartmentfield}'
                                LEFT JOIN {user_info_data} uiddep ON uiddep.fieldid = uifdep.id AND uiddep.userid = u.id";
             $departmentselect = 'COALESCE(NULLIF(uiddep.data, \'\'), u.department) AS departmentname';
-            $params['departmentfield'] = 'department';
         }
 
         $validitysql = $this->validity_days_sql('cfd');
@@ -580,6 +584,19 @@ class overview_repository {
 
     private function validity_days_sql(string $alias): string {
         return "COALESCE(NULLIF({$alias}.intvalue, 0), NULLIF({$alias}.decvalue, 0), NULLIF({$alias}.value, ''), 1)";
+    }
+
+    private function existing_user_profile_field_shortname(array $candidates): string {
+        global $DB;
+
+        foreach ($candidates as $candidate) {
+            $candidate = trim((string)$candidate);
+            if ($candidate !== '' && $DB->record_exists('user_info_field', ['shortname' => $candidate])) {
+                return $candidate;
+            }
+        }
+
+        return '';
     }
 
     private function debug_log(string $label, array $context = []): void {
