@@ -178,7 +178,7 @@
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-grid {
     display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
     align-items: start;
 }
@@ -193,6 +193,7 @@
     padding: 1.1rem 1.1rem 1rem;
     background: #fff;
     box-shadow: none;
+    min-width: 0;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel h5 {
@@ -204,24 +205,8 @@
     margin-bottom: .85rem;
 }
 
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="compliancetrend"] {
-    grid-column: span 6;
-}
-
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="companycompliance"] {
-    grid-column: span 3;
-}
-
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="documentstatus"] {
-    grid-column: span 3;
-}
-
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="riskcompany"] {
-    grid-column: span 4;
-}
-
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="coursecompliance"] {
-    grid-column: span 8;
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel-fullrow {
+    grid-column: 1 / -1;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-donut-wrap {
@@ -263,21 +248,7 @@
 
 @media (max-width: 1400px) {
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-grid {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-    }
-
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="compliancetrend"] {
-        grid-column: span 6;
-    }
-
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="companycompliance"],
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="documentstatus"],
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="riskcompany"] {
-        grid-column: span 3;
-    }
-
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="coursecompliance"] {
-        grid-column: span 6;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -294,10 +265,6 @@
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key] {
-        grid-column: auto;
     }
 }
 
