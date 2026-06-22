@@ -10,6 +10,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         dashboardVisuals: 'Dashboard visuals',
         noFilterOptions: 'No filter options found.',
         allOption: 'All',
+        allWithLabel: 'All {$a}',
+        allLabels: {},
         activeFiltersAll: 'Active filters: All ×',
         activeFiltersPrefix: 'Active filters: {$a} ×',
         noData: 'No data',
@@ -35,6 +37,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:dashboardvisuals', component: 'block_dashboardanalytics'},
         {key: 'js:nofilteroptions', component: 'block_dashboardanalytics'},
         {key: 'filter:alloption', component: 'block_dashboardanalytics'},
+        {key: 'filter:allwithlabel', component: 'block_dashboardanalytics'},
         {key: 'filter:clearall', component: 'block_dashboardanalytics'},
         {key: 'filter:activeprefix', component: 'block_dashboardanalytics'},
         {key: 'js:nodata', component: 'block_dashboardanalytics'},
@@ -69,6 +72,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var formatString = function(template, value) {
         return String(template).replace('{$a}', value);
+    };
+
+    var defaultOptionLabel = function(group) {
+        var natural = strings.allLabels || {};
+        if (group && group.key && natural[group.key]) {
+            return natural[group.key];
+        }
+
+        return formatString(text('allWithLabel', 'All {$a}'), group.label);
     };
 
     var storageKey = function(state) {
@@ -200,7 +212,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var selected = selectedValueForGroup(state, key);
         var options = group.options || [];
         var includeBlank = key !== 'daterange';
-        var optionHtml = (includeBlank ? '<option value="">' + escapeHtml(text('allOption', 'All')) + '</option>' : '')
+        var allLabel = defaultOptionLabel(group);
+        var optionHtml = (includeBlank ? '<option value="">' + escapeHtml(allLabel) + '</option>' : '')
             + options.map(function(option) {
                 var isSelected = String(option.value) === selected ? ' selected' : '';
                 return '<option value="' + escapeHtml(option.value) + '"' + isSelected + '>' + escapeHtml(option.label) + '</option>';
@@ -224,8 +237,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         return '<div class="da-filter-control" data-filter-wrap="' + escapeHtml(key) + '">'
-            + '<label class="da-filter-control-label" for="da-filter-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid)) + '">'
-            + escapeHtml(group.label) + '</label>'
             + '<div class="da-filter-control-inputs">'
             + '<select id="da-filter-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid)) + '" class="da-filter-select"'
             + ' data-filter-group="' + escapeHtml(key) + '" aria-label="' + escapeHtml(group.label) + '">'
@@ -911,19 +922,31 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.dashboardVisuals = values[6];
             strings.noFilterOptions = values[7];
             strings.allOption = values[8];
-            strings.activeFiltersAll = values[9];
-            strings.activeFiltersPrefix = values[10];
-            strings.noData = values[11];
-            strings.total = values[12];
-            strings.addFilter = values[13];
-            strings.noAvailableFilters = values[14];
-            strings.removeFilter = values[15];
-            strings.customStart = values[16];
-            strings.customEnd = values[17];
-            strings.previous = values[18];
-            strings.next = values[19];
-            strings.perPage = values[20];
-            strings.page = values[21];
+            strings.allWithLabel = values[9];
+            strings.allLabels = {
+                companies: 'All companies',
+                courses: 'All courses',
+                daterange: 'All periods',
+                departments: 'All departments',
+                locations: 'All locations',
+                positions: 'All positions',
+                personnelcategories: 'All personnel categories',
+                sites: 'All sites / facilities',
+                educations: 'All education levels'
+            };
+            strings.activeFiltersAll = values[10];
+            strings.activeFiltersPrefix = values[11];
+            strings.noData = values[12];
+            strings.total = values[13];
+            strings.addFilter = values[14];
+            strings.noAvailableFilters = values[15];
+            strings.removeFilter = values[16];
+            strings.customStart = values[17];
+            strings.customEnd = values[18];
+            strings.previous = values[19];
+            strings.next = values[20];
+            strings.perPage = values[21];
+            strings.page = values[22];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {

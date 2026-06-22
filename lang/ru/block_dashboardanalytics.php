@@ -40,6 +40,7 @@ $string['filter:remove'] = 'Убрать фильтр';
 $string['filter:clearall'] = 'Активные фильтры: Все ×';
 $string['filter:activeprefix'] = 'Активные фильтры: {$a} ×';
 $string['filter:alloption'] = 'Все';
+$string['filter:allwithlabel'] = 'Все {$a}';
 $string['filter:companies'] = 'Компания';
 $string['filter:courses'] = 'Курс';
 $string['filter:daterange'] = 'Период';

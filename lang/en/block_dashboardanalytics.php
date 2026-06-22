@@ -40,6 +40,7 @@ $string['filter:remove'] = 'Remove filter';
 $string['filter:clearall'] = 'Active filters: All ×';
 $string['filter:activeprefix'] = 'Active filters: {$a} ×';
 $string['filter:alloption'] = 'All';
+$string['filter:allwithlabel'] = 'All {$a}';
 $string['filter:companies'] = 'Company';
 $string['filter:courses'] = 'Course';
 $string['filter:daterange'] = 'Period';
