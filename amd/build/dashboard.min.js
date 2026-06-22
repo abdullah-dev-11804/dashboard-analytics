@@ -18,7 +18,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         noAvailableFilters: 'No additional filters available.',
         removeFilter: 'Remove filter',
         customStart: 'Start date',
-        customEnd: 'End date'
+        customEnd: 'End date',
+        previous: 'Previous',
+        next: 'Next',
+        perPage: 'Rows per page',
+        page: 'Page {$a}'
     };
 
     var stringList = [
@@ -39,7 +43,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'filter:noavailable', component: 'block_dashboardanalytics'},
         {key: 'filter:remove', component: 'block_dashboardanalytics'},
         {key: 'filter:customstart', component: 'block_dashboardanalytics'},
-        {key: 'filter:customend', component: 'block_dashboardanalytics'}
+        {key: 'filter:customend', component: 'block_dashboardanalytics'},
+        {key: 'js:previous', component: 'block_dashboardanalytics'},
+        {key: 'js:next', component: 'block_dashboardanalytics'},
+        {key: 'js:perpage', component: 'block_dashboardanalytics'},
+        {key: 'js:page', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -332,16 +340,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).join('');
     };
 
-    var renderDrilldown = function(root, data) {
+    var renderDrilldown = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
         var count = root.querySelector('[data-region="drilldown-count"]');
+        var currentPage = Math.max(0, Number(state.currentDrilldownPage) || 0);
+        var perpage = Math.max(10, Number(state.currentDrilldownPerPage) || 20);
+        var totalcount = Math.max(0, Number(data.totalcount) || 0);
+        var totalpages = Math.max(1, Math.ceil(totalcount / perpage));
 
         if (title) {
             title.textContent = data.title || text('details', 'Details');
         }
         if (count) {
-            count.textContent = data.totalcount ? formatString(text('rows', '{$a} rows'), String(data.totalcount)) : '';
+            count.textContent = totalcount ? formatString(text('rows', '{$a} rows'), String(totalcount)) : '';
         }
 
         if (!container) {
@@ -389,10 +401,25 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             ? '<div class="da-description">' + escapeHtml(data.description) + '</div>'
             : '';
 
+        var pagination = totalcount ? '<div class="da-table-pagination">'
+            + '<div class="da-table-pagination-status">' + escapeHtml(formatString(text('page', 'Page {$a}'), String((currentPage + 1) + ' / ' + totalpages))) + '</div>'
+            + '<div class="da-table-pagination-controls">'
+            + '<label class="da-table-perpage-label"><span>' + escapeHtml(text('perPage', 'Rows per page')) + '</span>'
+            + '<select class="da-table-perpage" data-action="drilldown-perpage">'
+            + [20, 50, 100].map(function(size) {
+                return '<option value="' + size + '"' + (size === perpage ? ' selected' : '') + '>' + size + '</option>';
+            }).join('')
+            + '</select></label>'
+            + '<button type="button" class="da-pagination-button" data-action="drilldown-page" data-page="' + Math.max(0, currentPage - 1) + '"'
+            + (currentPage <= 0 ? ' disabled' : '') + '>' + escapeHtml(text('previous', 'Previous')) + '</button>'
+            + '<button type="button" class="da-pagination-button" data-action="drilldown-page" data-page="' + Math.min(totalpages - 1, currentPage + 1) + '"'
+            + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
+            + '</div></div>' : '';
+
         container.innerHTML = description + '<div class="da-table-wrap"><table class="da-table">'
             + '<thead><tr>' + head + '</tr></thead>'
             + '<tbody>' + body + '</tbody>'
-            + '</table></div>';
+            + '</table></div>' + pagination;
     };
 
     var renderVisuals = function(root, data) {
@@ -626,20 +653,26 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).catch(Notification.exception);
     };
 
-    var loadDrilldown = function(root, state, drilldownkey, filterOverrides) {
+    var loadDrilldown = function(root, state, drilldownkey, filterOverrides, page, perpage) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
+        var targetPage = typeof page === 'number' ? page : (state.currentDrilldownPage || 0);
+        var targetPerPage = typeof perpage === 'number' ? perpage : (state.currentDrilldownPerPage || 20);
+        var overrides = typeof filterOverrides !== 'undefined' ? filterOverrides : state.currentDrilldownOverrides;
 
         return call('block_dashboardanalytics_get_drilldown', {
             contextid: state.contextid,
             dashboardkey: state.dashboardkey,
             drilldownkey: drilldownkey,
-            filters: JSON.stringify(readFilters(root, state, filterOverrides)),
-            page: 0,
-            perpage: 20
+            filters: JSON.stringify(readFilters(root, state, overrides)),
+            page: targetPage,
+            perpage: targetPerPage
         }).then(function(response) {
             state.currentDrilldown = drilldownkey;
-            renderDrilldown(root, response);
+            state.currentDrilldownOverrides = overrides || null;
+            state.currentDrilldownPage = targetPage;
+            state.currentDrilldownPerPage = targetPerPage;
+            renderDrilldown(root, response, state);
             persistState(root, state);
         }).catch(Notification.exception);
     };
@@ -698,13 +731,24 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         return state.filterGroups[key];
                     }));
                 }
+                state.currentDrilldownPage = 0;
                 updateFilterCounts(root, state);
                 refresh(root, state);
                 return;
             }
 
             if (event.target.matches('[data-filter-custom]')) {
+                state.currentDrilldownPage = 0;
                 refresh(root, state);
+                return;
+            }
+
+            if (event.target.matches('[data-action="drilldown-perpage"]')) {
+                state.currentDrilldownPage = 0;
+                state.currentDrilldownPerPage = Number(event.target.value) || 20;
+                if (state.currentDrilldown) {
+                    loadDrilldown(root, state, state.currentDrilldown, undefined, 0, state.currentDrilldownPerPage);
+                }
             }
         });
 
@@ -754,6 +798,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 renderFilters(root, state, Object.keys(state.filterGroups).map(function(key) {
                     return state.filterGroups[key];
                 }));
+                state.currentDrilldownPage = 0;
                 refresh(root, state);
                 return;
             }
@@ -766,6 +811,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 Array.prototype.slice.call(root.querySelectorAll('[data-filter-custom]')).forEach(function(input) {
                     input.value = '';
                 });
+                state.currentDrilldownPage = 0;
                 updateFilterCounts(root, state);
                 refresh(root, state);
                 return;
@@ -785,14 +831,29 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
                 overrides.status = '';
                 state.currentDrilldown = 'company_compliance';
-                loadDrilldown(root, state, 'company_compliance', overrides);
+                state.currentDrilldownPage = 0;
+                loadDrilldown(root, state, 'company_compliance', overrides, 0, state.currentDrilldownPerPage || 20);
+                return;
+            }
+
+            var pager = event.target.closest('[data-action="drilldown-page"]');
+            if (pager && root.contains(pager) && !pager.disabled && state.currentDrilldown) {
+                loadDrilldown(
+                    root,
+                    state,
+                    state.currentDrilldown,
+                    undefined,
+                    Number(pager.getAttribute('data-page')) || 0,
+                    state.currentDrilldownPerPage || 20
+                );
                 return;
             }
 
             var kpi = event.target.closest('[data-drilldown]');
             if (kpi && root.contains(kpi)) {
                 state.currentTab = '';
-                loadDrilldown(root, state, kpi.getAttribute('data-drilldown'));
+                state.currentDrilldownPage = 0;
+                loadDrilldown(root, state, kpi.getAttribute('data-drilldown'), undefined, 0, state.currentDrilldownPerPage || 20);
                 return;
             }
 
@@ -827,7 +888,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             filterGroups: {},
             companyFilterKey: '',
             activeFilterKeys: [],
-            persistedFilters: {}
+            persistedFilters: {},
+            currentDrilldown: '',
+            currentDrilldownPage: 0,
+            currentDrilldownPerPage: 20,
+            currentDrilldownOverrides: null
         };
 
         var saved = readSessionState(state);
@@ -855,6 +920,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.removeFilter = values[15];
             strings.customStart = values[16];
             strings.customEnd = values[17];
+            strings.previous = values[18];
+            strings.next = values[19];
+            strings.perPage = values[20];
+            strings.page = values[21];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {

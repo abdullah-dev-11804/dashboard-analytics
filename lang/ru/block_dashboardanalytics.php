@@ -75,6 +75,10 @@ $string['js:dashboardvisuals'] = 'Визуализация панели';
 $string['js:nofilteroptions'] = 'Параметры фильтра не найдены.';
 $string['js:nodata'] = 'Нет данных';
 $string['js:total'] = 'всего';
+$string['js:previous'] = 'Назад';
+$string['js:next'] = 'Вперёд';
+$string['js:perpage'] = 'Строк на странице';
+$string['js:page'] = 'Страница {$a}';
 
 $string['kpi:activecourses'] = 'Активные курсы';
 $string['kpi:compliance'] = 'Соответствие';

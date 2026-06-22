@@ -75,6 +75,10 @@ $string['js:dashboardvisuals'] = 'Dashboard visuals';
 $string['js:nofilteroptions'] = 'No filter options found.';
 $string['js:nodata'] = 'No data';
 $string['js:total'] = 'total';
+$string['js:previous'] = 'Previous';
+$string['js:next'] = 'Next';
+$string['js:perpage'] = 'Rows per page';
+$string['js:page'] = 'Page {$a}';
 
 $string['kpi:activecourses'] = 'Active courses';
 $string['kpi:compliance'] = 'Compliance';
