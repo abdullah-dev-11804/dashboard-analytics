@@ -168,9 +168,9 @@ class company_repository {
         }
 
         if (!empty($filters['companies'])) {
-            [$insql, $inparams] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, $prefix . 'companyname');
             $clauses = [];
             if ($this->has_iomad_tables()) {
+                [$tableinsql, $tableparams] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, $prefix . 'companynameiomad');
                 $companyuseralias = 'cut' . preg_replace('/[^a-z0-9]/i', '', $prefix);
                 $companyalias = 'cot' . preg_replace('/[^a-z0-9]/i', '', $prefix);
                 $clauses[] = "EXISTS (
@@ -178,12 +178,14 @@ class company_repository {
                                   FROM {company_users} {$companyuseralias}
                                   JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid
                                  WHERE {$companyuseralias}.userid = {$useralias}.id
-                                   AND {$companyalias}.name {$insql}
+                                   AND {$companyalias}.name {$tableinsql}
                              )";
+                $params += $tableparams;
             }
 
             $profilefield = $this->company_profile_shortname();
             if ($profilefield !== '') {
+                [$profileinsql, $profileparams] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, $prefix . 'companynameprofile');
                 $dataalias = 'uidct' . preg_replace('/[^a-z0-9]/i', '', $prefix);
                 $fieldalias = 'uifct' . preg_replace('/[^a-z0-9]/i', '', $prefix);
                 $fieldkey = $prefix . 'companytextfield';
@@ -193,15 +195,15 @@ class company_repository {
                                   JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
                                  WHERE {$dataalias}.userid = {$useralias}.id
                                    AND {$fieldalias}.shortname = :{$fieldkey}
-                                   AND {$dataalias}.data {$insql}
+                                   AND {$dataalias}.data {$profileinsql}
                              )";
                 $params[$fieldkey] = $profilefield;
+                $params += $profileparams;
             }
 
             if ($clauses) {
                 $where[] = '(' . implode(' OR ', $clauses) . ')';
             }
-            $params += $inparams;
         }
     }
 
