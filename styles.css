@@ -633,8 +633,8 @@
 
 .block-dashboardanalytics .da-visual-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: .75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .9rem;
 }
 
 .block-dashboardanalytics .da-visual-grid-server {
@@ -675,13 +675,9 @@
 }
 
 .block-dashboardanalytics.is-fullpage .da-visual-grid {
-    grid-template-columns: minmax(360px, 1.45fr) minmax(300px, 0.95fr) minmax(220px, 0.7fr) minmax(220px, 0.7fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .9rem;
     align-items: start;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-grid-server {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
 }
 
 .block-dashboardanalytics.is-fullpage .da-visual-panel {
@@ -690,45 +686,6 @@
     padding: 1rem;
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(15, 23, 42, .04);
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="compliancetrend"] {
-    grid-column: span 5;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="companycompliance"] {
-    grid-column: span 3;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="documentstatus"] {
-    grid-column: span 2;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="riskcompany"] {
-    grid-column: span 2;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="coursecompliance"] {
-    grid-column: 1 / -1;
-    max-height: 420px;
-    overflow: auto;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="compliancetrend"] {
-    max-height: 680px;
-    overflow: auto;
-}
-
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="companycompliance"],
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="documentstatus"],
-.block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="riskcompany"] {
-    max-height: 680px;
-    overflow: auto;
-}
-
-.block-dashboardanalytics .da-visual-panel[data-panel-key="servererrors"],
-.block-dashboardanalytics .da-visual-panel[data-panel-key="serversettings"] {
-    grid-column: 1 / -1;
 }
 
 .block-dashboardanalytics.is-fullpage .da-grouped-row {
@@ -744,11 +701,16 @@
     border-radius: 8px;
     padding: .8rem;
     background: #fff;
+    min-width: 0;
 }
 
 .block-dashboardanalytics .da-visual-panel h5 {
     margin: 0 0 .25rem;
     font-size: .98rem;
+}
+
+.block-dashboardanalytics .da-visual-panel-fullrow {
+    grid-column: 1 / -1;
 }
 
 .block-dashboardanalytics .da-visual-panel p,
@@ -1371,21 +1333,6 @@
 }
 
 @media (max-width: 1200px) {
-    .block-dashboardanalytics.is-fullpage .da-visual-grid {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-    }
-
-    .block-dashboardanalytics.is-fullpage .da-visual-grid-server {
-        grid-template-columns: 1fr;
-    }
-
-    .block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="compliancetrend"],
-    .block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="companycompliance"],
-    .block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="documentstatus"],
-    .block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key="riskcompany"] {
-        grid-column: span 3;
-    }
-
     .block-dashboardanalytics.is-fullpage .da-kpi-strip {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1403,10 +1350,6 @@
 
     .block-dashboardanalytics.is-fullpage .da-visual-grid {
         grid-template-columns: 1fr;
-    }
-
-    .block-dashboardanalytics.is-fullpage .da-visual-panel[data-panel-key] {
-        grid-column: auto;
     }
 
     .block-dashboardanalytics.is-fullpage .da-kpi-strip {

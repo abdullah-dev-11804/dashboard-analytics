@@ -511,6 +511,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var hasServerPanels = panels.some(function(panel) {
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
+        var isFullRowVisualPanel = function(panel) {
+            return ['table', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
+        };
         if (!panels.length) {
             container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noVisualData', 'No visual data available.')) + '</div>';
             return;
@@ -711,7 +714,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }).join('') + '</div>';
             }
 
-            return '<article class="da-visual-panel" data-panel-key="' + escapeHtml(panel.key) + '">'
+            return '<article class="da-visual-panel' + (isFullRowVisualPanel(panel) ? ' da-visual-panel-fullrow' : '') + '" data-panel-key="' + escapeHtml(panel.key) + '">'
                 + '<h5>' + escapeHtml(panel.title) + '</h5>'
                 + '<p>' + escapeHtml(panel.description) + '</p>'
                 + body
