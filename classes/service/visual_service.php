@@ -10,6 +10,7 @@ use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
+use block_dashboardanalytics\repository\server_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -56,10 +57,7 @@ class visual_service {
         }
 
         if ($tabkey === 'server') {
-            return $this->company_pending(
-                get_string('panel:server:title', 'block_dashboardanalytics'),
-                get_string('panel:server:pending', 'block_dashboardanalytics')
-            );
+            return $this->server($filters);
         }
 
         if ($tabkey === 'reports') {
@@ -186,6 +184,21 @@ class visual_service {
             'panels' => [
                 $this->panel('expirywindows', get_string('panel:expirywindows:title', 'block_dashboardanalytics'), 'cards', get_string('panel:expirywindows:description', 'block_dashboardanalytics'), $documents->forecast_window_items($filters)),
                 $this->panel('forecastcompany', get_string('panel:forecastcompany:title', 'block_dashboardanalytics'), 'bar', get_string('panel:forecastcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
+            ],
+        ];
+    }
+
+    private function server(array $filters): array {
+        $server = new server_repository();
+
+        return [
+            'title' => get_string('panel:server:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:server:description', 'block_dashboardanalytics'),
+            'panels' => [
+                $this->panel('servergauges', get_string('panel:servergauges:title', 'block_dashboardanalytics'), 'servergauges', get_string('panel:servergauges:description', 'block_dashboardanalytics'), $server->capacity_gauge_items()),
+                $this->panel('serverforecast', get_string('panel:serverforecast:title', 'block_dashboardanalytics'), 'serverforecast', get_string('panel:serverforecast:description', 'block_dashboardanalytics'), $server->disk_forecast_items()),
+                $this->panel('servererrors', get_string('panel:servererrors:title', 'block_dashboardanalytics'), 'servererrors', get_string('panel:servererrors:description', 'block_dashboardanalytics'), $server->error_summary_items()),
+                $this->panel('serversettings', get_string('panel:serversettings:title', 'block_dashboardanalytics'), 'serversettings', get_string('panel:serversettings:description', 'block_dashboardanalytics'), $server->system_settings_items()),
             ],
         ];
     }

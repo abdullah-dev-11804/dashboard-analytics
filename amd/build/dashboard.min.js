@@ -25,7 +25,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         next: 'Next',
         perPage: 'Rows per page',
         page: 'Page {$a}',
-        goToServerTab: 'Go to Server tab'
+        goToServerTab: 'Go to Server tab',
+        warningThreshold: 'Warning threshold:',
+        criticalThreshold: 'Critical threshold:',
+        clearState: 'Clear',
+        monitorState: 'Monitor',
+        criticalState: 'Critical',
+        okSummary: 'OK',
+        warningSummary: 'Warning',
+        checkSummary: 'Check'
     };
 
     var stringList = [
@@ -52,7 +60,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:next', component: 'block_dashboardanalytics'},
         {key: 'js:perpage', component: 'block_dashboardanalytics'},
         {key: 'js:page', component: 'block_dashboardanalytics'},
-        {key: 'js:gotoservertab', component: 'block_dashboardanalytics'}
+        {key: 'js:gotoservertab', component: 'block_dashboardanalytics'},
+        {key: 'js:warningthreshold', component: 'block_dashboardanalytics'},
+        {key: 'js:criticalthreshold', component: 'block_dashboardanalytics'},
+        {key: 'js:clearstate', component: 'block_dashboardanalytics'},
+        {key: 'js:monitorstate', component: 'block_dashboardanalytics'},
+        {key: 'js:criticalstate', component: 'block_dashboardanalytics'},
+        {key: 'js:oksummary', component: 'block_dashboardanalytics'},
+        {key: 'js:warningsummary', component: 'block_dashboardanalytics'},
+        {key: 'js:checksummary', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -492,17 +508,116 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         var panels = data.panels || [];
+        var hasServerPanels = panels.some(function(panel) {
+            return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
+        });
         if (!panels.length) {
             container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noVisualData', 'No visual data available.')) + '</div>';
             return;
         }
 
-        container.innerHTML = '<div class="da-visual-grid">' + panels.map(function(panel) {
+        container.innerHTML = '<div class="da-visual-grid' + (hasServerPanels ? ' da-visual-grid-server' : '') + '">' + panels.map(function(panel) {
             var items = panel.items || [];
             var body = '';
 
             if (!items.length) {
                 body = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            } else if (panel.type === 'servergauges') {
+                body = '<div class="da-server-thresholds">'
+                    + '<span class="da-server-threshold-label">' + escapeHtml(text('warningThreshold', 'Warning threshold:')) + '</span>'
+                    + '<span class="da-server-threshold-pill da-server-threshold-pill-warning">70%</span>'
+                    + '<span class="da-server-threshold-label">' + escapeHtml(text('criticalThreshold', 'Critical threshold:')) + '</span>'
+                    + '<span class="da-server-threshold-pill da-server-threshold-pill-danger">90%</span>'
+                    + '</div>'
+                    + '<div class="da-server-capacity-grid">' + items.map(function(item) {
+                        var percent = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                        return '<article class="da-server-capacity-card da-server-capacity-card-' + escapeHtml(item.status) + '">'
+                            + '<div class="da-server-capacity-head">'
+                            + '<strong>' + escapeHtml(item.label) + '</strong>'
+                            + '<span class="da-server-capacity-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</span>'
+                            + '</div>'
+                            + '<div class="da-server-capacity-track"><span class="da-server-capacity-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + percent + '%"></span></div>'
+                            + '<div class="da-server-capacity-meta">' + escapeHtml(item.meta) + '</div>'
+                            + '</article>';
+                    }).join('') + '</div>';
+            } else if (panel.type === 'serverforecast') {
+                var forecast = items[0] || {segments: [], value: '', status: 'muted', meta: ''};
+                var points = (forecast.segments || []).map(function(segment, index, segments) {
+                    var x = segments.length <= 1 ? 0 : (index / (segments.length - 1)) * 100;
+                    var y = 100 - Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                    return {x: x, y: y, status: segment.status || 'historical', label: segment.label || ''};
+                });
+                var historical = points.filter(function(point) {
+                    return point.status === 'historical';
+                });
+                var projected = points.filter(function(point) {
+                    return point.status === 'projected';
+                });
+                var historicalLine = historical.map(function(point) {
+                    return point.x.toFixed(1) + ',' + point.y.toFixed(1);
+                }).join(' ');
+                var projectedLine = [];
+                if (projected.length) {
+                    if (historical.length) {
+                        projectedLine.push(historical[historical.length - 1].x.toFixed(1) + ',' + historical[historical.length - 1].y.toFixed(1));
+                    }
+                    projectedLine = projectedLine.concat(projected.map(function(point) {
+                        return point.x.toFixed(1) + ',' + point.y.toFixed(1);
+                    }));
+                }
+                var areaPoints = projectedLine.length
+                    ? projectedLine + ' 100,100 ' + (historical.length ? historical[historical.length - 1].x.toFixed(1) : '0') + ',100'
+                    : '';
+                body = '<div class="da-server-forecast-wrap">'
+                    + '<div class="da-server-thresholds da-server-thresholds-tight">'
+                    + '<span class="da-server-threshold-label">' + escapeHtml(text('criticalThreshold', 'Critical threshold:')) + '</span>'
+                    + '<span class="da-server-threshold-pill da-server-threshold-pill-danger">90%</span>'
+                    + '</div>'
+                    + '<div class="da-server-forecast-canvas">'
+                    + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                    + '<line x1="0" y1="10" x2="100" y2="10" class="da-server-forecast-threshold"></line>'
+                    + (areaPoints ? '<polygon points="' + escapeHtml(areaPoints) + '" class="da-server-forecast-area"></polygon>' : '')
+                    + (historicalLine ? '<polyline points="' + escapeHtml(historicalLine) + '" class="da-server-forecast-historical"></polyline>' : '')
+                    + (projectedLine.length ? '<polyline points="' + escapeHtml(projectedLine.join(' ')) + '" class="da-server-forecast-projected"></polyline>' : '')
+                    + '</svg>'
+                    + '<div class="da-server-forecast-annotation da-text-' + escapeHtml(forecast.status || 'muted') + '">' + escapeHtml(forecast.value || '') + '</div>'
+                    + '</div>'
+                    + '<div class="da-server-forecast-meta">' + escapeHtml(forecast.meta || '') + '</div>'
+                    + '</div>';
+            } else if (panel.type === 'servererrors') {
+                body = '<div class="da-server-error-list">' + items.map(function(item) {
+                    return '<div class="da-server-error-row da-server-error-row-' + escapeHtml(item.status) + '">'
+                        + '<div class="da-server-error-label">' + escapeHtml(item.label) + '</div>'
+                        + '<div class="da-server-error-count da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</div>'
+                        + '<div class="da-server-error-meta">' + escapeHtml(item.meta) + '</div>'
+                        + '<div class="da-server-error-state da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.status === 'ok' ? text('clearState', 'Clear') : (item.status === 'danger' ? text('criticalState', 'Critical') : text('monitorState', 'Monitor'))) + '</div>'
+                        + '</div>';
+                }).join('') + '</div>';
+            } else if (panel.type === 'serversettings') {
+                var summary = items.reduce(function(result, item) {
+                    if (item.status === 'ok') {
+                        result.ok++;
+                    } else if (item.status === 'warning' || item.status === 'danger') {
+                        result.warning++;
+                    } else {
+                        result.check++;
+                    }
+                    return result;
+                }, {ok: 0, warning: 0, check: 0});
+                body = '<div class="da-server-settings-wrap">'
+                    + '<div class="da-server-settings-badges">'
+                    + '<span class="da-badge da-badge-ok">' + escapeHtml(String(summary.ok) + ' ' + text('okSummary', 'OK')) + '</span>'
+                    + '<span class="da-badge da-badge-warning">' + escapeHtml(String(summary.warning) + ' ' + text('warningSummary', 'Warning')) + '</span>'
+                    + '<span class="da-badge da-badge-info">' + escapeHtml(String(summary.check) + ' ' + text('checkSummary', 'Check')) + '</span>'
+                    + '</div>'
+                    + '<div class="da-server-settings-table">' + items.map(function(item) {
+                        return '<div class="da-server-settings-row">'
+                            + '<div class="da-server-settings-label">' + escapeHtml(item.label) + '</div>'
+                            + '<div class="da-server-settings-value">' + escapeHtml(item.value) + '</div>'
+                            + '<div class="da-server-settings-status"><span class="da-badge da-badge-' + escapeHtml(item.status) + '">' + escapeHtml(item.meta) + '</span></div>'
+                            + '</div>';
+                    }).join('') + '</div>'
+                    + '</div>';
             } else if (panel.type === 'line') {
                 body = '<div class="da-line-chart">' + items.map(function(item) {
                     var segments = item.segments || [];
@@ -1022,6 +1137,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.perPage = values[21];
             strings.page = values[22];
             strings.goToServerTab = values[23];
+            strings.warningThreshold = values[24];
+            strings.criticalThreshold = values[25];
+            strings.clearState = values[26];
+            strings.monitorState = values[27];
+            strings.criticalState = values[28];
+            strings.okSummary = values[29];
+            strings.warningSummary = values[30];
+            strings.checkSummary = values[31];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {

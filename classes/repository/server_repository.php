@@ -156,6 +156,337 @@ class server_repository {
         ];
     }
 
+    public function capacity_gauge_items(): array {
+        global $CFG;
+
+        $path = !empty($CFG->dataroot) ? $CFG->dataroot : sys_get_temp_dir();
+        $disktotal = @disk_total_space($path);
+        $diskfree = @disk_free_space($path);
+        $diskused = ($disktotal && $diskfree !== false) ? ($disktotal - $diskfree) : 0;
+        $diskpercent = ($disktotal && $disktotal > 0 && $diskfree !== false) ? round(($diskused / $disktotal) * 100, 1) : null;
+
+        $memoryused = memory_get_usage(true);
+        $memorylimit = $this->memory_limit_bytes();
+        $memorypercent = $memorylimit > 0 ? round(($memoryused / $memorylimit) * 100, 1) : null;
+
+        $cpuload = $this->cpu_load_average();
+        $cpupercent = $this->cpu_percent();
+        $cpucores = $this->cpu_core_count();
+
+        $dbsize = $this->database_size_bytes();
+        $dbpercent = ($dbsize !== null && $disktotal && $disktotal > 0) ? round(($dbsize / $disktotal) * 100, 1) : null;
+
+        $concurrentusers = $this->concurrent_users();
+        $activeusers = max(1, $this->active_user_count());
+        $concurrentpercent = round(min(100, ($concurrentusers / $activeusers) * 100), 1);
+
+        return [
+            $this->visual_item(
+                get_string('metric:disk', 'block_dashboardanalytics'),
+                $diskpercent !== null ? $diskpercent . '%' : 'N/A',
+                $diskpercent ?? 0.0,
+                $diskpercent !== null ? $this->status_for_percent($diskpercent) : 'muted',
+                $diskpercent !== null
+                    ? $this->format_bytes($diskused) . ' / ' . $this->format_bytes($disktotal) . ' · ' . $this->status_word($diskpercent)
+                    : get_string('server:meta:unavailable', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('metric:ram', 'block_dashboardanalytics'),
+                $memorypercent !== null ? $memorypercent . '%' : 'N/A',
+                $memorypercent ?? 0.0,
+                $memorypercent !== null ? $this->status_for_percent($memorypercent) : 'muted',
+                $memorypercent !== null
+                    ? $this->format_bytes($memoryused) . ' / ' . $this->format_bytes($memorylimit) . ' · ' . $this->status_word($memorypercent)
+                    : get_string('server:meta:unavailable', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('metric:cpu1m', 'block_dashboardanalytics'),
+                $cpupercent !== null ? $cpupercent . '%' : 'N/A',
+                $cpupercent ?? 0.0,
+                $cpupercent !== null ? $this->status_for_percent($cpupercent) : 'muted',
+                'Load ' . ($cpuload !== null ? $cpuload : 'N/A') . ($cpucores > 0 ? ' · ' . $cpucores . ' cores' : '')
+                    . ' · ' . ($cpupercent !== null ? $this->status_word($cpupercent) : get_string('server:label:monitor', 'block_dashboardanalytics'))
+            ),
+            $this->visual_item(
+                get_string('metric:database', 'block_dashboardanalytics'),
+                $dbpercent !== null ? $dbpercent . '%' : ($dbsize !== null ? $this->format_bytes($dbsize) : 'N/A'),
+                $dbpercent ?? 0.0,
+                $dbpercent !== null ? 'info' : ($dbsize !== null ? 'info' : 'muted'),
+                $dbsize !== null
+                    ? $this->format_bytes($dbsize) . ($disktotal && $disktotal > 0 ? ' / ' . $this->format_bytes($disktotal) : '')
+                        . ' · ' . get_string('server:label:monitor', 'block_dashboardanalytics')
+                    : get_string('server:meta:unavailable', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('metric:concurrentusers', 'block_dashboardanalytics'),
+                $concurrentpercent . '%',
+                $concurrentpercent,
+                $this->status_for_percent($concurrentpercent),
+                $concurrentusers . ' / ' . $activeusers . ' · ' . get_string('server:meta:livesessions', 'block_dashboardanalytics')
+            ),
+        ];
+    }
+
+    public function disk_forecast_items(): array {
+        global $CFG;
+
+        $path = !empty($CFG->dataroot) ? $CFG->dataroot : sys_get_temp_dir();
+        $total = @disk_total_space($path);
+        $free = @disk_free_space($path);
+        $percent = ($total && $total > 0 && $free !== false) ? round((($total - $free) / $total) * 100, 1) : null;
+        $status = $percent !== null ? $this->status_for_percent($percent) : 'muted';
+
+        $meta = $percent === null
+            ? get_string('server:forecast:unavailable', 'block_dashboardanalytics')
+            : ($percent >= 90
+                ? get_string('server:forecast:criticalnow', 'block_dashboardanalytics')
+                : get_string('server:forecast:nohistory', 'block_dashboardanalytics'));
+
+        $base = $percent ?? 0.0;
+        $segments = [];
+        foreach ([
+            ['label' => '-30d', 'status' => 'historical'],
+            ['label' => '-20d', 'status' => 'historical'],
+            ['label' => '-10d', 'status' => 'historical'],
+            ['label' => 'Now', 'status' => 'historical'],
+            ['label' => '+30d', 'status' => 'projected'],
+            ['label' => '+60d', 'status' => 'projected'],
+            ['label' => '+90d', 'status' => 'projected'],
+        ] as $point) {
+            $segments[] = [
+                'label' => $point['label'],
+                'value' => (string)$base,
+                'percent' => $base,
+                'status' => $point['status'],
+            ];
+        }
+
+        return [[
+            'label' => get_string('metric:disk', 'block_dashboardanalytics'),
+            'value' => $percent !== null ? $percent . '%' : 'N/A',
+            'percent' => $base,
+            'status' => $status,
+            'meta' => $meta,
+            'segments' => $segments,
+        ]];
+    }
+
+    public function error_summary_items(): array {
+        global $DB, $CFG;
+
+        $since = time() - WEEKSECS;
+
+        $qrfailcount = 0;
+        $qrlatest = 0;
+        if ($this->table_exists('local_ncasign_jobs')) {
+            try {
+                $record = $DB->get_record_sql(
+                    "SELECT COUNT(1) AS totalcount,
+                            MAX(COALESCE(timemodified, timecreated)) AS latestts
+                       FROM {local_ncasign_jobs}
+                      WHERE status = :status
+                        AND COALESCE(timemodified, timecreated) >= :since",
+                    ['status' => 'finalize_failed', 'since' => $since]
+                );
+                $qrfailcount = (int)($record->totalcount ?? 0);
+                $qrlatest = (int)($record->latestts ?? 0);
+            } catch (\Throwable $e) {
+                $qrfailcount = 0;
+                $qrlatest = 0;
+            }
+        }
+
+        $smtpconfigured = !empty($CFG->smtphosts);
+
+        $edsrejectcount = 0;
+        $edsrejectlatest = 0;
+        if ($this->table_exists('local_ncasign_signers')) {
+            try {
+                $record = $DB->get_record_sql(
+                    "SELECT COUNT(1) AS totalcount,
+                            MAX(timemodified) AS latestts
+                       FROM {local_ncasign_signers}
+                      WHERE verificationstatus IS NOT NULL
+                        AND verificationstatus <> ''
+                        AND verificationstatus NOT IN ('valid', 'trusted', 'good', 'signed_manual')
+                        AND timemodified >= :since",
+                    ['since' => $since]
+                );
+                $edsrejectcount = (int)($record->totalcount ?? 0);
+                $edsrejectlatest = (int)($record->latestts ?? 0);
+            } catch (\Throwable $e) {
+                $edsrejectcount = 0;
+                $edsrejectlatest = 0;
+            }
+        }
+
+        $cronoverruns = $this->overdue_task_count();
+
+        $quilgotimeouts = 0;
+        if ($this->table_exists('quizaccess_quilgo_reports')) {
+            try {
+                $quilgotimeouts = (int)$DB->count_records_select('quizaccess_quilgo_reports',
+                    $DB->sql_like('error_reason', ':timeout', false, false),
+                    ['timeout' => '%timeout%']
+                );
+            } catch (\Throwable $e) {
+                $quilgotimeouts = 0;
+            }
+        }
+
+        $storageerrors = 0;
+        if ($this->table_exists('local_ncasign_jobs')) {
+            try {
+                $likefile = $DB->sql_like('autosignnote', ':fileerror', false, false);
+                $likestorage = $DB->sql_like('autosignnote', ':storageerror', false, false);
+                $storageerrors = (int)$DB->count_records_sql(
+                    "SELECT COUNT(1)
+                       FROM {local_ncasign_jobs}
+                      WHERE COALESCE(timemodified, timecreated) >= :since
+                        AND ({$likefile} OR {$likestorage})",
+                    [
+                        'since' => $since,
+                        'fileerror' => '%file%',
+                        'storageerror' => '%storage%',
+                    ]
+                );
+            } catch (\Throwable $e) {
+                $storageerrors = 0;
+            }
+        }
+
+        return [
+            $this->visual_item(
+                get_string('server:error:qr', 'block_dashboardanalytics'),
+                (string)$qrfailcount,
+                $qrfailcount > 0 ? 100.0 : 0.0,
+                $qrfailcount > 0 ? 'danger' : 'ok',
+                $qrfailcount > 0 ? $this->latest_age_text($qrlatest) : get_string('server:error:clear', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:error:email', 'block_dashboardanalytics'),
+                $smtpconfigured ? '0' : '1',
+                $smtpconfigured ? 0.0 : 100.0,
+                $smtpconfigured ? 'ok' : 'warning',
+                $smtpconfigured ? get_string('server:error:clear', 'block_dashboardanalytics') : get_string('server:error:smtpmissing', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:error:edsreject', 'block_dashboardanalytics'),
+                (string)$edsrejectcount,
+                $edsrejectcount > 0 ? 100.0 : 0.0,
+                $edsrejectcount > 0 ? 'danger' : 'ok',
+                $edsrejectcount > 0 ? $this->latest_age_text($edsrejectlatest) : get_string('server:error:clear', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:error:cron', 'block_dashboardanalytics'),
+                (string)$cronoverruns,
+                min(100, $cronoverruns * 20),
+                $cronoverruns > 3 ? 'danger' : ($cronoverruns > 0 ? 'warning' : 'ok'),
+                $cronoverruns > 0 ? $this->cron_meta_text() : get_string('server:error:clear', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:error:quilgo', 'block_dashboardanalytics'),
+                (string)$quilgotimeouts,
+                $quilgotimeouts > 0 ? 100.0 : 0.0,
+                $quilgotimeouts > 0 ? 'warning' : 'ok',
+                $quilgotimeouts > 0 ? get_string('server:error:quilgotimeoutmeta', 'block_dashboardanalytics') : get_string('server:error:clear', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:error:storage', 'block_dashboardanalytics'),
+                (string)$storageerrors,
+                $storageerrors > 0 ? 100.0 : 0.0,
+                $storageerrors > 0 ? 'warning' : 'ok',
+                $storageerrors > 0 ? get_string('server:error:storagemeta', 'block_dashboardanalytics') : get_string('server:error:clear', 'block_dashboardanalytics')
+            ),
+        ];
+    }
+
+    public function system_settings_items(): array {
+        global $CFG, $DB;
+
+        $release = '';
+        if (!empty($CFG->release)) {
+            $release = (string)$CFG->release;
+        } else if ($this->table_exists('config')) {
+            $release = (string)$DB->get_field('config', 'value', ['name' => 'release'], IGNORE_MISSING);
+        }
+
+        $phpversion = PHP_VERSION;
+        $memorylimit = ini_get('memory_limit');
+        $lastcron = $this->last_cron_run();
+        $cronage = $lastcron > 0 ? time() - $lastcron : null;
+        $cronstatus = $cronage === null ? 'warning' : ($cronage > 900 ? 'warning' : 'ok');
+        $cronvalue = $cronage === null
+            ? get_string('server:settings:cronunknown', 'block_dashboardanalytics')
+            : get_string('server:settings:cronvalue', 'block_dashboardanalytics', format_time($cronage));
+
+        $cachebackend = $this->cache_backend_label();
+        $smtpvalue = !empty($CFG->smtphosts)
+            ? $CFG->smtphosts . (!empty($CFG->smtpsecure) ? ' · ' . strtoupper((string)$CFG->smtpsecure) : '')
+            : get_string('server:settings:notconfigured', 'block_dashboardanalytics');
+
+        $loglifetime = (int)get_config('moodle', 'loglifetime');
+        $logvalue = $loglifetime > 0
+            ? get_string('server:settings:logdays', 'block_dashboardanalytics', (int)round($loglifetime / DAYSECS))
+            : get_string('server:settings:logunlimited', 'block_dashboardanalytics');
+
+        return [
+            $this->visual_item(
+                get_string('server:setting:moodle', 'block_dashboardanalytics'),
+                $release !== '' ? $release : get_string('server:settings:unknown', 'block_dashboardanalytics'),
+                0.0,
+                'ok',
+                get_string('server:settings:latestrecommended', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:setting:phpversion', 'block_dashboardanalytics'),
+                $phpversion,
+                0.0,
+                version_compare($phpversion, '8.1.0', '>=') ? 'ok' : 'warning',
+                version_compare($phpversion, '8.1.0', '>=') ? get_string('label:ok', 'block_dashboardanalytics') : get_string('label:warning', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:setting:phpmemory', 'block_dashboardanalytics'),
+                (string)$memorylimit,
+                0.0,
+                $this->memory_limit_bytes() >= (256 * 1024 * 1024) ? 'ok' : 'warning',
+                $this->memory_limit_bytes() >= (256 * 1024 * 1024)
+                    ? get_string('server:settings:memoryok', 'block_dashboardanalytics')
+                    : get_string('server:settings:memorylow', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:setting:cron', 'block_dashboardanalytics'),
+                $cronvalue,
+                0.0,
+                $cronstatus,
+                $cronstatus === 'ok' ? get_string('label:ok', 'block_dashboardanalytics') : get_string('label:urgent', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:setting:cache', 'block_dashboardanalytics'),
+                $cachebackend,
+                0.0,
+                $cachebackend === get_string('server:settings:cachedefault', 'block_dashboardanalytics') ? 'info' : 'ok',
+                $cachebackend === get_string('server:settings:cachedefault', 'block_dashboardanalytics')
+                    ? get_string('server:label:monitor', 'block_dashboardanalytics')
+                    : get_string('label:ok', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:setting:smtp', 'block_dashboardanalytics'),
+                $smtpvalue,
+                0.0,
+                !empty($CFG->smtphosts) ? 'ok' : 'warning',
+                !empty($CFG->smtphosts) ? get_string('label:ok', 'block_dashboardanalytics') : get_string('label:warning', 'block_dashboardanalytics')
+            ),
+            $this->visual_item(
+                get_string('server:setting:logretention', 'block_dashboardanalytics'),
+                $logvalue,
+                0.0,
+                $loglifetime > 0 ? 'ok' : 'info',
+                $loglifetime > 0 ? get_string('label:ok', 'block_dashboardanalytics') : get_string('server:label:setpolicy', 'block_dashboardanalytics')
+            ),
+        ];
+    }
+
     private function metric_row(string $metric, string $current, string $used, string $total): array {
         $status = 'OK';
         if (substr($current, -1) === '%') {
@@ -171,6 +502,17 @@ class server_repository {
                 ['key' => 'total', 'value' => $total],
                 ['key' => 'status', 'value' => $status],
             ],
+        ];
+    }
+
+    private function visual_item(string $label, string $value, float $percent, string $status, string $meta): array {
+        return [
+            'label' => $label,
+            'value' => $value,
+            'percent' => $percent,
+            'status' => $status,
+            'meta' => $meta,
+            'segments' => [],
         ];
     }
 
@@ -316,6 +658,20 @@ class server_repository {
         return (int)$DB->count_records_select('sessions', 'timemodified >= :since', ['since' => time() - 300]);
     }
 
+    private function active_user_count(): int {
+        global $DB;
+
+        if (!$this->table_exists('user')) {
+            return 0;
+        }
+
+        try {
+            return (int)$DB->count_records_select('user', 'deleted = 0 AND suspended = 0 AND confirmed = 1');
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
     private function cpu_load(): string {
         $load = $this->cpu_load_average();
         return $load !== null ? $load . ' load' : 'Not available';
@@ -411,6 +767,41 @@ class server_repository {
             return 'Warning';
         }
         return 'OK';
+    }
+
+    private function latest_age_text(int $timestamp): string {
+        if ($timestamp <= 0) {
+            return get_string('server:error:unknownlatest', 'block_dashboardanalytics');
+        }
+
+        return get_string('server:error:latestage', 'block_dashboardanalytics', format_time(time() - $timestamp));
+    }
+
+    private function cron_meta_text(): string {
+        $lastcron = $this->last_cron_run();
+        if ($lastcron <= 0) {
+            return get_string('server:settings:cronunknown', 'block_dashboardanalytics');
+        }
+
+        return get_string('server:settings:cronvalue', 'block_dashboardanalytics', format_time(time() - $lastcron));
+    }
+
+    private function cache_backend_label(): string {
+        global $DB;
+
+        if (!$this->table_exists('config_plugins')) {
+            return get_string('server:settings:cachedefault', 'block_dashboardanalytics');
+        }
+
+        try {
+            if ($DB->record_exists('config_plugins', ['plugin' => 'cachestore_redis'])) {
+                return 'Redis';
+            }
+        } catch (\Throwable $e) {
+            return get_string('server:settings:cachedefault', 'block_dashboardanalytics');
+        }
+
+        return get_string('server:settings:cachedefault', 'block_dashboardanalytics');
     }
 
     private function last_cron_run(): int {
