@@ -8,6 +8,7 @@ use block_dashboardanalytics\repository\company_repository;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
+use block_dashboardanalytics\repository\server_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -37,6 +38,11 @@ class compliance_service {
         if ($drilldownkey === 'company_eds_queue' || $drilldownkey === 'client_eds_queue') {
             $eds = new eds_repository();
             return $this->result(get_string('drilldown:title:edsqueue', 'block_dashboardanalytics'), $eds->pending_manual_rows($filters, $page, $perpage));
+        }
+
+        if ($drilldownkey === 'company_server_disk') {
+            $server = new server_repository();
+            return $this->result(get_string('drilldown:title:serverdisk', 'block_dashboardanalytics'), $server->disk_rows());
         }
 
         if ($drilldownkey === 'client_total_staff') {
@@ -83,6 +89,7 @@ class compliance_service {
                 'company_expiring_documents',
                 'company_expired_documents',
                 'company_eds_queue',
+                'company_server_disk',
             ],
             permissions::DASHBOARD_CLIENT => [
                 'client_total_staff',

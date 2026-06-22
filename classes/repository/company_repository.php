@@ -240,7 +240,6 @@ class company_repository {
                     ['key' => 'companyid', 'value' => (string)(int)$record->companyid],
                     ['key' => 'company', 'value' => (string)$record->companyname],
                     ['key' => 'activeusers', 'value' => (string)(int)$record->activeusers],
-                    ['key' => 'validusers', 'value' => (string)$summary['validusers']],
                     ['key' => 'compliance', 'value' => $compliance . '%'],
                     ['key' => 'status', 'value' => $status],
                     ['key' => 'action', 'value' => 'View full report'],
@@ -252,7 +251,6 @@ class company_repository {
             'columns' => [
                 ['key' => 'company', 'label' => get_string('label:company', 'block_dashboardanalytics')],
                 ['key' => 'activeusers', 'label' => get_string('label:activeusers', 'block_dashboardanalytics')],
-                ['key' => 'validusers', 'label' => get_string('label:validusers', 'block_dashboardanalytics')],
                 ['key' => 'compliance', 'label' => get_string('label:compliancepercent', 'block_dashboardanalytics')],
                 ['key' => 'status', 'label' => get_string('label:status', 'block_dashboardanalytics')],
                 ['key' => 'action', 'label' => get_string('label:action', 'block_dashboardanalytics')],

@@ -26,8 +26,7 @@ class dashboard_service {
             'dashboardkey' => $dashboardkey,
             'dashboardname' => permissions::dashboard_name($dashboardkey),
             'canviewemployeeidentity' => permissions::can_view_employee_identity($context, $userid),
-            'tabs' => permissions::dashboard_tabs($dashboardkey),
+            'tabs' => permissions::dashboard_tabs($dashboardkey, $context, $userid),
         ];
     }
 }
-

@@ -62,6 +62,13 @@ class visual_service {
             );
         }
 
+        if ($tabkey === 'reports') {
+            return $this->company_pending(
+                get_string('panel:reports:title', 'block_dashboardanalytics'),
+                get_string('panel:reports:pending', 'block_dashboardanalytics')
+            );
+        }
+
         if ($tabkey === 'turnover') {
             return $this->company_pending(
                 get_string('panel:turnover:title', 'block_dashboardanalytics'),
@@ -184,6 +191,13 @@ class visual_service {
     }
 
     private function client_manager_panels(string $tabkey, array $filters): array {
+        if ($tabkey === 'turnover') {
+            return $this->company_pending(
+                get_string('panel:turnover:title', 'block_dashboardanalytics'),
+                get_string('panel:turnover:pending', 'block_dashboardanalytics')
+            );
+        }
+
         if ($tabkey === 'compliance') {
             return $this->client_compliance($filters);
         }

@@ -86,7 +86,12 @@ class permissions {
         return $map[$dashboardkey] ?? get_string('pluginname', 'block_dashboardanalytics');
     }
 
-    public static function dashboard_tabs(string $dashboardkey): array {
+    public static function dashboard_tabs(string $dashboardkey, ?\context $context = null, ?int $userid = null): array {
+        global $USER;
+
+        $userid = $userid ?? (int)$USER->id;
+        $issuperadmin = is_siteadmin($userid);
+
         $tabs = [
             self::DASHBOARD_COMPANY => [
                 ['key' => 'kpis', 'label' => get_string('tab:kpis', 'block_dashboardanalytics')],
@@ -96,13 +101,11 @@ class permissions {
                 ['key' => 'quality', 'label' => get_string('tab:quality', 'block_dashboardanalytics')],
                 ['key' => 'proctoring', 'label' => get_string('tab:proctoring', 'block_dashboardanalytics')],
                 ['key' => 'forecast', 'label' => get_string('tab:forecast', 'block_dashboardanalytics')],
-                ['key' => 'server', 'label' => get_string('tab:server', 'block_dashboardanalytics')],
             ],
             self::DASHBOARD_CLIENT => [
-                ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
+                ['key' => 'kpis', 'label' => get_string('tab:kpis', 'block_dashboardanalytics')],
                 ['key' => 'compliance', 'label' => get_string('tab:compliance', 'block_dashboardanalytics')],
-                ['key' => 'expiry', 'label' => get_string('tab:expiry', 'block_dashboardanalytics')],
-                ['key' => 'newstaff', 'label' => get_string('tab:newstaff', 'block_dashboardanalytics')],
+                ['key' => 'turnover', 'label' => get_string('tab:turnover', 'block_dashboardanalytics')],
             ],
             self::DASHBOARD_EMPLOYEE => [
                 ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
@@ -110,6 +113,11 @@ class permissions {
                 ['key' => 'courses', 'label' => get_string('tab:courses', 'block_dashboardanalytics')],
             ],
         ];
+
+        if ($dashboardkey === self::DASHBOARD_COMPANY && $issuperadmin) {
+            $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'server', 'label' => get_string('tab:server', 'block_dashboardanalytics')];
+            $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'reports', 'label' => get_string('tab:reports', 'block_dashboardanalytics')];
+        }
 
         $items = $tabs[$dashboardkey] ?? [];
         foreach ($items as $index => $tab) {

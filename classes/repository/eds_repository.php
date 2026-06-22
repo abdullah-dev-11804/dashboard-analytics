@@ -8,8 +8,42 @@ defined('MOODLE_INTERNAL') || die();
 class eds_repository {
 
     public function count_pending_manual(array $filters): int {
-        $result = $this->pending_manual_rows($filters, 0, 1);
-        return $result['totalcount'];
+        $summary = $this->queue_summary($filters);
+        return $summary['count'];
+    }
+
+    public function queue_summary(array $filters): array {
+        global $DB;
+
+        if (!$this->has_tables()) {
+            return [
+                'count' => 0,
+                'oldestdays' => 0,
+                'status' => 'muted',
+                'badge' => get_string('label:ok', 'block_dashboardanalytics'),
+            ];
+        }
+
+        [$fromsql, $params] = $this->pending_manual_from_sql($filters);
+        $record = $DB->get_record_sql(
+            "SELECT COUNT(1) AS totalcount,
+                    MIN(j.timecreated) AS oldestcreated
+               {$fromsql}",
+            $params
+        );
+
+        $count = (int)($record->totalcount ?? 0);
+        $oldestcreated = (int)($record->oldestcreated ?? 0);
+        $oldestdays = $count > 0 && $oldestcreated > 0
+            ? max(0, (int)floor((time() - $oldestcreated) / DAYSECS))
+            : 0;
+
+        return [
+            'count' => $count,
+            'oldestdays' => $oldestdays,
+            'status' => $count > 0 ? $this->status_key($oldestdays) : 'ok',
+            'badge' => $count > 0 ? $this->status_badge($oldestdays) : get_string('label:ok', 'block_dashboardanalytics'),
+        ];
     }
 
     public function pending_manual_rows(array $filters, int $page, int $perpage): array {
@@ -97,6 +131,51 @@ class eds_repository {
             'notice' => '',
             'description' => 'Pending manual EDS signatures from NCASign, showing the current expected signer only.',
         ];
+    }
+
+    private function pending_manual_from_sql(array $filters): array {
+        $employee = new employee_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'edsq');
+        $where = [
+            $userfilter['sql'],
+            "j.status = :status",
+            "j.origin = :origin",
+            "s.status = :signerstatus",
+            "s.notifiedat IS NOT NULL",
+            "s.signorder = (
+                SELECT MIN(s2.signorder)
+                  FROM {local_ncasign_signers} s2
+                 WHERE s2.jobid = j.id
+                   AND s2.status = :pendingstatus
+            )",
+        ];
+
+        $params = $userfilter['params'] + [
+            'status' => 'pending_manual',
+            'origin' => 'course_completion',
+            'signerstatus' => 'pending',
+            'pendingstatus' => 'pending',
+        ];
+
+        return [
+            "FROM {local_ncasign_jobs} j
+              JOIN {local_ncasign_signers} s ON s.jobid = j.id
+              JOIN {user} u ON u.id = j.userid
+             WHERE " . implode(' AND ', $where),
+            $params,
+        ];
+    }
+
+    private function status_key(int $dayswaiting): string {
+        if ($dayswaiting < 2) {
+            return 'ok';
+        }
+
+        if ($dayswaiting <= 5) {
+            return 'warning';
+        }
+
+        return 'danger';
     }
 
     private function status_badge(int $dayswaiting): string {

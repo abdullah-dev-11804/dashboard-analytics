@@ -126,6 +126,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return options[0] || 'last12months';
     };
 
+    var defaultDrilldownKey = function(state) {
+        if (state.dashboardkey === 'company') {
+            return 'company_total_active_users';
+        }
+
+        if (state.dashboardkey === 'client') {
+            return 'client_total_staff';
+        }
+
+        return 'employee_documents';
+    };
+
     var readFilters = function(root, state, overrides) {
         var filters = {};
         Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
@@ -708,6 +720,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
     var refresh = function(root, state) {
         persistState(root, state);
         loadKpis(root, state);
+        if (state.currentTab === 'kpis') {
+            loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state));
+            return;
+        }
         if (state.currentDrilldown) {
             loadDrilldown(root, state, state.currentDrilldown);
             return;
@@ -862,7 +878,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var kpi = event.target.closest('[data-drilldown]');
             if (kpi && root.contains(kpi)) {
-                state.currentTab = '';
+                state.currentTab = 'kpis';
+                setActiveTab(root, 'kpis');
                 state.currentDrilldownPage = 0;
                 loadDrilldown(root, state, kpi.getAttribute('data-drilldown'), undefined, 0, state.currentDrilldownPerPage || 20);
                 return;
@@ -870,9 +887,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var tab = event.target.closest('[data-tab]');
             if (tab && root.contains(tab)) {
-                setActiveTab(root, tab.getAttribute('data-tab'));
+                var tabkey = tab.getAttribute('data-tab');
+                setActiveTab(root, tabkey);
+                state.currentTab = tabkey;
+                state.currentDrilldownPage = 0;
+                if (tabkey === 'kpis') {
+                    state.currentDrilldown = defaultDrilldownKey(state);
+                    loadDrilldown(root, state, state.currentDrilldown, undefined, 0, state.currentDrilldownPerPage || 20);
+                    return;
+                }
                 state.currentDrilldown = '';
-                loadVisuals(root, state, tab.getAttribute('data-tab'));
+                state.currentDrilldownOverrides = null;
+                loadVisuals(root, state, tabkey);
                 return;
             }
 
@@ -910,6 +936,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         state.activeFilterKeys = Array.isArray(saved.activeFilterKeys) ? saved.activeFilterKeys : [];
         state.persistedFilters = saved.filters || {};
         state.currentTab = saved.currentTab || state.currentTab;
+        if (!root.querySelector('[data-tab="' + state.currentTab + '"]')) {
+            state.currentTab = activeTab ? activeTab.getAttribute('data-tab') : 'overview';
+        }
         setActiveTab(root, state.currentTab);
 
         Str.get_strings(stringList).then(function(values) {
