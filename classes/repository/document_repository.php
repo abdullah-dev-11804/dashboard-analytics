@@ -39,6 +39,7 @@ class document_repository {
         $useridcolumn = $source['userid'];
         $expiry = $this->expiry_sql('d', $source);
         $expiryjoin = $this->expiry_join_sql('d', $source);
+        $hascompletion = $this->has_completion_sql('ccdash');
         $params += [
             'expirednow' => $now,
             'expiringnow' => $now,
@@ -46,12 +47,15 @@ class document_repository {
             'activesoon' => $soon,
         ];
 
-        $sql = "SELECT COUNT(1) AS total,
-                       SUM(CASE WHEN {$expiry} < :expirednow THEN 1 ELSE 0 END) AS expired,
-                       SUM(CASE WHEN {$expiry} >= :expiringnow
+        $sql = "SELECT SUM(CASE WHEN {$hascompletion} THEN 1 ELSE 0 END) AS total,
+                       SUM(CASE WHEN {$hascompletion}
+                                  AND {$expiry} < :expirednow THEN 1 ELSE 0 END) AS expired,
+                       SUM(CASE WHEN {$hascompletion}
+                                  AND {$expiry} >= :expiringnow
                                   AND {$expiry} <= :expiringsoon THEN 1 ELSE 0 END) AS expiring,
-                       SUM(CASE WHEN {$expiry} > :activesoon THEN 1 ELSE 0 END) AS active,
-                       COUNT(DISTINCT d.{$useridcolumn}) AS userswithdocuments
+                       SUM(CASE WHEN {$hascompletion}
+                                  AND {$expiry} > :activesoon THEN 1 ELSE 0 END) AS active,
+                       COUNT(DISTINCT CASE WHEN {$hascompletion} THEN d.{$useridcolumn} ELSE NULL END) AS userswithdocuments
                   FROM {{$table}} d
                   JOIN {user} u ON u.id = d.{$useridcolumn}
                        {$expiryjoin}
@@ -113,6 +117,7 @@ class document_repository {
         $this->append_course_filter($where, $params, $filters, $source, 'validdoccourse');
         $expiry = $this->expiry_sql('d', $source);
         $expiryjoin = $this->expiry_join_sql('d', $source);
+        $where[] = $this->has_completion_sql('ccdash');
         $where[] = "{$expiry} >= :validnow";
 
         $table = $source['table'];
@@ -548,13 +553,13 @@ class document_repository {
                        {$companysql['join']}
                        {$expiryjoin}
                  WHERE {$wheresql}
-              ORDER BY {$expiry} ASC";
+              ORDER BY CASE WHEN {$expiry} IS NULL THEN 1 ELSE 0 END, {$expiry} ASC";
 
         $records = $DB->get_records_sql($sql, $params, $page * $perpage, $perpage);
         $rows = [];
         foreach ($records as $record) {
-            $expiry = (int)$record->expirytime;
-            $days = (int)floor(($expiry - time()) / DAYSECS);
+            $expiry = $record->expirytime !== null ? (int)$record->expirytime : null;
+            $days = $expiry !== null ? (int)floor(($expiry - time()) / DAYSECS) : null;
             $rows[] = [
                 'cells' => [
                     ['key' => 'employee', 'value' => $showidentity ? fullname($record) : get_string('hiddenuser')],
@@ -562,8 +567,8 @@ class document_repository {
                     ['key' => 'department', 'value' => (string)$record->department],
                     ['key' => 'location', 'value' => (string)$record->city],
                     ['key' => 'course', 'value' => (string)$record->coursename],
-                    ['key' => 'expiry', 'value' => userdate($expiry, get_string('strftimedate'))],
-                    ['key' => 'days', 'value' => (string)$days],
+                    ['key' => 'expiry', 'value' => $expiry !== null ? userdate($expiry, get_string('strftimedate')) : '-'],
+                    ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
                     ['key' => 'status', 'value' => $this->status_label($expiry)],
                 ],
             ];
@@ -769,7 +774,10 @@ class document_repository {
             return '0';
         }
 
-        return "COALESCE(ccdash.timecompleted, 0) + (COALESCE(cfdash.intvalue, cfdash.decvalue, cfdash.value, 0) * 86400)";
+        return "CASE
+                    WHEN ccdash.timecompleted IS NULL OR ccdash.timecompleted <= 0 THEN NULL
+                    ELSE ccdash.timecompleted + (COALESCE(NULLIF(cfdash.intvalue, 0), NULLIF(cfdash.decvalue, 0), NULLIF(cfdash.value, ''), 1) * 86400)
+                END";
     }
 
     public function expiry_join_sql(string $alias, array $source): string {
@@ -799,7 +807,15 @@ class document_repository {
         return get_string('label:red', 'block_dashboardanalytics');
     }
 
-    private function status_label(int $expiry): string {
+    private function has_completion_sql(string $alias): string {
+        return "{$alias}.timecompleted IS NOT NULL AND {$alias}.timecompleted > 0";
+    }
+
+    private function status_label(?int $expiry): string {
+        if ($expiry === null || $expiry <= 0) {
+            return get_string('label:nodocument', 'block_dashboardanalytics');
+        }
+
         if ($expiry < time()) {
             return get_string('label:expired', 'block_dashboardanalytics');
         }

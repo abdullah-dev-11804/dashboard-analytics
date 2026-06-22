@@ -321,7 +321,10 @@ class overview_repository {
         }
 
         $validitysql = $this->validity_days_sql('cfd');
-        $expiryselect = "COALESCE(cc.timecompleted, 0) + ({$validitysql} * 86400) AS expirytime";
+        $expiryselect = "CASE
+                            WHEN cc.timecompleted IS NULL OR cc.timecompleted <= 0 THEN NULL
+                            ELSE cc.timecompleted + ({$validitysql} * 86400)
+                         END AS expirytime";
         $docjoin = $this->latest_document_join_sql($source, 'u', 'c', 'd');
         $basewhere = [
             $userfilter['sql'],
@@ -419,7 +422,8 @@ class overview_repository {
         $rows = [];
         $samples = [];
         foreach ($records as $record) {
-            $status = $this->status_for_row((int)$record->documentid, (int)$record->expirytime, $reportdate);
+            $expirytime = $record->expirytime !== null ? (int)$record->expirytime : null;
+            $status = $this->status_for_row((int)$record->documentid, $expirytime, $reportdate);
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
@@ -430,7 +434,7 @@ class overview_repository {
                 'position' => (string)$record->positionname,
                 'course' => format_string((string)$record->coursename),
                 'documentid' => (int)$record->documentid,
-                'expirytime' => (int)$record->expirytime,
+                'expirytime' => $expirytime ?? 0,
                 'status' => $status,
             ];
 
@@ -440,7 +444,7 @@ class overview_repository {
                     'courseid' => (int)$record->courseid,
                     'course' => $this->truncate_text((string)$record->coursename, 120),
                     'documentid' => (int)$record->documentid,
-                    'expirytime' => (int)$record->expirytime,
+                    'expirytime' => $expirytime,
                     'status' => $status,
                     'company' => $this->truncate_text((string)$record->companyname, 80),
                 ];
@@ -456,8 +460,8 @@ class overview_repository {
         return $rows;
     }
 
-    private function status_for_row(int $documentid, int $expirytime, int $reportdate): string {
-        if ($documentid <= 0 || $expirytime <= 0) {
+    private function status_for_row(int $documentid, ?int $expirytime, int $reportdate): string {
+        if ($documentid <= 0 || $expirytime === null || $expirytime <= 0) {
             return 'No document';
         }
 
