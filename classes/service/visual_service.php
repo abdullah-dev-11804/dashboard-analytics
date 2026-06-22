@@ -84,10 +84,13 @@ class visual_service {
             'title' => get_string('panel:overview:title', 'block_dashboardanalytics'),
             'description' => get_string('panel:overview:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('compliancetrend', get_string('panel:compliancetrend:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:compliancetrend:description', 'block_dashboardanalytics'), $overview->compliance_trend_items($filters)),
-                $this->panel('companycompliance', get_string('panel:companycompliance:title', 'block_dashboardanalytics'), 'bar', get_string('panel:companycompliance:description', 'block_dashboardanalytics'), $overview->company_compliance_items($filters)),
+                $this->panel('overviewsummary', get_string('panel:overviewsummary:title', 'block_dashboardanalytics'), 'overviewsummary', get_string('panel:overviewsummary:description', 'block_dashboardanalytics'), $overview->overview_summary_items($filters)),
+                $this->panel('platformgrowth', get_string('panel:platformgrowth:title', 'block_dashboardanalytics'), 'multibars', get_string('panel:platformgrowth:description', 'block_dashboardanalytics'), $overview->platform_growth_items($filters)),
+                $this->panel('activitysnapshot', get_string('panel:activitysnapshot:title', 'block_dashboardanalytics'), 'activitysnapshot', get_string('panel:activitysnapshot:description', 'block_dashboardanalytics'), $overview->activity_snapshot_items($filters)),
+                $this->panel('companyhealth', get_string('panel:companyhealth:title', 'block_dashboardanalytics'), 'companyhealth', get_string('panel:companyhealth:description', 'block_dashboardanalytics'), $overview->company_health_items($filters)),
                 $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
-                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $overview->expired_expiring_by_company_items($filters)),
+                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'multibars', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $overview->expired_expiring_by_company_items($filters)),
+                $this->panel('priorityactions', get_string('panel:priorityactions:title', 'block_dashboardanalytics'), 'alerts', get_string('panel:priorityactions:description', 'block_dashboardanalytics'), $overview->priority_action_items($filters)),
                 $this->panel('coursecompliance', get_string('panel:coursecompliance:title', 'block_dashboardanalytics'), 'bar', get_string('panel:coursecompliance:description', 'block_dashboardanalytics'), $overview->course_non_compliance_items($filters)),
             ],
         ];

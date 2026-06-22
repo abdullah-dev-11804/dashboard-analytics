@@ -241,6 +241,242 @@ class overview_repository {
         return array_slice($items, 0, $limit);
     }
 
+    public function overview_summary_items(array $filters): array {
+        $employees = new employee_repository();
+        $totalusers = $employees->count_active_users($filters);
+        $uptime = $this->uptime_summary();
+        $averagecompliance = $this->average_company_compliance_summary($filters);
+        $activecompanies = $this->active_company_summary($filters);
+
+        return [
+            [
+                'label' => get_string('overview:totalusers', 'block_dashboardanalytics'),
+                'value' => (string)$totalusers,
+                'percent' => 0.0,
+                'status' => 'info',
+                'meta' => get_string('overview:totalusersmeta', 'block_dashboardanalytics'),
+                'segments' => [],
+            ],
+            [
+                'label' => get_string('overview:platformuptime', 'block_dashboardanalytics'),
+                'value' => $uptime['value'],
+                'percent' => $uptime['percent'],
+                'status' => $uptime['status'],
+                'meta' => $uptime['meta'],
+                'segments' => [],
+            ],
+            [
+                'label' => get_string('overview:avgcompliance', 'block_dashboardanalytics'),
+                'value' => $averagecompliance['value'],
+                'percent' => $averagecompliance['percent'],
+                'status' => $averagecompliance['status'],
+                'meta' => $averagecompliance['meta'],
+                'segments' => [],
+            ],
+            [
+                'label' => get_string('overview:activecompanies', 'block_dashboardanalytics'),
+                'value' => $activecompanies['value'],
+                'percent' => $activecompanies['percent'],
+                'status' => $activecompanies['status'],
+                'meta' => $activecompanies['meta'],
+                'segments' => [],
+            ],
+        ];
+    }
+
+    public function platform_growth_items(array $filters): array {
+        $months = $this->month_windows($filters);
+        $companies = $this->top_company_labels($filters, 3);
+        $seriesstatuses = ['info', 'danger', 'warning', 'ok', 'muted'];
+
+        $items = [];
+        foreach ($months as $month) {
+            $summaries = $this->company_summaries($filters, $month['end']);
+            $summarymap = [];
+            foreach ($summaries as $summary) {
+                $summarymap[$summary['label']] = $summary;
+            }
+
+            $segments = [];
+            $maxpercent = 0.0;
+            foreach ($companies as $index => $company) {
+                $summary = $summarymap[$company] ?? ['percent' => 0.0];
+                $percent = (float)$summary['percent'];
+                $maxpercent = max($maxpercent, $percent);
+                $segments[] = [
+                    'label' => $company,
+                    'value' => (string)round($percent),
+                    'percent' => $percent,
+                    'status' => $seriesstatuses[$index % count($seriesstatuses)],
+                ];
+            }
+
+            $items[] = [
+                'label' => $month['label'],
+                'value' => '',
+                'percent' => $maxpercent,
+                'status' => 'info',
+                'meta' => get_string('overview:platformgrowthmeta', 'block_dashboardanalytics'),
+                'segments' => $segments,
+            ];
+        }
+
+        return $items;
+    }
+
+    public function activity_snapshot_items(array $filters): array {
+        $todaystart = (new \DateTimeImmutable('today 00:00:00', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
+        $todayend = (new \DateTimeImmutable('today 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
+        $yesterdaystart = $todaystart - DAYSECS;
+        $yesterdayend = $todaystart - 1;
+        $last30start = $todayend - (30 * DAYSECS) + 1;
+        $previous30start = $last30start - (30 * DAYSECS);
+        $previous30end = $last30start - 1;
+
+        $dau = $this->log_distinct_user_count($filters, $todaystart, $todayend);
+        $dauyesterday = $this->log_distinct_user_count($filters, $yesterdaystart, $yesterdayend);
+        $mau = $this->log_distinct_user_count($filters, $last30start, $todayend);
+        $completion = $this->completion_rate_summary($filters, $last30start, $todayend);
+        $completionprevious = $this->completion_rate_summary($filters, $previous30start, $previous30end);
+        $avgsession = $this->average_session_minutes($filters, $last30start, $todayend);
+        $avgsessionprevious = $this->average_session_minutes($filters, $previous30start, $previous30end);
+
+        $items = [
+            [
+                'label' => get_string('overview:dautoday', 'block_dashboardanalytics'),
+                'value' => (string)$dau,
+                'percent' => 0.0,
+                'status' => 'info',
+                'meta' => $this->delta_meta($dau, $dauyesterday, get_string('overview:vsday', 'block_dashboardanalytics')),
+                'segments' => [],
+            ],
+            [
+                'label' => get_string('overview:mau30d', 'block_dashboardanalytics'),
+                'value' => (string)$mau,
+                'percent' => 0.0,
+                'status' => 'ok',
+                'meta' => get_string('overview:last30days', 'block_dashboardanalytics'),
+                'segments' => [],
+            ],
+            [
+                'label' => get_string('overview:completionrate', 'block_dashboardanalytics'),
+                'value' => $completion['value'],
+                'percent' => $completion['percent'],
+                'status' => $completion['status'],
+                'meta' => $this->delta_meta($completion['percent'], $completionprevious['percent'], get_string('kpi:trend:vslastmo', 'block_dashboardanalytics')),
+                'segments' => [],
+            ],
+            [
+                'label' => get_string('overview:avgsession', 'block_dashboardanalytics'),
+                'value' => $avgsession['value'],
+                'percent' => 0.0,
+                'status' => 'warning',
+                'meta' => $this->delta_meta($avgsession['minutes'], $avgsessionprevious['minutes'], get_string('kpi:trend:vslastmo', 'block_dashboardanalytics')),
+                'segments' => [],
+            ],
+        ];
+
+        foreach ($this->top_active_course_items($filters, 3, $last30start, $todayend, $mau) as $courseitem) {
+            $items[] = $courseitem;
+        }
+
+        return $items;
+    }
+
+    public function company_health_items(array $filters): array {
+        $companies = $this->company_scope_options($filters);
+        $trustmap = $this->trust_score_map($filters);
+        $items = [];
+
+        foreach ($companies as $company) {
+            $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
+            $activeusers = (new employee_repository())->count_active_users($companyfilters);
+            $compliancesummary = $this->overall_employee_compliance_summary($companyfilters);
+            $turnoverpercent = $this->recent_staff_change_percent($companyfilters, 90, $activeusers);
+            $completion = $this->completion_rate_summary($companyfilters, $this->current_report_date() - (30 * DAYSECS) + 1, $this->current_report_date());
+            $companyname = $company['name'];
+            $trustscore = $trustmap[$companyname] ?? null;
+            $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent']);
+
+            $items[] = [
+                'label' => $companyname,
+                'value' => $activeusers > 0 ? (string)$activeusers : '—',
+                'percent' => (float)$compliancesummary['percent'],
+                'status' => $statuskey,
+                'meta' => $activeusers > 0 ? round($turnoverpercent, 1) . '%' : '—',
+                'segments' => [
+                    ['label' => get_string('label:compliancepercent', 'block_dashboardanalytics'), 'value' => $activeusers > 0 ? round((float)$compliancesummary['percent'], 1) . '%' : '—', 'percent' => (float)$compliancesummary['percent'], 'status' => $this->status_for_percent((float)$compliancesummary['percent'])],
+                    ['label' => get_string('overview:trustscore', 'block_dashboardanalytics'), 'value' => $trustscore !== null ? (string)round($trustscore) : '—', 'percent' => $trustscore !== null ? (float)$trustscore : 0.0, 'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore) : 'muted'],
+                    ['label' => get_string('overview:completion', 'block_dashboardanalytics'), 'value' => $completion['value'], 'percent' => $completion['percent'], 'status' => $completion['status']],
+                    ['label' => get_string('label:action', 'block_dashboardanalytics'), 'value' => get_string('overview:report', 'block_dashboardanalytics'), 'percent' => 0.0, 'status' => 'info'],
+                ],
+            ];
+        }
+
+        return $items;
+    }
+
+    public function priority_action_items(array $filters): array {
+        $actions = [];
+        $summaries = $this->company_summaries($filters, $this->current_report_date());
+
+        if ($summaries) {
+            usort($summaries, static function(array $a, array $b): int {
+                return $a['percent'] <=> $b['percent'];
+            });
+            $worst = $summaries[0];
+            if ($worst['total'] > 0) {
+                $noncompliant = max(0, $worst['total'] - $worst['compliant']);
+                $actions[] = [
+                    'label' => strtoupper(get_string('label:critical', 'block_dashboardanalytics')) . ' — ' . $worst['label'] . ' ' . round((float)$worst['percent'], 1) . '%',
+                    'value' => get_string('overview:viewreportcta', 'block_dashboardanalytics'),
+                    'percent' => 0.0,
+                    'status' => 'danger',
+                    'meta' => $noncompliant . ' ' . get_string('overview:employeeswithoutvaliddocs', 'block_dashboardanalytics'),
+                    'segments' => [],
+                ];
+            }
+        }
+
+        $expiredsummary = $this->expired_documents_priority_summary($filters);
+        if ($expiredsummary['count'] > 0) {
+            $actions[] = [
+                'label' => strtoupper(get_string('label:urgent', 'block_dashboardanalytics')) . ' — ' . $expiredsummary['count'] . ' ' . get_string('overview:documentsexpired', 'block_dashboardanalytics'),
+                'value' => get_string('overview:viewexpiredcta', 'block_dashboardanalytics'),
+                'percent' => 0.0,
+                'status' => 'warning',
+                'meta' => $expiredsummary['meta'],
+                'segments' => [],
+            ];
+        }
+
+        $server = new server_repository();
+        $disk = $server->disk_card();
+        if (preg_match('/([0-9]+(?:\.[0-9]+)?)%/', (string)$disk['value'], $matches)) {
+            $actions[] = [
+                'label' => strtoupper(get_string('tab:server', 'block_dashboardanalytics')) . ' — ' . get_string('kpi:serverdisk', 'block_dashboardanalytics') . ' ' . $matches[1] . '%',
+                'value' => get_string('js:gotoservertab', 'block_dashboardanalytics'),
+                'percent' => 0.0,
+                'status' => (string)$disk['status'],
+                'meta' => (string)$disk['trend'],
+                'segments' => [],
+            ];
+        }
+
+        if (!$actions) {
+            $actions[] = [
+                'label' => get_string('overview:nopriorityactions', 'block_dashboardanalytics'),
+                'value' => get_string('label:ok', 'block_dashboardanalytics'),
+                'percent' => 0.0,
+                'status' => 'ok',
+                'meta' => get_string('overview:nopriorityactionsmeta', 'block_dashboardanalytics'),
+                'segments' => [],
+            ];
+        }
+
+        return array_slice($actions, 0, 3);
+    }
+
     private function company_summaries(array $filters, int $reportdate): array {
         $rows = $this->enrolment_status_rows($filters, $reportdate);
         $companies = [];
@@ -562,6 +798,341 @@ class overview_repository {
         return 'danger';
     }
 
+    private function top_company_labels(array $filters, int $limit): array {
+        $summaries = $this->company_summaries($filters, $this->current_report_date());
+        usort($summaries, static function(array $a, array $b): int {
+            return $b['total'] <=> $a['total'];
+        });
+
+        $labels = array_values(array_filter(array_map(static function(array $summary): string {
+            return (string)$summary['label'];
+        }, array_slice($summaries, 0, $limit))));
+
+        return $labels ?: [get_string('label:unassigned', 'block_dashboardanalytics')];
+    }
+
+    private function uptime_summary(): array {
+        return [
+            'value' => 'N/A',
+            'percent' => 0.0,
+            'status' => 'muted',
+            'meta' => get_string('overview:uptimepending', 'block_dashboardanalytics'),
+        ];
+    }
+
+    private function average_company_compliance_summary(array $filters): array {
+        $summaries = array_values(array_filter($this->company_summaries($filters, $this->current_report_date()), static function(array $summary): bool {
+            return $summary['total'] > 0;
+        }));
+
+        if (!$summaries) {
+            return [
+                'value' => get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
+                'percent' => 0.0,
+                'status' => 'muted',
+                'meta' => get_string('overview:belowtarget', 'block_dashboardanalytics'),
+            ];
+        }
+
+        $average = array_sum(array_map(static function(array $summary): float {
+            return (float)$summary['percent'];
+        }, $summaries)) / count($summaries);
+        $average = round($average, 1);
+
+        return [
+            'value' => $average . '%',
+            'percent' => $average,
+            'status' => $this->status_for_percent($average),
+            'meta' => $average < 80 ? get_string('overview:belowtarget', 'block_dashboardanalytics') : get_string('label:ok', 'block_dashboardanalytics'),
+        ];
+    }
+
+    private function active_company_summary(array $filters): array {
+        $options = $this->company_scope_options($filters);
+        $active = 0;
+        $onboardinglabel = '';
+
+        foreach ($options as $company) {
+            $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
+            $users = (new employee_repository())->count_active_users($companyfilters);
+            if ($users > 0) {
+                $active++;
+            } else if ($onboardinglabel === '') {
+                $onboardinglabel = $company['name'];
+            }
+        }
+
+        $total = count($options);
+        return [
+            'value' => $active . ' / ' . $total,
+            'percent' => $total > 0 ? round(($active / $total) * 100, 1) : 0.0,
+            'status' => $active === $total ? 'ok' : ($active > 0 ? 'warning' : 'muted'),
+            'meta' => $onboardinglabel !== ''
+                ? $onboardinglabel . ' ' . get_string('overview:onboarding', 'block_dashboardanalytics')
+                : get_string('overview:allcompaniesactive', 'block_dashboardanalytics'),
+        ];
+    }
+
+    private function company_scope_options(array $filters): array {
+        $companyrepo = new company_repository();
+        $options = $companyrepo->get_company_options($filters);
+        if ($options) {
+            return array_map(static function(array $option): array {
+                return [
+                    'id' => ctype_digit((string)$option['value']) ? (int)$option['value'] : 0,
+                    'name' => (string)$option['label'],
+                ];
+            }, $options);
+        }
+
+        $summaries = $this->company_summaries($filters, $this->current_report_date());
+        return array_map(static function(array $summary): array {
+            return ['id' => 0, 'name' => (string)$summary['label']];
+        }, $summaries);
+    }
+
+    private function company_scoped_filters(array $filters, string $companyname, int $companyid = 0): array {
+        $companyrepo = new company_repository();
+        if ($companyrepo->has_iomad_tables() && $companyid > 0) {
+            $filters['companyids'] = [$companyid];
+            unset($filters['companies']);
+            return $filters;
+        }
+
+        $filters['companies'] = [$companyname];
+        unset($filters['companyids']);
+        return $filters;
+    }
+
+    private function trust_score_map(array $filters): array {
+        $items = (new proctoring_repository())->company_average_items($filters, 200);
+        $map = [];
+        foreach ($items as $item) {
+            $map[$item['label']] = (float)$item['percent'];
+        }
+        return $map;
+    }
+
+    private function recent_staff_change_percent(array $filters, int $days, int $activeusers): float {
+        global $DB;
+
+        if ($activeusers <= 0) {
+            return 0.0;
+        }
+
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($filters, 'u', 'recentstaff');
+        $params = $filter['params'] + ['createdsince' => time() - ($days * DAYSECS)];
+        $sql = "SELECT COUNT(1)
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+                   AND u.timecreated >= :createdsince";
+
+        $count = (int)$DB->count_records_sql($sql, $params);
+        return round(($count / $activeusers) * 100, 1);
+    }
+
+    private function has_log_table(): bool {
+        return $this->table_exists('logstore_standard_log');
+    }
+
+    private function log_distinct_user_count(array $filters, int $start, int $end): int {
+        global $DB;
+
+        if (!$this->has_log_table()) {
+            return 0;
+        }
+
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($filters, 'u', 'logcount');
+        $params = $filter['params'] + ['startts' => $start, 'endts' => $end];
+        $sql = "SELECT COUNT(DISTINCT l.userid)
+                  FROM {logstore_standard_log} l
+                  JOIN {user} u ON u.id = l.userid
+                 WHERE l.userid > 0
+                   AND {$filter['sql']}
+                   AND l.timecreated >= :startts
+                   AND l.timecreated <= :endts";
+
+        return (int)$DB->count_records_sql($sql, $params);
+    }
+
+    private function completion_rate_summary(array $filters, int $start, int $end): array {
+        global $DB;
+
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($filters, 'u', 'completionrate');
+        $params = $filter['params'] + [
+            'siteid' => SITEID,
+            'startts' => $start,
+            'endts' => $end,
+        ];
+
+        $sql = "SELECT COUNT(1) AS totalenrolments,
+                       SUM(CASE WHEN cc.timecompleted IS NOT NULL
+                                 AND cc.timecompleted >= :startts
+                                 AND cc.timecompleted <= :endts
+                                THEN 1 ELSE 0 END) AS completedrecent
+                  FROM {user_enrolments} ue
+                  JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
+                  JOIN {course} c ON c.id = e.courseid
+                  JOIN {user} u ON u.id = ue.userid
+             LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
+                 WHERE ue.status = 0
+                   AND c.id <> :siteid
+                   AND c.visible = 1
+                   AND {$filter['sql']}";
+
+        if (!empty($filters['courseids'])) {
+            [$insql, $inparams] = $DB->get_in_or_equal($filters['courseids'], SQL_PARAMS_NAMED, 'completioncourse');
+            $sql .= " AND c.id {$insql}";
+            $params += $inparams;
+        }
+
+        $record = $DB->get_record_sql($sql, $params);
+        $total = (int)($record->totalenrolments ?? 0);
+        $completed = (int)($record->completedrecent ?? 0);
+        $percent = $total > 0 ? round(($completed / $total) * 100, 1) : 0.0;
+
+        return [
+            'value' => $percent . '%',
+            'percent' => $percent,
+            'status' => $this->status_for_percent($percent),
+            'completed' => $completed,
+            'total' => $total,
+        ];
+    }
+
+    private function average_session_minutes(array $filters, int $start, int $end): array {
+        global $DB;
+
+        if (!$this->has_log_table()) {
+            return ['value' => 'N/A', 'minutes' => 0.0];
+        }
+
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($filters, 'u', 'sessionavg');
+        $params = $filter['params'] + ['startts' => $start, 'endts' => $end];
+        $sql = "SELECT AVG(spans.spanseconds) AS avgseconds
+                  FROM (
+                        SELECT l.userid,
+                               FLOOR(l.timecreated / 86400) AS daybucket,
+                               LEAST(MAX(l.timecreated) - MIN(l.timecreated), 14400) AS spanseconds
+                          FROM {logstore_standard_log} l
+                          JOIN {user} u ON u.id = l.userid
+                         WHERE l.userid > 0
+                           AND {$filter['sql']}
+                           AND l.timecreated >= :startts
+                           AND l.timecreated <= :endts
+                      GROUP BY l.userid, FLOOR(l.timecreated / 86400)
+                       ) spans";
+
+        $record = $DB->get_record_sql($sql, $params);
+        $avgseconds = (float)($record->avgseconds ?? 0.0);
+        $minutes = round($avgseconds / 60, 1);
+
+        return [
+            'value' => $minutes > 0 ? round($minutes) . 'm' : '0m',
+            'minutes' => $minutes,
+        ];
+    }
+
+    private function top_active_course_items(array $filters, int $limit, int $start, int $end, int $mau): array {
+        global $DB;
+
+        if (!$this->has_log_table()) {
+            return [];
+        }
+
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($filters, 'u', 'topcourses');
+        $params = $filter['params'] + [
+            'siteid' => SITEID,
+            'startts' => $start,
+            'endts' => $end,
+        ];
+
+        $sql = "SELECT c.id,
+                       c.fullname,
+                       COUNT(DISTINCT l.userid) AS activeusers
+                  FROM {logstore_standard_log} l
+                  JOIN {user} u ON u.id = l.userid
+                  JOIN {course} c ON c.id = l.courseid
+                 WHERE l.userid > 0
+                   AND c.id <> :siteid
+                   AND c.visible = 1
+                   AND {$filter['sql']}
+                   AND l.timecreated >= :startts
+                   AND l.timecreated <= :endts
+              GROUP BY c.id, c.fullname
+              ORDER BY activeusers DESC, c.fullname ASC";
+
+        $records = $DB->get_records_sql($sql, $params, 0, $limit);
+        $items = [];
+        foreach ($records as $record) {
+            $percent = $mau > 0 ? round(((int)$record->activeusers / $mau) * 100, 1) : 0.0;
+            $items[] = [
+                'label' => format_string((string)$record->fullname),
+                'value' => $percent . '%',
+                'percent' => $percent,
+                'status' => $percent >= 80 ? 'ok' : ($percent >= 60 ? 'warning' : 'danger'),
+                'meta' => (string)(int)$record->activeusers,
+                'segments' => [],
+            ];
+        }
+
+        return $items;
+    }
+
+    private function delta_meta(float $current, float $previous, string $suffix): string {
+        $delta = round($current - $previous, 1);
+        if (abs($delta) < 0.1) {
+            return get_string('kpi:trend:flat', 'block_dashboardanalytics', $suffix);
+        }
+
+        if ($delta > 0) {
+            return '+' . abs($delta) . ' ' . $suffix;
+        }
+
+        return '↓ ' . abs($delta) . ' ' . $suffix;
+    }
+
+    private function company_health_status_key(int $activeusers, float $compliance): string {
+        if ($activeusers <= 0) {
+            return 'onboarding';
+        }
+        if ($compliance >= 80) {
+            return 'healthy';
+        }
+        if ($compliance >= 70) {
+            return 'atrisk';
+        }
+        return 'critical';
+    }
+
+    private function expired_documents_priority_summary(array $filters): array {
+        $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
+        $expired = array_values(array_filter($rows, static function(array $row): bool {
+            return $row['status'] === 'Expired' && !empty($row['expirytime']);
+        }));
+
+        if (!$expired) {
+            return ['count' => 0, 'meta' => ''];
+        }
+
+        usort($expired, static function(array $a, array $b): int {
+            return $a['expirytime'] <=> $b['expirytime'];
+        });
+
+        $mostoverdue = $expired[0];
+        $days = max(0, (int)floor(($this->current_report_date() - (int)$mostoverdue['expirytime']) / DAYSECS));
+
+        return [
+            'count' => count($expired),
+            'meta' => $mostoverdue['employee'] . ' - ' . $days . ' ' . get_string('overview:daysoverdue', 'block_dashboardanalytics'),
+        ];
+    }
+
     private function latest_document_join_sql(array $source, string $useralias, string $coursealias, string $alias): string {
         $table = $source['table'];
         $originfilter = $source['origin'] !== ''
@@ -623,5 +1194,12 @@ class overview_repository {
         }
 
         return substr($value, 0, $limit - 3) . '...';
+    }
+
+    private function table_exists(string $tablename): bool {
+        global $CFG, $DB;
+
+        require_once($CFG->libdir . '/xmldb/xmldb_table.php');
+        return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
     }
 }

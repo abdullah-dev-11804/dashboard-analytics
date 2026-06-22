@@ -33,7 +33,19 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         criticalState: 'Critical',
         okSummary: 'OK',
         warningSummary: 'Warning',
-        checkSummary: 'Check'
+        checkSummary: 'Check',
+        topActiveCourses: 'Top active courses this month',
+        companyHeader: 'Company',
+        usersHeader: 'Users',
+        complianceHeader: 'Compliance',
+        turnoverHeader: 'Turnover',
+        trustScoreHeader: 'Trust score',
+        completionHeader: 'Completion',
+        statusHeader: 'Status',
+        reportLabel: 'Report',
+        healthyLabel: 'Healthy',
+        atRiskLabel: 'At risk',
+        onboardingLabel: 'Onboarding'
     };
 
     var stringList = [
@@ -68,7 +80,28 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:criticalstate', component: 'block_dashboardanalytics'},
         {key: 'js:oksummary', component: 'block_dashboardanalytics'},
         {key: 'js:warningsummary', component: 'block_dashboardanalytics'},
-        {key: 'js:checksummary', component: 'block_dashboardanalytics'}
+        {key: 'js:checksummary', component: 'block_dashboardanalytics'},
+        {key: 'js:topactivecourses', component: 'block_dashboardanalytics'},
+        {key: 'js:companyheader', component: 'block_dashboardanalytics'},
+        {key: 'js:usersheader', component: 'block_dashboardanalytics'},
+        {key: 'js:complianceheader', component: 'block_dashboardanalytics'},
+        {key: 'js:turnoverheader', component: 'block_dashboardanalytics'},
+        {key: 'js:trustscoreheader', component: 'block_dashboardanalytics'},
+        {key: 'js:completionheader', component: 'block_dashboardanalytics'},
+        {key: 'js:statusheader', component: 'block_dashboardanalytics'},
+        {key: 'js:reportlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:healthylabel', component: 'block_dashboardanalytics'},
+        {key: 'js:atrisklabel', component: 'block_dashboardanalytics'},
+        {key: 'js:onboardinglabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:allcompanieslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:allcourseslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:allperiodslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:alldepartmentslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:alllocationslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:allpositionslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:allpersonnelcategorieslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:allsiteslabel', component: 'block_dashboardanalytics'},
+        {key: 'filter:alleducationslabel', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -512,7 +545,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts'].indexOf(panel.type) !== -1
+                || ['coursecompliance'].indexOf(panel.key) !== -1;
         };
         if (!panels.length) {
             container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noVisualData', 'No visual data available.')) + '</div>';
@@ -525,6 +559,112 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             if (!items.length) {
                 body = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            } else if (panel.type === 'overviewsummary') {
+                body = '<div class="da-overview-summary-grid">' + items.map(function(item) {
+                    return '<article class="da-overview-summary-card da-overview-summary-card-' + escapeHtml(item.status) + '">'
+                        + '<span class="da-overview-summary-label">' + escapeHtml(item.label) + '</span>'
+                        + '<strong class="da-overview-summary-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</strong>'
+                        + '<span class="da-overview-summary-meta">' + escapeHtml(item.meta || '') + '</span>'
+                        + '</article>';
+                }).join('') + '</div>';
+            } else if (panel.type === 'multibars') {
+                var legend = (((items[0] || {}).segments) || []).map(function(segment) {
+                    return '<span class="da-multibars-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>' + escapeHtml(segment.label) + '</span>';
+                }).join('');
+                body = (legend ? '<div class="da-multibars-legend">' + legend + '</div>' : '')
+                    + '<div class="da-multibars-chart">' + items.map(function(item) {
+                        var segments = item.segments || [];
+                        return '<div class="da-multibars-group">'
+                            + '<div class="da-multibars-columns">' + segments.map(function(segment) {
+                                var height = Math.max(6, Math.min(100, Number(segment.percent) || 0));
+                                return '<div class="da-multibars-column-wrap">'
+                                    + '<span class="da-multibars-value">' + escapeHtml(segment.value || '') + '</span>'
+                                    + '<span class="da-multibars-column da-bar-fill-' + escapeHtml(segment.status) + '" style="height:' + height + '%" title="'
+                                        + escapeHtml(segment.label + ': ' + segment.value) + '"></span>'
+                                    + '</div>';
+                            }).join('') + '</div>'
+                            + '<div class="da-multibars-label">' + escapeHtml(item.label) + '</div>'
+                            + '</div>';
+                    }).join('') + '</div>';
+            } else if (panel.type === 'activitysnapshot') {
+                var metrics = items.slice(0, 4);
+                var courses = items.slice(4);
+                body = '<div class="da-activity-snapshot-grid">' + metrics.map(function(item) {
+                    return '<article class="da-activity-snapshot-card da-activity-snapshot-card-' + escapeHtml(item.status) + '">'
+                        + '<strong class="da-activity-snapshot-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</strong>'
+                        + '<span class="da-activity-snapshot-label">' + escapeHtml(item.label) + '</span>'
+                        + '<span class="da-activity-snapshot-meta">' + escapeHtml(item.meta || '') + '</span>'
+                        + '</article>';
+                }).join('') + '</div>'
+                    + '<div class="da-activity-courses">'
+                    + '<h6>' + escapeHtml(text('topActiveCourses', 'Top active courses this month')) + '</h6>'
+                    + '<div class="da-activity-course-list">' + courses.map(function(item) {
+                        var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                        return '<div class="da-activity-course-row">'
+                            + '<span class="da-activity-course-name">' + escapeHtml(item.label) + '</span>'
+                            + '<div class="da-activity-course-progress"><span class="da-bar-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"></span></div>'
+                            + '<strong class="da-activity-course-value">' + escapeHtml(item.value) + '</strong>'
+                            + '</div>';
+                    }).join('') + '</div></div>';
+            } else if (panel.type === 'companyhealth') {
+                var statusLabel = function(token) {
+                    if (token === 'healthy') {
+                        return text('healthyLabel', 'Healthy');
+                    }
+                    if (token === 'atrisk') {
+                        return text('atRiskLabel', 'At risk');
+                    }
+                    if (token === 'critical') {
+                        return text('criticalState', 'Critical');
+                    }
+                    if (token === 'onboarding') {
+                        return text('onboardingLabel', 'Onboarding');
+                    }
+                    return token;
+                };
+                body = '<div class="da-company-health-table-wrap"><table class="da-table da-company-health-table">'
+                    + '<thead><tr>'
+                    + '<th scope="col">' + escapeHtml(text('companyHeader', 'Company')) + '</th>'
+                    + '<th scope="col">' + escapeHtml(text('usersHeader', 'Users')) + '</th>'
+                    + '<th scope="col">' + escapeHtml(text('complianceHeader', 'Compliance')) + '</th>'
+                    + '<th scope="col">' + escapeHtml(text('turnoverHeader', 'Turnover')) + '</th>'
+                    + '<th scope="col">' + escapeHtml(text('trustScoreHeader', 'Trust score')) + '</th>'
+                    + '<th scope="col">' + escapeHtml(text('completionHeader', 'Completion')) + '</th>'
+                    + '<th scope="col">' + escapeHtml(text('statusHeader', 'Status')) + '</th>'
+                    + '<th scope="col"></th>'
+                    + '</tr></thead><tbody>'
+                    + items.map(function(item) {
+                        var segments = item.segments || [];
+                        var compliance = segments[0] || {value: '—', status: 'muted'};
+                        var trust = segments[1] || {value: '—', status: 'muted'};
+                        var completion = segments[2] || {value: '—', status: 'muted'};
+                        var action = segments[3] || {value: 'Report', status: 'info'};
+                        return '<tr>'
+                            + '<td><span class="da-company-health-name">' + escapeHtml(item.label) + '</span></td>'
+                            + '<td>' + escapeHtml(item.value) + '</td>'
+                            + '<td><span class="da-company-health-number da-text-' + escapeHtml(compliance.status) + '">' + escapeHtml(compliance.value) + '</span></td>'
+                            + '<td><span class="da-company-health-number">' + escapeHtml(item.meta || '—') + '</span></td>'
+                            + '<td><span class="da-company-health-number da-text-' + escapeHtml(trust.status) + '">' + escapeHtml(trust.value) + '</span></td>'
+                            + '<td><span class="da-company-health-number da-text-' + escapeHtml(completion.status) + '">' + escapeHtml(completion.value) + '</span></td>'
+                            + '<td><span class="da-badge da-badge-' + escapeHtml(item.status) + '">' + escapeHtml(statusLabel(item.status)) + '</span></td>'
+                            + '<td><button type="button" class="da-row-action" data-action="company-report" data-company="'
+                                + escapeHtml(item.label) + '" data-companyid="">' + escapeHtml(action.value || text('reportLabel', 'Report')) + '</button></td>'
+                            + '</tr>';
+                    }).join('')
+                    + '</tbody></table></div>';
+            } else if (panel.type === 'alerts') {
+                body = '<div class="da-alerts-grid">' + items.map(function(item) {
+                    var actionAttributes = '';
+                    if ((item.value || '') === text('goToServerTab', 'Go to Server tab')) {
+                        actionAttributes = ' data-action="goto-tab" data-tab="server"';
+                    }
+                    return '<article class="da-alert-card da-alert-card-' + escapeHtml(item.status) + '">'
+                        + '<div class="da-alert-card-title da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.label) + '</div>'
+                        + '<div class="da-alert-card-meta">' + escapeHtml(item.meta || '') + '</div>'
+                        + '<div class="da-alert-card-actions"><button type="button" class="da-row-action"' + actionAttributes + '>'
+                            + escapeHtml(item.value || '') + '</button></div>'
+                        + '</article>';
+                }).join('') + '</div>';
             } else if (panel.type === 'servergauges') {
                 body = '<div class="da-server-thresholds">'
                     + '<span class="da-server-threshold-label">' + escapeHtml(text('warningThreshold', 'Warning threshold:')) + '</span>'
@@ -1116,15 +1256,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.allOption = values[8];
             strings.allWithLabel = values[9];
             strings.allLabels = {
-                companies: 'All companies',
-                courses: 'All courses',
-                daterange: 'All periods',
-                departments: 'All departments',
-                locations: 'All locations',
-                positions: 'All positions',
-                personnelcategories: 'All personnel categories',
-                sites: 'All sites / facilities',
-                educations: 'All education levels'
+                companies: values[44],
+                courses: values[45],
+                daterange: values[46],
+                departments: values[47],
+                locations: values[48],
+                positions: values[49],
+                personnelcategories: values[50],
+                sites: values[51],
+                educations: values[52]
             };
             strings.activeFiltersAll = values[10];
             strings.activeFiltersPrefix = values[11];
@@ -1148,6 +1288,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.okSummary = values[29];
             strings.warningSummary = values[30];
             strings.checkSummary = values[31];
+            strings.topActiveCourses = values[32];
+            strings.companyHeader = values[33];
+            strings.usersHeader = values[34];
+            strings.complianceHeader = values[35];
+            strings.turnoverHeader = values[36];
+            strings.trustScoreHeader = values[37];
+            strings.completionHeader = values[38];
+            strings.statusHeader = values[39];
+            strings.reportLabel = values[40];
+            strings.healthyLabel = values[41];
+            strings.atRiskLabel = values[42];
+            strings.onboardingLabel = values[43];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {
