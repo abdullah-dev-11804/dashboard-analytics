@@ -1102,6 +1102,136 @@
     font-size: .86rem;
 }
 
+.block-dashboardanalytics .da-turnover-panel-head {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: .75rem;
+}
+
+.block-dashboardanalytics .da-turnover-panel-toolbar {
+    display: inline-flex;
+    gap: .45rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-turnover-combo-chart {
+    position: relative;
+    height: 220px;
+    padding: .75rem .75rem 2rem;
+    background: #f7faff;
+    border: 1px solid #e3ebf7;
+    border-radius: 12px;
+}
+
+.block-dashboardanalytics .da-turnover-combo-chart svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.block-dashboardanalytics .da-turnover-zero-line {
+    stroke: #d8e2f1;
+    stroke-width: 1.2;
+}
+
+.block-dashboardanalytics .da-turnover-bar-positive {
+    fill: #4a82c3;
+}
+
+.block-dashboardanalytics .da-turnover-bar-negative {
+    fill: #fb6b6b;
+}
+
+.block-dashboardanalytics .da-turnover-net-line {
+    fill: none;
+    stroke: #1aa26b;
+    stroke-width: 1.6;
+    stroke-dasharray: 3 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.block-dashboardanalytics .da-turnover-axis-labels {
+    position: absolute;
+    left: .75rem;
+    right: .75rem;
+    bottom: .35rem;
+    height: 1rem;
+}
+
+.block-dashboardanalytics .da-turnover-axis-label {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: .78rem;
+    color: #7186a8;
+}
+
+.block-dashboardanalytics .da-turnover-legend,
+.block-dashboardanalytics .da-turnover-rate-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: .9rem;
+    color: #4f6690;
+    font-size: .86rem;
+}
+
+.block-dashboardanalytics .da-turnover-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.block-dashboardanalytics .da-turnover-rate-list {
+    display: grid;
+    gap: .8rem;
+}
+
+.block-dashboardanalytics .da-turnover-rate-row {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: .7rem;
+    align-items: center;
+}
+
+.block-dashboardanalytics .da-turnover-rate-label {
+    font-weight: 600;
+    color: #243b63;
+    text-align: right;
+}
+
+.block-dashboardanalytics .da-turnover-rate-track {
+    width: 100%;
+    height: 20px;
+    background: #e9eff7;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-turnover-rate-fill {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 32px;
+    height: 100%;
+    border-radius: 6px;
+    padding: 0 .55rem;
+}
+
+.block-dashboardanalytics .da-turnover-rate-value {
+    color: #fff;
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-turnover-rate-formula {
+    margin-top: .55rem;
+    color: #59759f;
+    font-size: .84rem;
+}
+
 .block-dashboardanalytics .da-company-health-table-wrap {
     margin-top: .75rem;
     overflow-x: auto;
@@ -1617,6 +1747,7 @@ body.da-modal-open {
 }
 
 .block-dashboardanalytics .da-bar-fill {
+    display: block;
     height: 100%;
     border-radius: inherit;
     background: var(--da-blue);
@@ -1967,6 +2098,14 @@ body.da-modal-open {
     .block-dashboardanalytics .da-activity-course-row {
         grid-template-columns: 1fr;
         gap: .35rem;
+    }
+
+    .block-dashboardanalytics .da-turnover-rate-row {
+        grid-template-columns: 1fr;
+    }
+
+    .block-dashboardanalytics .da-turnover-rate-label {
+        text-align: left;
     }
 
     .da-company-summary-grid,

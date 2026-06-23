@@ -52,7 +52,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         period2Years: '2 years',
         periodAllTime: 'All time',
         barChartLabel: 'Bar chart',
-        interactiveLabel: 'interactive'
+        interactiveLabel: 'interactive',
+        comboBarLineLabel: 'Combo bar-line',
+        chartJsBarLabel: 'Chart.js bar',
+        turnoverFormula: 'Formula: Deactivated / Avg active × 100',
+        turnoverGood: '<5% Good',
+        turnoverMonitor: '5–10% Monitor',
+        turnoverHigh: '>10% High'
     };
 
     var stringList = [
@@ -114,7 +120,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'filter:allpositionslabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allpersonnelcategorieslabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allsiteslabel', component: 'block_dashboardanalytics'},
-        {key: 'filter:alleducationslabel', component: 'block_dashboardanalytics'}
+        {key: 'filter:alleducationslabel', component: 'block_dashboardanalytics'},
+        {key: 'js:combobarlinelabel', component: 'block_dashboardanalytics'},
+        {key: 'js:chartjsbarlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:turnoverformula', component: 'block_dashboardanalytics'},
+        {key: 'js:turnovergood', component: 'block_dashboardanalytics'},
+        {key: 'js:turnovermonitor', component: 'block_dashboardanalytics'},
+        {key: 'js:turnoverhigh', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -626,6 +638,89 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '<div class="da-multibars-label">' + escapeHtml(item.label) + '</div>'
                             + '</div>';
                     }).join('') + '</div>';
+            } else if (panel.type === 'turnovercombo') {
+                var turnoverLegend = (((items[0] || {}).segments) || []).slice(0, 3).map(function(segment) {
+                    return '<span class="da-turnover-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>'
+                        + escapeHtml(segment.label) + '</span>';
+                }).join('');
+                var comboToolbar = '<div class="da-turnover-panel-toolbar">'
+                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('comboBarLineLabel', 'Combo bar-line')) + '</span>'
+                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('interactiveLabel', 'interactive')) + '</span>'
+                    + '</div>';
+                var comboMax = 1;
+                items.forEach(function(item) {
+                    (item.segments || []).forEach(function(segment) {
+                        comboMax = Math.max(comboMax, Math.abs(Number(segment.value) || 0));
+                    });
+                });
+                var topY = 14;
+                var zeroY = 54;
+                var bottomY = 94;
+                var halfHeight = zeroY - topY;
+                var barWidth = 4;
+                var step = items.length > 0 ? (100 / items.length) : 100;
+                var blueBars = [];
+                var redBars = [];
+                var netPoints = [];
+                var axisLabels = [];
+
+                items.forEach(function(item, index) {
+                    var center = (step * index) + (step / 2);
+                    var segments = item.segments || [];
+                    var newSegment = segments[0] || {value: '0', percent: 0, status: 'info'};
+                    var deactivatedSegment = segments[1] || {value: '0', percent: 0, status: 'danger'};
+                    var netSegment = segments[2] || {value: '0', percent: 0, status: 'ok'};
+                    var newHeight = ((Number(newSegment.percent) || 0) / 100) * halfHeight;
+                    var deactivatedHeight = ((Number(deactivatedSegment.percent) || 0) / 100) * halfHeight;
+                    var netValue = Number(netSegment.value) || 0;
+                    var netHeight = ((Number(netSegment.percent) || 0) / 100) * halfHeight;
+                    var netY = zeroY - (netValue >= 0 ? netHeight : (-1 * netHeight));
+
+                    blueBars.push('<rect x="' + (center - barWidth - 0.5).toFixed(1) + '" y="' + (zeroY - newHeight).toFixed(1)
+                        + '" width="' + barWidth + '" height="' + Math.max(2, newHeight).toFixed(1)
+                        + '" rx="1.2" class="da-turnover-bar-positive"></rect>');
+                    redBars.push('<rect x="' + (center + 0.5).toFixed(1) + '" y="' + zeroY.toFixed(1)
+                        + '" width="' + barWidth + '" height="' + Math.max(2, deactivatedHeight).toFixed(1)
+                        + '" rx="1.2" class="da-turnover-bar-negative"></rect>');
+                    netPoints.push(center.toFixed(1) + ',' + netY.toFixed(1));
+                    axisLabels.push('<div class="da-turnover-axis-label" style="left:' + center.toFixed(1) + '%">' + escapeHtml(item.label) + '</div>');
+                });
+
+                body = '<div class="da-turnover-combo-wrap">'
+                    + '<div class="da-turnover-panel-head">' + comboToolbar + '</div>'
+                    + '<div class="da-turnover-combo-chart">'
+                    + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                    + '<line x1="0" y1="' + zeroY + '" x2="100" y2="' + zeroY + '" class="da-turnover-zero-line"></line>'
+                    + blueBars.join('')
+                    + redBars.join('')
+                    + '<polyline points="' + escapeHtml(netPoints.join(' ')) + '" class="da-turnover-net-line"></polyline>'
+                    + '</svg>'
+                    + '<div class="da-turnover-axis-labels">' + axisLabels.join('') + '</div>'
+                    + '</div>'
+                    + '<div class="da-turnover-legend">' + turnoverLegend + '</div>'
+                    + '</div>';
+            } else if (panel.type === 'turnoverbars') {
+                var turnoverToolbar = '<div class="da-turnover-panel-toolbar">'
+                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('chartJsBarLabel', 'Chart.js bar')) + '</span>'
+                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('interactiveLabel', 'interactive')) + '</span>'
+                    + '</div>';
+                body = '<div class="da-turnover-bars-wrap">'
+                    + '<div class="da-turnover-panel-head">' + turnoverToolbar + '</div>'
+                    + '<div class="da-turnover-rate-list">' + items.map(function(item) {
+                        var width = Math.max(8, Math.min(100, Number(item.percent) || 0));
+                        return '<div class="da-turnover-rate-row">'
+                            + '<div class="da-turnover-rate-label">' + escapeHtml(item.label) + '</div>'
+                            + '<div class="da-turnover-rate-track"><span class="da-turnover-rate-fill da-bar-fill-' + escapeHtml(item.status)
+                            + '" style="width:' + width + '%"><span class="da-turnover-rate-value">' + escapeHtml(item.value) + '</span></span></div>'
+                            + '</div>';
+                    }).join('') + '</div>'
+                    + '<div class="da-turnover-rate-legend">'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('turnoverGood', '<5% Good')) + '</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(text('turnoverMonitor', '5–10% Monitor')) + '</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('turnoverHigh', '>10% High')) + '</span>'
+                    + '</div>'
+                    + '<div class="da-turnover-rate-formula">' + escapeHtml(text('turnoverFormula', 'Formula: Deactivated / Avg active × 100')) + '</div>'
+                    + '</div>';
             } else if (panel.type === 'activitysnapshot') {
                 var metrics = items.slice(0, 4);
                 var courses = items.slice(4);
@@ -1488,6 +1583,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 sites: values[57],
                 educations: values[58]
             };
+            strings.comboBarLineLabel = values[59];
+            strings.chartJsBarLabel = values[60];
+            strings.turnoverFormula = values[61];
+            strings.turnoverGood = values[62];
+            strings.turnoverMonitor = values[63];
+            strings.turnoverHigh = values[64];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {

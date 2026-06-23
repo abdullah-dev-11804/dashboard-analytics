@@ -197,14 +197,42 @@ class employee_repository {
     }
 
     public function user_filter_sql(array $filters, string $alias = 'u', string $prefix = 'flt'): array {
+        return $this->scoped_user_filter_sql($filters, $alias, $prefix);
+    }
+
+    public function scoped_user_filter_sql(
+        array $filters,
+        string $alias = 'u',
+        string $prefix = 'flt',
+        array $options = []
+    ): array {
         global $CFG, $DB;
 
+        $options = array_merge([
+            'requireactive' => true,
+            'requireconfirmed' => true,
+            'includesuspended' => false,
+            'includedeleted' => false,
+        ], $options);
+
         $params = [];
-        $where = [
-            "{$alias}.deleted = 0",
-            "{$alias}.confirmed = 1",
-            "{$alias}.suspended = 0",
-        ];
+        $where = [];
+
+        if (!empty($options['requireactive'])) {
+            $where[] = "{$alias}.deleted = 0";
+            $where[] = "{$alias}.confirmed = 1";
+            $where[] = "{$alias}.suspended = 0";
+        } else {
+            if (empty($options['includedeleted'])) {
+                $where[] = "{$alias}.deleted = 0";
+            }
+            if (!empty($options['requireconfirmed'])) {
+                $where[] = "{$alias}.confirmed = 1";
+            }
+            if (empty($options['includesuspended'])) {
+                $where[] = "{$alias}.suspended = 0";
+            }
+        }
 
         if (!empty($CFG->siteguest)) {
             $guestkey = $prefix . 'guestid';

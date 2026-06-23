@@ -11,6 +11,7 @@ use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
 use block_dashboardanalytics\repository\server_repository;
+use block_dashboardanalytics\repository\turnover_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -68,10 +69,7 @@ class visual_service {
         }
 
         if ($tabkey === 'turnover') {
-            return $this->company_pending(
-                get_string('panel:turnover:title', 'block_dashboardanalytics'),
-                get_string('panel:turnover:pending', 'block_dashboardanalytics')
-            );
+            return $this->turnover($filters);
         }
 
         return $this->overview($filters);
@@ -206,12 +204,22 @@ class visual_service {
         ];
     }
 
+    private function turnover(array $filters): array {
+        $turnover = new turnover_repository();
+
+        return [
+            'title' => get_string('panel:turnover:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:turnover:description', 'block_dashboardanalytics'),
+            'panels' => [
+                $this->panel('staffdynamics', get_string('panel:staffdynamics:title', 'block_dashboardanalytics'), 'turnovercombo', get_string('panel:staffdynamics:description', 'block_dashboardanalytics'), $turnover->staff_dynamics_items($filters)),
+                $this->panel('turnovercompany', get_string('panel:turnovercompany:title', 'block_dashboardanalytics'), 'turnoverbars', get_string('panel:turnovercompany:description', 'block_dashboardanalytics'), $turnover->turnover_rate_by_company_items($filters)),
+            ],
+        ];
+    }
+
     private function client_manager_panels(string $tabkey, array $filters): array {
         if ($tabkey === 'turnover') {
-            return $this->company_pending(
-                get_string('panel:turnover:title', 'block_dashboardanalytics'),
-                get_string('panel:turnover:pending', 'block_dashboardanalytics')
-            );
+            return $this->turnover($filters);
         }
 
         if ($tabkey === 'compliance') {
