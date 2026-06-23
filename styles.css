@@ -537,23 +537,28 @@
     white-space: nowrap;
 }
 
-.block-dashboardanalytics .da-text-ok {
+.block-dashboardanalytics .da-text-ok,
+.da-company-summary-modal-root .da-text-ok {
     color: var(--da-green);
 }
 
-.block-dashboardanalytics .da-text-warning {
+.block-dashboardanalytics .da-text-warning,
+.da-company-summary-modal-root .da-text-warning {
     color: var(--da-amber);
 }
 
-.block-dashboardanalytics .da-text-danger {
+.block-dashboardanalytics .da-text-danger,
+.da-company-summary-modal-root .da-text-danger {
     color: var(--da-red);
 }
 
-.block-dashboardanalytics .da-text-info {
+.block-dashboardanalytics .da-text-info,
+.da-company-summary-modal-root .da-text-info {
     color: var(--da-blue);
 }
 
-.block-dashboardanalytics .da-text-muted {
+.block-dashboardanalytics .da-text-muted,
+.da-company-summary-modal-root .da-text-muted {
     color: var(--da-muted);
 }
 
@@ -582,7 +587,8 @@
     margin-top: .9rem;
 }
 
-.block-dashboardanalytics .da-badge {
+.block-dashboardanalytics .da-badge,
+.da-company-summary-modal-root .da-badge {
     display: inline-flex;
     align-items: center;
     min-height: 1.45rem;
@@ -596,7 +602,10 @@
 
 .block-dashboardanalytics .da-badge-green,
 .block-dashboardanalytics .da-badge-ok,
-.block-dashboardanalytics .da-badge-active {
+.block-dashboardanalytics .da-badge-active,
+.da-company-summary-modal-root .da-badge-green,
+.da-company-summary-modal-root .da-badge-ok,
+.da-company-summary-modal-root .da-badge-active {
     background: #edf7e8;
     color: #3f7a19;
 }
@@ -604,35 +613,47 @@
 .block-dashboardanalytics .da-badge-amber,
 .block-dashboardanalytics .da-badge-urgent,
 .block-dashboardanalytics .da-badge-expiring,
-.block-dashboardanalytics .da-badge-warning {
+.block-dashboardanalytics .da-badge-warning,
+.da-company-summary-modal-root .da-badge-amber,
+.da-company-summary-modal-root .da-badge-urgent,
+.da-company-summary-modal-root .da-badge-expiring,
+.da-company-summary-modal-root .da-badge-warning {
     background: #fff3dd;
     color: #8a570e;
 }
 
 .block-dashboardanalytics .da-badge-red,
 .block-dashboardanalytics .da-badge-critical,
-.block-dashboardanalytics .da-badge-expired {
+.block-dashboardanalytics .da-badge-expired,
+.da-company-summary-modal-root .da-badge-red,
+.da-company-summary-modal-root .da-badge-critical,
+.da-company-summary-modal-root .da-badge-expired {
     background: #fdecec;
     color: #b83232;
 }
 
-.block-dashboardanalytics .da-badge-healthy {
+.block-dashboardanalytics .da-badge-healthy,
+.da-company-summary-modal-root .da-badge-healthy {
     background: #edf7e8;
     color: #3f7a19;
 }
 
-.block-dashboardanalytics .da-badge-atrisk {
+.block-dashboardanalytics .da-badge-atrisk,
+.da-company-summary-modal-root .da-badge-atrisk {
     background: #fff3dd;
     color: #8a570e;
 }
 
-.block-dashboardanalytics .da-badge-onboarding {
+.block-dashboardanalytics .da-badge-onboarding,
+.da-company-summary-modal-root .da-badge-onboarding {
     background: #edf4ff;
     color: #4968b0;
 }
 
 .block-dashboardanalytics .da-badge-info,
-.block-dashboardanalytics .da-badge-check {
+.block-dashboardanalytics .da-badge-check,
+.da-company-summary-modal-root .da-badge-info,
+.da-company-summary-modal-root .da-badge-check {
     background: #edf4ff;
     color: #2e5fa7;
 }
@@ -1590,31 +1611,46 @@ body.da-modal-open {
 
 .block-dashboardanalytics .da-bar-fill-ok,
 .block-dashboardanalytics .da-dot-ok,
-.block-dashboardanalytics .da-dot-green {
+.block-dashboardanalytics .da-dot-green,
+.da-company-summary-modal-root .da-bar-fill-ok,
+.da-company-summary-modal-root .da-dot-ok,
+.da-company-summary-modal-root .da-dot-green {
     background: var(--da-green);
 }
 
 .block-dashboardanalytics .da-bar-fill-warning,
 .block-dashboardanalytics .da-bar-fill-amber,
 .block-dashboardanalytics .da-dot-warning,
-.block-dashboardanalytics .da-dot-amber {
+.block-dashboardanalytics .da-dot-amber,
+.da-company-summary-modal-root .da-bar-fill-warning,
+.da-company-summary-modal-root .da-bar-fill-amber,
+.da-company-summary-modal-root .da-dot-warning,
+.da-company-summary-modal-root .da-dot-amber {
     background: var(--da-amber);
 }
 
 .block-dashboardanalytics .da-bar-fill-danger,
 .block-dashboardanalytics .da-bar-fill-red,
 .block-dashboardanalytics .da-dot-danger,
-.block-dashboardanalytics .da-dot-red {
+.block-dashboardanalytics .da-dot-red,
+.da-company-summary-modal-root .da-bar-fill-danger,
+.da-company-summary-modal-root .da-bar-fill-red,
+.da-company-summary-modal-root .da-dot-danger,
+.da-company-summary-modal-root .da-dot-red {
     background: var(--da-red);
 }
 
 .block-dashboardanalytics .da-bar-fill-info,
-.block-dashboardanalytics .da-dot-info {
+.block-dashboardanalytics .da-dot-info,
+.da-company-summary-modal-root .da-bar-fill-info,
+.da-company-summary-modal-root .da-dot-info {
     background: var(--da-blue);
 }
 
 .block-dashboardanalytics .da-bar-fill-muted,
-.block-dashboardanalytics .da-dot-muted {
+.block-dashboardanalytics .da-dot-muted,
+.da-company-summary-modal-root .da-bar-fill-muted,
+.da-company-summary-modal-root .da-dot-muted {
     background: #b4b2a9;
 }
 
