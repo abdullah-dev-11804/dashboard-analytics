@@ -597,7 +597,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var isPlatformGrowth = panel.key === 'platformgrowth';
                 var platformGrowthPeriod = (((state || {}).currentVisualOverrides) || {}).platformgrowthperiod || '1year';
                 var periodButtons = '';
-                var platformToolbar = '';
                 if (isPlatformGrowth) {
                     var periodLabel = ((((state || {}).filterGroups) || {}).daterange || {}).label || 'Period';
                     var periodOptions = [
@@ -613,15 +612,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 + '" data-action="platformgrowth-period" data-period="' + escapeHtml(option.key) + '">'
                                 + escapeHtml(option.label) + '</button>';
                         }).join('') + '</div>';
-                    platformToolbar = '<div class="da-platform-growth-toolbar">'
-                        + '<span class="da-platform-growth-pill">' + escapeHtml(text('barChartLabel', 'Bar chart')) + '</span>'
-                        + '<span class="da-platform-growth-pill">' + escapeHtml(text('interactiveLabel', 'interactive')) + '</span>'
-                        + '</div>';
                 }
                 var legend = (((items[0] || {}).segments) || []).map(function(segment) {
                     return '<span class="da-multibars-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>' + escapeHtml(segment.label) + '</span>';
                 }).join('');
-                body = (isPlatformGrowth ? '<div class="da-platform-growth-head">' + periodButtons + platformToolbar + '</div>' : '')
+                body = (isPlatformGrowth ? '<div class="da-platform-growth-head">' + periodButtons + '</div>' : '')
                     + (legend ? '<div class="da-multibars-legend">' + legend + '</div>' : '')
                     + '<div class="da-multibars-chart' + (isPlatformGrowth ? ' da-multibars-chart-growth' : '') + '">' + items.map(function(item) {
                         var segments = item.segments || [];
@@ -643,10 +638,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     return '<span class="da-turnover-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>'
                         + escapeHtml(segment.label) + '</span>';
                 }).join('');
-                var comboToolbar = '<div class="da-turnover-panel-toolbar">'
-                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('comboBarLineLabel', 'Combo bar-line')) + '</span>'
-                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('interactiveLabel', 'interactive')) + '</span>'
-                    + '</div>';
                 var comboMax = 1;
                 items.forEach(function(item) {
                     (item.segments || []).forEach(function(segment) {
@@ -687,7 +678,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 });
 
                 body = '<div class="da-turnover-combo-wrap">'
-                    + '<div class="da-turnover-panel-head">' + comboToolbar + '</div>'
                     + '<div class="da-turnover-combo-chart">'
                     + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
                     + '<line x1="0" y1="' + zeroY + '" x2="100" y2="' + zeroY + '" class="da-turnover-zero-line"></line>'
@@ -700,12 +690,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<div class="da-turnover-legend">' + turnoverLegend + '</div>'
                     + '</div>';
             } else if (panel.type === 'turnoverbars') {
-                var turnoverToolbar = '<div class="da-turnover-panel-toolbar">'
-                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('chartJsBarLabel', 'Chart.js bar')) + '</span>'
-                    + '<span class="da-platform-growth-pill">' + escapeHtml(text('interactiveLabel', 'interactive')) + '</span>'
-                    + '</div>';
                 body = '<div class="da-turnover-bars-wrap">'
-                    + '<div class="da-turnover-panel-head">' + turnoverToolbar + '</div>'
                     + '<div class="da-turnover-rate-list">' + items.map(function(item) {
                         var width = Math.max(8, Math.min(100, Number(item.percent) || 0));
                         return '<div class="da-turnover-rate-row">'

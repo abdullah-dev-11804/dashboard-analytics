@@ -726,12 +726,12 @@
 .block-dashboardanalytics.is-fullpage .da-visual-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .9rem;
-    align-items: start;
+    align-items: stretch;
 }
 
 .block-dashboardanalytics.is-fullpage .da-visual-panel {
     min-height: 0;
-    height: auto;
+    height: 100%;
     padding: 1rem;
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(15, 23, 42, .04);
@@ -751,6 +751,8 @@
     padding: .8rem;
     background: #fff;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .block-dashboardanalytics .da-visual-panel h5 {
@@ -897,8 +899,7 @@
     margin-bottom: .35rem;
 }
 
-.block-dashboardanalytics .da-platform-growth-periods,
-.block-dashboardanalytics .da-platform-growth-toolbar {
+.block-dashboardanalytics .da-platform-growth-periods {
     display: flex;
     align-items: center;
     gap: .45rem;
@@ -911,8 +912,7 @@
     font-weight: 700;
 }
 
-.block-dashboardanalytics .da-platform-growth-period,
-.block-dashboardanalytics .da-platform-growth-pill {
+.block-dashboardanalytics .da-platform-growth-period {
     min-height: 1.9rem;
     border: 1px solid #cdd8e7;
     border-radius: 8px;
@@ -1100,18 +1100,6 @@
 .block-dashboardanalytics .da-activity-course-value {
     color: #33445c;
     font-size: .86rem;
-}
-
-.block-dashboardanalytics .da-turnover-panel-head {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: .75rem;
-}
-
-.block-dashboardanalytics .da-turnover-panel-toolbar {
-    display: inline-flex;
-    gap: .45rem;
-    flex-wrap: wrap;
 }
 
 .block-dashboardanalytics .da-turnover-combo-chart {
