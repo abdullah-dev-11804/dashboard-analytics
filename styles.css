@@ -11,6 +11,19 @@
     color: var(--da-text);
 }
 
+.da-company-summary-modal-root {
+    --da-border: #d7dde5;
+    --da-muted: #5d6878;
+    --da-surface: #fff;
+    --da-band: #f6f8fb;
+    --da-text: #1f2937;
+    --da-green: #639922;
+    --da-amber: #ef9f27;
+    --da-red: #e24b4a;
+    --da-blue: #378add;
+    color: var(--da-text);
+}
+
 .path-block-dashboardanalytics-view .main-inner,
 .path-block-dashboardanalytics-view #page.drawers .main-inner {
     max-width: calc(100vw - 48px);
