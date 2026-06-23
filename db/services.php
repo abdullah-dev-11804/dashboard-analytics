@@ -43,4 +43,12 @@ $functions = [
         'type' => 'read',
         'ajax' => true,
     ],
+
+    'block_dashboardanalytics_get_company_summary_modal' => [
+        'classname' => 'block_dashboardanalytics\external\get_company_summary_modal',
+        'methodname' => 'execute',
+        'description' => 'Return company overview modal data.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
 ];

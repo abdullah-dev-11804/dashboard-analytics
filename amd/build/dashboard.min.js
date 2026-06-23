@@ -1,5 +1,6 @@
 define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notification, Str) {
     var SELECTOR = '[data-region="dashboardanalytics"]';
+    var modalEventsBound = false;
     var strings = {
         loading: 'Loading...',
         details: 'Details',
@@ -678,6 +679,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         var trust = segments[1] || {value: '—', status: 'muted'};
                         var completion = segments[2] || {value: '—', status: 'muted'};
                         var action = segments[3] || {value: 'Report', status: 'info'};
+                        var companyIdSegment = segments[4] || {value: ''};
                         return '<tr>'
                             + '<td><span class="da-company-health-name">' + escapeHtml(item.label) + '</span></td>'
                             + '<td>' + escapeHtml(item.value) + '</td>'
@@ -686,8 +688,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '<td><span class="da-company-health-number da-text-' + escapeHtml(trust.status) + '">' + escapeHtml(trust.value) + '</span></td>'
                             + '<td><span class="da-company-health-number da-text-' + escapeHtml(completion.status) + '">' + escapeHtml(completion.value) + '</span></td>'
                             + '<td><span class="da-badge da-badge-' + escapeHtml(item.status) + '">' + escapeHtml(statusLabel(item.status)) + '</span></td>'
-                            + '<td><button type="button" class="da-row-action" data-action="company-report" data-company="'
-                                + escapeHtml(item.label) + '" data-companyid="">' + escapeHtml(action.value || text('reportLabel', 'Report')) + '</button></td>'
+                            + '<td><button type="button" class="da-row-action" data-action="company-summary-modal" data-company="'
+                                + escapeHtml(item.label) + '" data-companyid="' + escapeHtml(companyIdSegment.value || '') + '">'
+                                + escapeHtml(action.value || text('reportLabel', 'Report')) + '</button></td>'
                             + '</tr>';
                     }).join('')
                     + '</tbody></table></div>';
@@ -979,6 +982,95 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
+    var modalRoot = function() {
+        var existing = document.querySelector('[data-region="da-company-summary-modal"]');
+        if (existing) {
+            return existing;
+        }
+
+        var node = document.createElement('div');
+        node.className = 'da-company-summary-modal-root';
+        node.setAttribute('data-region', 'da-company-summary-modal');
+        node.hidden = true;
+        document.body.appendChild(node);
+        return node;
+    };
+
+    var closeCompanySummaryModal = function() {
+        var root = modalRoot();
+        root.hidden = true;
+        root.innerHTML = '';
+        document.body.classList.remove('da-modal-open');
+    };
+
+    var renderCompanySummaryModal = function(data) {
+        var root = modalRoot();
+        var summaryCards = (data.summarycards || []).map(function(card) {
+            return '<article class="da-company-summary-stat da-company-summary-stat-' + escapeHtml(card.status) + '">'
+                + '<strong class="da-company-summary-stat-value da-text-' + escapeHtml(card.status) + '">' + escapeHtml(card.value) + '</strong>'
+                + '<span class="da-company-summary-stat-label">' + escapeHtml(card.label) + '</span>'
+                + '</article>';
+        }).join('');
+
+        var courseRows = (data.courseitems || []).map(function(item) {
+            var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+            return '<div class="da-company-summary-course-row">'
+                + '<span class="da-company-summary-course-name">' + escapeHtml(item.label) + '</span>'
+                + '<div class="da-company-summary-course-track"><span class="da-company-summary-course-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"></span></div>'
+                + '<strong class="da-company-summary-course-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</strong>'
+                + '</div>';
+        }).join('');
+
+        var additionalCards = (data.additionalcards || []).map(function(card) {
+            return '<article class="da-company-summary-stat da-company-summary-stat-' + escapeHtml(card.status) + '">'
+                + '<strong class="da-company-summary-stat-value da-text-' + escapeHtml(card.status) + '">' + escapeHtml(card.value) + '</strong>'
+                + '<span class="da-company-summary-stat-label">' + escapeHtml(card.label) + '</span>'
+                + '</article>';
+        }).join('');
+
+        root.innerHTML = '<div class="da-company-summary-backdrop" data-action="close-company-summary"></div>'
+            + '<section class="da-company-summary-modal" role="dialog" aria-modal="true" aria-label="' + escapeHtml(data.title || '') + '">'
+            + '<header class="da-company-summary-header">'
+            + '<div><h3>' + escapeHtml(data.title || '') + '</h3><p>' + escapeHtml(data.subtitle || '') + '</p></div>'
+            + '<button type="button" class="da-company-summary-close" data-action="close-company-summary" aria-label="' + escapeHtml(data.closebutton || 'Close') + '">×</button>'
+            + '</header>'
+            + '<div class="da-company-summary-body">'
+            + '<div class="da-company-summary-grid">' + summaryCards + '</div>'
+            + '<section class="da-company-summary-section"><h4>' + escapeHtml(data.courseheading || '') + '</h4><div class="da-company-summary-course-list">' + courseRows + '</div></section>'
+            + '<section class="da-company-summary-section"><h4>' + escapeHtml(data.metricsheading || '') + '</h4><div class="da-company-summary-grid da-company-summary-grid-secondary">' + additionalCards + '</div></section>'
+            + '<footer class="da-company-summary-footer"><div class="da-company-summary-status">'
+            + '<span>' + escapeHtml(text('statusHeader', 'Status')) + ': </span>'
+            + '<span class="da-badge da-badge-' + escapeHtml(data.statuskey || 'muted') + '">' + escapeHtml(data.statuslabel || '') + '</span>'
+            + '</div><div class="da-company-summary-actions">'
+            + '<button type="button" class="da-row-action" data-action="close-company-summary">' + escapeHtml(data.closebutton || 'Close') + '</button>'
+            + '<button type="button" class="da-row-action da-company-summary-export" data-action="company-summary-export">' + escapeHtml(data.exportbutton || '') + '</button>'
+            + '</div></footer>'
+            + '</div></section>';
+        root.hidden = false;
+        document.body.classList.add('da-modal-open');
+    };
+
+    var loadCompanySummaryModal = function(root, state, companyName, companyId) {
+        var modal = modalRoot();
+        modal.hidden = false;
+        modal.innerHTML = '<div class="da-company-summary-backdrop"></div><section class="da-company-summary-modal da-company-summary-modal-loading"><div class="da-loading">'
+            + escapeHtml(text('loading', 'Loading...')) + '</div></section>';
+        document.body.classList.add('da-modal-open');
+
+        return call('block_dashboardanalytics_get_company_summary_modal', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            companyname: companyName,
+            companyid: Number(companyId) || 0,
+            filters: JSON.stringify(readFilters(root, state, state.currentVisualOverrides || {}))
+        }).then(function(response) {
+            renderCompanySummaryModal(response);
+        }).catch(function(error) {
+            closeCompanySummaryModal();
+            Notification.exception(error);
+        });
+    };
+
     var loadFilters = function(root, state) {
         var container = root.querySelector('[data-region="filter-bar"]');
         setLoading(container);
@@ -1196,6 +1288,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var companySummaryModal = event.target.closest('[data-action="company-summary-modal"]');
+            if (companySummaryModal && root.contains(companySummaryModal)) {
+                loadCompanySummaryModal(
+                    root,
+                    state,
+                    companySummaryModal.getAttribute('data-company') || '',
+                    companySummaryModal.getAttribute('data-companyid') || '0'
+                );
+                return;
+            }
+
             var gotoTab = event.target.closest('[data-action="goto-tab"]');
             if (gotoTab && root.contains(gotoTab)) {
                 var targettab = gotoTab.getAttribute('data-tab');
@@ -1266,7 +1369,29 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     menu.hidden = true;
                 }
             }
+
         });
+
+        if (!modalEventsBound) {
+            document.addEventListener('click', function(event) {
+                if (event.target.closest('[data-action="close-company-summary"]') || event.target.closest('.da-company-summary-backdrop')) {
+                    closeCompanySummaryModal();
+                    return;
+                }
+
+                if (event.target.closest('[data-action="company-summary-export"]')) {
+                    window.print();
+                }
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeCompanySummaryModal();
+                }
+            });
+
+            modalEventsBound = true;
+        }
     };
 
     var init = function(contextid) {

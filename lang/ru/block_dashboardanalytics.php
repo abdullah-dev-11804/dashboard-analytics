@@ -312,6 +312,11 @@ $string['overview:viewexpiredcta'] = 'Открыть просроченные';
 $string['overview:daysoverdue'] = 'дней просрочки';
 $string['overview:nopriorityactions'] = 'Нет приоритетных действий';
 $string['overview:nopriorityactionsmeta'] = 'В текущем контуре срочных проблем не обнаружено.';
+$string['modal:companycourses'] = 'Соответствие по курсам';
+$string['modal:additionalmetrics'] = 'Дополнительные метрики';
+$string['modal:close'] = 'Закрыть';
+$string['modal:exportpdf'] = 'Экспорт PDF';
+$string['modal:companysubtitle'] = '{$a->departments} подразделений · {$a->locations} локаций';
 
 $string['server:meta:unavailable'] = 'Метрика недоступна на этом хосте.';
 $string['server:meta:livesessions'] = 'живые сессии против активных аккаунтов';

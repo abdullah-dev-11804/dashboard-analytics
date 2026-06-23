@@ -312,6 +312,11 @@ $string['overview:viewexpiredcta'] = 'View expired';
 $string['overview:daysoverdue'] = 'days overdue';
 $string['overview:nopriorityactions'] = 'No priority actions';
 $string['overview:nopriorityactionsmeta'] = 'No urgent issues were detected in the current scope.';
+$string['modal:companycourses'] = 'Compliance by course';
+$string['modal:additionalmetrics'] = 'Additional metrics';
+$string['modal:close'] = 'Close';
+$string['modal:exportpdf'] = 'Export PDF';
+$string['modal:companysubtitle'] = '{$a->departments} departments · {$a->locations} locations';
 
 $string['server:meta:unavailable'] = 'Metric is unavailable on this host.';
 $string['server:meta:livesessions'] = 'live sessions vs active accounts';

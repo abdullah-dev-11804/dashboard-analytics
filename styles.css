@@ -1138,6 +1138,197 @@
     margin-top: auto;
 }
 
+body.da-modal-open {
+    overflow: hidden;
+}
+
+.da-company-summary-modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+}
+
+.da-company-summary-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, .45);
+}
+
+.da-company-summary-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(860px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    transform: translate(-50%, -50%);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .24);
+    overflow: hidden;
+}
+
+.da-company-summary-modal-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+}
+
+.da-company-summary-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.15rem 1.25rem;
+    background: linear-gradient(135deg, #294f88 0%, #376db3 100%);
+    color: #fff;
+}
+
+.da-company-summary-header h3,
+.da-company-summary-header p {
+    margin: 0;
+}
+
+.da-company-summary-header h3 {
+    font-size: 1.5rem;
+}
+
+.da-company-summary-header p {
+    margin-top: .2rem;
+    color: rgba(255, 255, 255, .82);
+    font-size: .9rem;
+}
+
+.da-company-summary-close {
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .2);
+    color: #fff;
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.da-company-summary-body {
+    padding: 1.2rem;
+    max-height: calc(100vh - 160px);
+    overflow: auto;
+}
+
+.da-company-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
+}
+
+.da-company-summary-grid-secondary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.da-company-summary-stat {
+    border-radius: 12px;
+    background: #eef4fb;
+    padding: .9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.da-company-summary-stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.da-company-summary-stat-label {
+    color: #5c6c80;
+    font-size: .84rem;
+}
+
+.da-company-summary-section {
+    margin-top: 1rem;
+}
+
+.da-company-summary-section h4 {
+    margin: 0 0 .75rem;
+    color: #5b708d;
+    font-size: .9rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.da-company-summary-course-list {
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+}
+
+.da-company-summary-course-row {
+    display: grid;
+    grid-template-columns: minmax(170px, 1fr) minmax(220px, 2fr) auto;
+    gap: .75rem;
+    align-items: center;
+}
+
+.da-company-summary-course-name {
+    color: #33445c;
+    font-size: .95rem;
+}
+
+.da-company-summary-course-track {
+    height: .52rem;
+    border-radius: 999px;
+    background: #e8eef6;
+    overflow: hidden;
+}
+
+.da-company-summary-course-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.da-company-summary-course-value {
+    font-size: .92rem;
+    font-weight: 700;
+}
+
+.da-company-summary-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    margin-top: 1.15rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e6edf5;
+}
+
+.da-company-summary-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    color: #536070;
+    font-size: .88rem;
+}
+
+.da-company-summary-actions {
+    display: flex;
+    gap: .55rem;
+    flex-wrap: wrap;
+}
+
+.da-company-summary-export {
+    background: #2f6fc2;
+    border-color: #2f6fc2;
+    color: #fff;
+}
+
 .block-dashboardanalytics .da-server-thresholds {
     display: flex;
     align-items: center;
@@ -1728,6 +1919,17 @@
         grid-template-columns: 1fr;
         gap: .35rem;
     }
+
+    .da-company-summary-grid,
+    .da-company-summary-grid-secondary,
+    .da-company-summary-course-row {
+        grid-template-columns: 1fr;
+    }
+
+    .da-company-summary-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 
 @media (max-width: 1200px) {
@@ -1771,6 +1973,11 @@
     .block-dashboardanalytics .da-overview-summary-grid,
     .block-dashboardanalytics .da-activity-snapshot-grid,
     .block-dashboardanalytics .da-alerts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .da-company-summary-grid,
+    .da-company-summary-grid-secondary {
         grid-template-columns: 1fr;
     }
 }

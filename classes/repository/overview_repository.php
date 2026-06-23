@@ -479,11 +479,76 @@ class overview_repository {
                     ['label' => get_string('overview:trustscore', 'block_dashboardanalytics'), 'value' => $trustscore !== null ? (string)round($trustscore) : '—', 'percent' => $trustscore !== null ? (float)$trustscore : 0.0, 'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore) : 'muted'],
                     ['label' => get_string('overview:completion', 'block_dashboardanalytics'), 'value' => $completion['value'], 'percent' => $completion['percent'], 'status' => $completion['status']],
                     ['label' => get_string('label:action', 'block_dashboardanalytics'), 'value' => get_string('overview:report', 'block_dashboardanalytics'), 'percent' => 0.0, 'status' => 'info'],
+                    ['label' => 'companyid', 'value' => (string)$company['id'], 'percent' => 0.0, 'status' => 'muted'],
                 ],
             ];
         }
 
         return $items;
+    }
+
+    public function company_health_modal_data(array $filters, string $companyname, int $companyid = 0): array {
+        $companyfilters = $this->company_scoped_filters($filters, $companyname, $companyid);
+        $employees = new employee_repository();
+        $activeusers = $employees->count_active_users($companyfilters);
+        $compliancesummary = $this->overall_employee_compliance_summary($companyfilters);
+        $statuscounts = $this->status_counts($companyfilters);
+        $turnoverpercent = $this->recent_staff_change_percent($companyfilters, 90, $activeusers);
+        $trustscore = $this->company_trust_score($companyfilters, $companyname);
+        $edspending = (new eds_repository())->count_pending_manual($companyfilters);
+        $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent']);
+        $subtitle = $this->company_health_modal_subtitle($companyfilters);
+
+        return [
+            'title' => $companyname,
+            'subtitle' => $subtitle,
+            'statuskey' => $statuskey,
+            'statuslabel' => $this->company_health_status_label($statuskey),
+            'summarycards' => [
+                [
+                    'label' => get_string('label:activeusers', 'block_dashboardanalytics'),
+                    'value' => (string)$activeusers,
+                    'status' => 'info',
+                ],
+                [
+                    'label' => get_string('label:compliancepercent', 'block_dashboardanalytics'),
+                    'value' => round((float)$compliancesummary['percent'], 1) . '%',
+                    'status' => $this->status_for_percent((float)$compliancesummary['percent']),
+                ],
+                [
+                    'label' => get_string('kpi:expiring30long', 'block_dashboardanalytics'),
+                    'value' => (string)$statuscounts['expiring'],
+                    'status' => 'warning',
+                ],
+                [
+                    'label' => get_string('kpi:expirednow', 'block_dashboardanalytics'),
+                    'value' => (string)$statuscounts['expired'],
+                    'status' => 'danger',
+                ],
+            ],
+            'courseitems' => $this->company_course_compliance_modal_items($companyfilters, 5),
+            'additionalcards' => [
+                [
+                    'label' => get_string('tab:turnover', 'block_dashboardanalytics'),
+                    'value' => $activeusers > 0 ? round($turnoverpercent, 1) . '%' : '—',
+                    'status' => 'ok',
+                ],
+                [
+                    'label' => get_string('overview:trustscore', 'block_dashboardanalytics'),
+                    'value' => $trustscore !== null ? round($trustscore, 1) . ' / 100' : '—',
+                    'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore) : 'muted',
+                ],
+                [
+                    'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
+                    'value' => (string)$edspending,
+                    'status' => $edspending > 0 ? 'warning' : 'info',
+                ],
+            ],
+            'courseheading' => get_string('modal:companycourses', 'block_dashboardanalytics'),
+            'metricsheading' => get_string('modal:additionalmetrics', 'block_dashboardanalytics'),
+            'closebutton' => get_string('modal:close', 'block_dashboardanalytics'),
+            'exportbutton' => get_string('modal:exportpdf', 'block_dashboardanalytics'),
+        ];
     }
 
     public function priority_action_items(array $filters): array {
@@ -1218,6 +1283,78 @@ class overview_repository {
             return 'atrisk';
         }
         return 'critical';
+    }
+
+    private function company_health_status_label(string $statuskey): string {
+        if ($statuskey === 'healthy') {
+            return get_string('js:healthylabel', 'block_dashboardanalytics');
+        }
+        if ($statuskey === 'atrisk') {
+            return get_string('js:atrisklabel', 'block_dashboardanalytics');
+        }
+        if ($statuskey === 'critical') {
+            return get_string('label:critical', 'block_dashboardanalytics');
+        }
+        return get_string('js:onboardinglabel', 'block_dashboardanalytics');
+    }
+
+    private function company_trust_score(array $filters, string $companyname): ?float {
+        $items = (new proctoring_repository())->company_average_items($filters, 50);
+        foreach ($items as $item) {
+            if ((string)$item['label'] === $companyname) {
+                return (float)$item['percent'];
+            }
+        }
+
+        if (count($items) === 1) {
+            return (float)$items[0]['percent'];
+        }
+
+        return null;
+    }
+
+    private function company_health_modal_subtitle(array $filters): string {
+        $departments = (new employee_repository())->active_users_by_dimension_items($filters, 'department', 200);
+        $locations = (new employee_repository())->active_users_by_dimension_items($filters, 'location', 200);
+
+        return get_string('modal:companysubtitle', 'block_dashboardanalytics', (object)[
+            'departments' => count($departments),
+            'locations' => count($locations),
+        ]);
+    }
+
+    private function company_course_compliance_modal_items(array $filters, int $limit): array {
+        $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
+        $courses = [];
+
+        foreach ($rows as $row) {
+            $course = $row['course'] ?: get_string('label:unassigned', 'block_dashboardanalytics');
+            if (!isset($courses[$course])) {
+                $courses[$course] = ['total' => 0, 'bad' => 0];
+            }
+
+            $courses[$course]['total']++;
+            if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
+                $courses[$course]['bad']++;
+            }
+        }
+
+        $items = [];
+        foreach ($courses as $course => $counts) {
+            $compliance = $counts['total'] > 0 ? round((($counts['total'] - $counts['bad']) / $counts['total']) * 100, 1) : 0.0;
+            $items[] = [
+                'label' => $course,
+                'value' => round($compliance, 1) . '%',
+                'percent' => $compliance,
+                'status' => $this->status_for_percent($compliance),
+            ];
+        }
+
+        usort($items, static function(array $a, array $b): int {
+            return $b['percent'] <=> $a['percent'];
+        });
+
+        return array_slice($items, 0, $limit);
     }
 
     private function expired_documents_priority_summary(array $filters): array {
