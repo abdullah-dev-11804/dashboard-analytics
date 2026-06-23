@@ -148,13 +148,15 @@ class turnover_repository {
         $where = [$filter['sql']];
 
         if ($start > 0) {
-            $params[$prefix . 'windowstart'] = $start;
-            $where[] = "(u.timecreated >= :{$prefix}windowstart OR u.timemodified >= :{$prefix}windowstart)";
+            $params[$prefix . 'createdstart'] = $start;
+            $params[$prefix . 'modifiedstart'] = $start;
+            $where[] = "(u.timecreated >= :{$prefix}createdstart OR u.timemodified >= :{$prefix}modifiedstart)";
         }
 
         if ($end > 0) {
-            $params[$prefix . 'windowend'] = $end;
-            $where[] = "(u.timecreated <= :{$prefix}windowend OR u.timemodified <= :{$prefix}windowend)";
+            $params[$prefix . 'createdend'] = $end;
+            $params[$prefix . 'modifiedend'] = $end;
+            $where[] = "(u.timecreated <= :{$prefix}createdend OR u.timemodified <= :{$prefix}modifiedend)";
         }
 
         $sql = "SELECT u.id,
