@@ -853,6 +853,48 @@
     font-size: .8rem;
 }
 
+.block-dashboardanalytics .da-platform-growth-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    margin-top: .75rem;
+    margin-bottom: .35rem;
+}
+
+.block-dashboardanalytics .da-platform-growth-periods,
+.block-dashboardanalytics .da-platform-growth-toolbar {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-platform-growth-period-label {
+    color: #627186;
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-platform-growth-period,
+.block-dashboardanalytics .da-platform-growth-pill {
+    min-height: 1.9rem;
+    border: 1px solid #cdd8e7;
+    border-radius: 8px;
+    background: #fff;
+    color: #4f6179;
+    padding: .2rem .7rem;
+    font-size: .78rem;
+    line-height: 1;
+}
+
+.block-dashboardanalytics .da-platform-growth-period.is-active {
+    border-color: #2f6fc2;
+    background: #2f6fc2;
+    color: #fff;
+}
+
 .block-dashboardanalytics .da-multibars-chart {
     display: grid;
     grid-auto-flow: column;
@@ -864,6 +906,14 @@
     overflow-x: auto;
     padding: 1.1rem .15rem .2rem;
     border-top: 1px solid #edf1f6;
+}
+
+.block-dashboardanalytics .da-multibars-chart-growth {
+    border-top: 0;
+    border-radius: 14px;
+    background: #f9fbfe;
+    padding: 1.15rem .75rem .45rem;
+    box-shadow: inset 0 0 0 1px #eef3f8;
 }
 
 .block-dashboardanalytics .da-multibars-group {

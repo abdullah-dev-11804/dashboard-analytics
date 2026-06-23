@@ -29,6 +29,7 @@ class filters {
             'daterange' => self::date_range($decoded['daterange'] ?? 'last12months'),
             'customstart' => self::date_input($decoded['customstart'] ?? ''),
             'customend' => self::date_input($decoded['customend'] ?? ''),
+            'platformgrowthperiod' => self::platform_growth_period($decoded['platformgrowthperiod'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
         ];
@@ -139,5 +140,11 @@ class filters {
     private static function date_input($value): string {
         $value = trim((string)$value);
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : '';
+    }
+
+    private static function platform_growth_period($value): string {
+        $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
+        $allowed = ['3months', '1year', '2years', 'alltime'];
+        return in_array($value, $allowed, true) ? $value : '';
     }
 }

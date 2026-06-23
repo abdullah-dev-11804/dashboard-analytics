@@ -285,36 +285,106 @@ class overview_repository {
     }
 
     public function platform_growth_items(array $filters): array {
-        $months = $this->month_windows($filters);
-        $companies = $this->top_company_labels($filters, 3);
-        $seriesstatuses = ['info', 'danger', 'warning', 'ok', 'muted'];
+        global $DB;
 
-        $items = [];
-        foreach ($months as $month) {
-            $summaries = $this->company_summaries($filters, $month['end']);
-            $summarymap = [];
-            foreach ($summaries as $summary) {
-                $summarymap[$summary['label']] = $summary;
+        $windows = $this->platform_growth_windows($filters);
+        if (!$windows) {
+            return [];
+        }
+
+        $employee = new employee_repository();
+        $companyrepo = new company_repository();
+        $userfilter = $employee->user_filter_sql($filters, 'u', 'platformgrowth');
+        $companysql = $companyrepo->company_name_sql('u', 'platformgrowth');
+        $params = $userfilter['params'] + [
+            'platformgrowthstart' => $windows[0]['start'],
+            'platformgrowthend' => $windows[count($windows) - 1]['end'],
+        ];
+
+        $sql = "SELECT u.id AS userid,
+                       u.timecreated,
+                       {$companysql['select']}
+                  FROM {user} u
+                       {$companysql['join']}
+                 WHERE {$userfilter['sql']}
+                   AND u.timecreated >= :platformgrowthstart
+                   AND u.timecreated <= :platformgrowthend
+              ORDER BY u.timecreated ASC";
+
+        $records = $DB->get_records_sql($sql, $params);
+        if (!$records) {
+            return [];
+        }
+
+        $windowmap = [];
+        foreach ($windows as $window) {
+            $windowmap[$window['key']] = $window;
+        }
+
+        $counts = [];
+        $companytotals = [];
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        foreach ($records as $record) {
+            $monthkey = (new \DateTimeImmutable('@' . (int)$record->timecreated))->setTimezone($timezone)->format('Y-m');
+            if (!isset($windowmap[$monthkey])) {
+                continue;
             }
 
+            $companyname = trim((string)$record->companyname);
+            if ($companyname === '') {
+                $companyname = get_string('label:unassigned', 'block_dashboardanalytics');
+            }
+
+            if (!isset($counts[$monthkey])) {
+                $counts[$monthkey] = [];
+            }
+
+            if (!isset($counts[$monthkey][$companyname])) {
+                $counts[$monthkey][$companyname] = 0;
+            }
+
+            $counts[$monthkey][$companyname]++;
+            if (!isset($companytotals[$companyname])) {
+                $companytotals[$companyname] = 0;
+            }
+            $companytotals[$companyname]++;
+        }
+
+        arsort($companytotals);
+        $companies = array_slice(array_keys($companytotals), 0, 3);
+        if (!$companies) {
+            return [];
+        }
+
+        $seriesstatuses = ['info', 'danger', 'warning', 'ok', 'muted'];
+        $globalmax = 1;
+        foreach ($counts as $monthcounts) {
+            foreach ($companies as $company) {
+                $globalmax = max($globalmax, (int)($monthcounts[$company] ?? 0));
+            }
+        }
+
+        $items = [];
+        foreach ($windows as $window) {
+            $monthcounts = $counts[$window['key']] ?? [];
             $segments = [];
-            $maxpercent = 0.0;
+            $monthmax = 0;
+
             foreach ($companies as $index => $company) {
-                $summary = $summarymap[$company] ?? ['percent' => 0.0];
-                $percent = (float)$summary['percent'];
-                $maxpercent = max($maxpercent, $percent);
+                $value = (int)($monthcounts[$company] ?? 0);
+                $monthmax = max($monthmax, $value);
                 $segments[] = [
                     'label' => $company,
-                    'value' => (string)round($percent),
-                    'percent' => $percent,
+                    'value' => (string)$value,
+                    'percent' => round(($value / $globalmax) * 100, 1),
                     'status' => $seriesstatuses[$index % count($seriesstatuses)],
                 ];
             }
 
             $items[] = [
-                'label' => $month['label'],
+                'label' => $window['label'],
                 'value' => '',
-                'percent' => $maxpercent,
+                'percent' => round(($monthmax / $globalmax) * 100, 1),
                 'status' => 'info',
                 'meta' => get_string('overview:platformgrowthmeta', 'block_dashboardanalytics'),
                 'segments' => $segments,
@@ -770,6 +840,46 @@ class overview_repository {
                 'end' => $end->getTimestamp(),
             ];
         }
+        return $months;
+    }
+
+    private function platform_growth_windows(array $filters): array {
+        $period = $filters['platformgrowthperiod'] ?? '';
+        if ($period === '') {
+            $period = '1year';
+        }
+
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $base = new \DateTimeImmutable('first day of this month 00:00:00', $timezone);
+        $count = 12;
+        if ($period === '3months') {
+            $count = 3;
+        } else if ($period === '2years') {
+            $count = 24;
+        } else if ($period === 'alltime') {
+            global $DB;
+            $earliest = (int)$DB->get_field_select('user', 'MIN(timecreated)', 'deleted = 0 AND confirmed = 1');
+            if ($earliest > 0) {
+                $start = (new \DateTimeImmutable('@' . $earliest))->setTimezone($timezone)->modify('first day of this month 00:00:00');
+                $count = max(1, (($base->format('Y') - $start->format('Y')) * 12) + ((int)$base->format('n') - (int)$start->format('n')) + 1);
+            } else {
+                $count = 12;
+            }
+        }
+
+        $format = $count > 12 ? '%b %y' : '%b';
+        $months = [];
+        for ($offset = $count - 1; $offset >= 0; $offset--) {
+            $start = $base->modify('-' . $offset . ' months');
+            $end = $start->modify('last day of this month 23:59:59');
+            $months[] = [
+                'key' => $start->format('Y-m'),
+                'label' => userdate($end->getTimestamp(), $format),
+                'start' => $start->getTimestamp(),
+                'end' => $end->getTimestamp(),
+            ];
+        }
+
         return $months;
     }
 

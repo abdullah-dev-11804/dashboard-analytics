@@ -45,7 +45,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         reportLabel: 'Report',
         healthyLabel: 'Healthy',
         atRiskLabel: 'At risk',
-        onboardingLabel: 'Onboarding'
+        onboardingLabel: 'Onboarding',
+        period3Months: '3 months',
+        period1Year: '1 year',
+        period2Years: '2 years',
+        periodAllTime: 'All time',
+        barChartLabel: 'Bar chart',
+        interactiveLabel: 'interactive'
     };
 
     var stringList = [
@@ -93,6 +99,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:healthylabel', component: 'block_dashboardanalytics'},
         {key: 'js:atrisklabel', component: 'block_dashboardanalytics'},
         {key: 'js:onboardinglabel', component: 'block_dashboardanalytics'},
+        {key: 'js:period3months', component: 'block_dashboardanalytics'},
+        {key: 'js:period1year', component: 'block_dashboardanalytics'},
+        {key: 'js:period2years', component: 'block_dashboardanalytics'},
+        {key: 'js:periodalltime', component: 'block_dashboardanalytics'},
+        {key: 'js:barchartlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:interactivelabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allcompanieslabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allcourseslabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allperiodslabel', component: 'block_dashboardanalytics'},
@@ -220,7 +232,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         writeSessionState(state, {
             activeFilterKeys: state.activeFilterKeys || [],
             filters: readFilters(root, state),
-            currentTab: state.currentTab || 'overview'
+            currentTab: state.currentTab || 'overview',
+            visualOverrides: state.currentVisualOverrides || {}
         });
     };
 
@@ -525,7 +538,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '</table></div>' + pagination;
     };
 
-    var renderVisuals = function(root, data) {
+    var renderVisuals = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
         var count = root.querySelector('[data-region="drilldown-count"]');
@@ -568,15 +581,41 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</article>';
                 }).join('') + '</div>';
             } else if (panel.type === 'multibars') {
+                var isPlatformGrowth = panel.key === 'platformgrowth';
+                var platformGrowthPeriod = (((state || {}).currentVisualOverrides) || {}).platformgrowthperiod || '1year';
+                var periodButtons = '';
+                var platformToolbar = '';
+                if (isPlatformGrowth) {
+                    var periodLabel = ((((state || {}).filterGroups) || {}).daterange || {}).label || 'Period';
+                    var periodOptions = [
+                        {key: '3months', label: text('period3Months', '3 months')},
+                        {key: '1year', label: text('period1Year', '1 year')},
+                        {key: '2years', label: text('period2Years', '2 years')},
+                        {key: 'alltime', label: text('periodAllTime', 'All time')}
+                    ];
+                    periodButtons = '<div class="da-platform-growth-periods"><span class="da-platform-growth-period-label">' + escapeHtml(periodLabel + ':') + '</span>'
+                        + periodOptions.map(function(option) {
+                            return '<button type="button" class="da-platform-growth-period'
+                                + (platformGrowthPeriod === option.key ? ' is-active' : '')
+                                + '" data-action="platformgrowth-period" data-period="' + escapeHtml(option.key) + '">'
+                                + escapeHtml(option.label) + '</button>';
+                        }).join('') + '</div>';
+                    platformToolbar = '<div class="da-platform-growth-toolbar">'
+                        + '<span class="da-platform-growth-pill">' + escapeHtml(text('barChartLabel', 'Bar chart')) + '</span>'
+                        + '<span class="da-platform-growth-pill">' + escapeHtml(text('interactiveLabel', 'interactive')) + '</span>'
+                        + '</div>';
+                }
                 var legend = (((items[0] || {}).segments) || []).map(function(segment) {
                     return '<span class="da-multibars-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>' + escapeHtml(segment.label) + '</span>';
                 }).join('');
-                body = (legend ? '<div class="da-multibars-legend">' + legend + '</div>' : '')
-                    + '<div class="da-multibars-chart">' + items.map(function(item) {
+                body = (isPlatformGrowth ? '<div class="da-platform-growth-head">' + periodButtons + platformToolbar + '</div>' : '')
+                    + (legend ? '<div class="da-multibars-legend">' + legend + '</div>' : '')
+                    + '<div class="da-multibars-chart' + (isPlatformGrowth ? ' da-multibars-chart-growth' : '') + '">' + items.map(function(item) {
                         var segments = item.segments || [];
                         return '<div class="da-multibars-group">'
                             + '<div class="da-multibars-columns">' + segments.map(function(segment) {
-                                var height = Math.max(6, Math.min(100, Number(segment.percent) || 0));
+                                var numericPercent = Number(segment.percent) || 0;
+                                var height = numericPercent > 0 ? Math.max(6, Math.min(100, numericPercent)) : 0;
                                 return '<div class="da-multibars-column-wrap">'
                                     + '<span class="da-multibars-value">' + escapeHtml(segment.value || '') + '</span>'
                                     + '<span class="da-multibars-column da-bar-fill-' + escapeHtml(segment.status) + '" style="height:' + height + '%" title="'
@@ -989,19 +1028,24 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).catch(Notification.exception);
     };
 
-    var loadVisuals = function(root, state, tabkey) {
+    var loadVisuals = function(root, state, tabkey, overrides) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
+        var visualOverrides = typeof overrides !== 'undefined'
+            ? overrides
+            : (state.currentVisualOverrides || {});
+        var requestFilters = readFilters(root, state, visualOverrides);
 
         return call('block_dashboardanalytics_get_visuals', {
             contextid: state.contextid,
             dashboardkey: state.dashboardkey,
             tabkey: tabkey,
-            filters: JSON.stringify(readFilters(root, state))
+            filters: JSON.stringify(requestFilters)
         }).then(function(response) {
             state.currentTab = tabkey;
+            state.currentVisualOverrides = visualOverrides || {};
             setActiveTab(root, tabkey);
-            renderVisuals(root, response);
+            renderVisuals(root, response, state);
             persistState(root, state);
         }).catch(Notification.exception);
     };
@@ -1166,6 +1210,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var platformGrowthPeriod = event.target.closest('[data-action="platformgrowth-period"]');
+            if (platformGrowthPeriod && root.contains(platformGrowthPeriod)) {
+                state.currentDrilldown = '';
+                state.currentDrilldownOverrides = null;
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    platformgrowthperiod: platformGrowthPeriod.getAttribute('data-period') || '1year'
+                });
+                loadVisuals(root, state, state.currentTab || 'overview', state.currentVisualOverrides);
+                return;
+            }
+
             var pager = event.target.closest('[data-action="drilldown-page"]');
             if (pager && root.contains(pager) && !pager.disabled && state.currentDrilldown) {
                 loadDrilldown(
@@ -1232,13 +1287,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             currentDrilldown: '',
             currentDrilldownPage: 0,
             currentDrilldownPerPage: 20,
-            currentDrilldownOverrides: null
+            currentDrilldownOverrides: null,
+            currentVisualOverrides: {}
         };
 
         var saved = readSessionState(state);
         state.activeFilterKeys = Array.isArray(saved.activeFilterKeys) ? saved.activeFilterKeys : [];
         state.persistedFilters = saved.filters || {};
         state.currentTab = saved.currentTab || state.currentTab;
+        state.currentVisualOverrides = saved.visualOverrides || {};
         if (!root.querySelector('[data-tab="' + state.currentTab + '"]')) {
             state.currentTab = activeTab ? activeTab.getAttribute('data-tab') : 'overview';
         }
@@ -1255,17 +1312,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.noFilterOptions = values[7];
             strings.allOption = values[8];
             strings.allWithLabel = values[9];
-            strings.allLabels = {
-                companies: values[44],
-                courses: values[45],
-                daterange: values[46],
-                departments: values[47],
-                locations: values[48],
-                positions: values[49],
-                personnelcategories: values[50],
-                sites: values[51],
-                educations: values[52]
-            };
             strings.activeFiltersAll = values[10];
             strings.activeFiltersPrefix = values[11];
             strings.noData = values[12];
@@ -1300,6 +1346,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.healthyLabel = values[41];
             strings.atRiskLabel = values[42];
             strings.onboardingLabel = values[43];
+            strings.period3Months = values[44];
+            strings.period1Year = values[45];
+            strings.period2Years = values[46];
+            strings.periodAllTime = values[47];
+            strings.barChartLabel = values[48];
+            strings.interactiveLabel = values[49];
+            strings.allLabels = {
+                companies: values[50],
+                courses: values[51],
+                daterange: values[52],
+                departments: values[53],
+                locations: values[54],
+                positions: values[55],
+                personnelcategories: values[56],
+                sites: values[57],
+                educations: values[58]
+            };
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {
