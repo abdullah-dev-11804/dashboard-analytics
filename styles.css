@@ -926,7 +926,7 @@
 .block-dashboardanalytics .da-multibars-columns {
     height: 210px;
     display: flex;
-    align-items: flex-end;
+    align-items: stretch;
     justify-content: center;
     gap: .38rem;
 }
@@ -935,6 +935,7 @@
     flex: 1 1 0;
     min-width: 14px;
     max-width: 24px;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -946,13 +947,15 @@
     color: #66758a;
     font-size: .72rem;
     line-height: 1;
+    min-height: .9rem;
 }
 
 .block-dashboardanalytics .da-multibars-column {
     width: 100%;
-    min-height: 10px;
+    min-height: 0;
     border-radius: 999px 999px 0 0;
     display: block;
+    margin-top: auto;
 }
 
 .block-dashboardanalytics .da-multibars-label {
