@@ -872,10 +872,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var monthLabels = ((items[0] || {}).segments || []).map(function(segment) {
                     return segment.label || '';
                 });
-                var chartLeft = 26;
+                var chartLeft = 18;
                 var chartRight = 4;
-                var chartTop = 16;
-                var chartBottom = 16;
+                var chartTop = 14;
+                var chartBottom = 18;
                 var chartWidth = 100 - chartLeft - chartRight;
                 var chartHeight = 100 - chartTop - chartBottom;
                 var xForIndex = function(index, total) {
@@ -905,11 +905,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         return x.toFixed(1) + ',' + y.toFixed(1);
                     }).join(' ');
                     var firstSegment = (item.segments || [])[0] || {percent: 0};
-                    var labelY = Math.max(chartTop + 2, Math.min(100 - chartBottom - 2, yForPercent(firstSegment.percent) - 3));
+                    var firstX = xForIndex(0, (item.segments || []).length || 1);
+                    var labelY = Math.max(chartTop + 1, Math.min(100 - chartBottom - 3, yForPercent(firstSegment.percent) - 4));
                     return {
                         path: '<polyline points="' + escapeHtml(points) + '" class="da-compliance-trend-path da-compliance-trend-path-' + escapeHtml(item.status) + '"></polyline>',
-                        label: '<text x="' + (chartLeft + 1).toFixed(1) + '" y="' + labelY.toFixed(1) + '" class="da-compliance-trend-svg-label da-text-' + escapeHtml(item.status) + '">'
-                            + escapeHtml(item.label + ' ' + item.value) + '</text>'
+                        points: (item.segments || []).map(function(segment, index, segments) {
+                            return '<circle cx="' + xForIndex(index, segments.length).toFixed(1) + '" cy="' + yForPercent(segment.percent).toFixed(1) + '" r="0.7" class="da-compliance-trend-point da-compliance-trend-point-' + escapeHtml(item.status) + '"></circle>';
+                        }).join(''),
+                        label: '<span class="da-compliance-trend-series-label da-text-' + escapeHtml(item.status) + '" style="left:' + firstX.toFixed(1) + '%; top:' + labelY.toFixed(1) + '%">'
+                            + escapeHtml(item.label + ' ' + item.value) + '</span>'
                     };
                 });
                 var referenceY = yForPercent(80);
@@ -918,9 +922,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<svg class="da-compliance-trend-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
                     + '<line x1="' + chartLeft + '" y1="' + referenceY.toFixed(1) + '" x2="' + (100 - chartRight) + '" y2="' + referenceY.toFixed(1) + '" class="da-compliance-trend-reference"></line>'
                     + trendSeries.map(function(series) { return series.path; }).join('')
-                    + trendSeries.map(function(series) { return series.label; }).join('')
-                    + '<text x="' + (100 - chartRight - 5).toFixed(1) + '" y="' + Math.max(4, referenceY - 1.5).toFixed(1) + '" class="da-compliance-trend-target-label">80% target</text>'
+                    + trendSeries.map(function(series) { return series.points; }).join('')
                     + '</svg>'
+                    + trendSeries.map(function(series) { return series.label; }).join('')
+                    + '<span class="da-compliance-trend-target-label" style="top:' + Math.max(2, referenceY - 4).toFixed(1) + '%">80% target</span>'
                     + '<div class="da-compliance-trend-x-axis">' + xLabels + '</div>'
                     + '</div>'
                     + '</div>';
