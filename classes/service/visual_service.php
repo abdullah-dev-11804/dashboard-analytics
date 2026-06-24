@@ -86,7 +86,6 @@ class visual_service {
                 $this->panel('platformgrowth', get_string('panel:platformgrowth:title', 'block_dashboardanalytics'), 'multibars', get_string('panel:platformgrowth:description', 'block_dashboardanalytics'), $overview->platform_growth_items($filters)),
                 $this->panel('activitysnapshot', get_string('panel:activitysnapshot:title', 'block_dashboardanalytics'), 'activitysnapshot', get_string('panel:activitysnapshot:description', 'block_dashboardanalytics'), $overview->activity_snapshot_items($filters)),
                 $this->panel('companyhealth', get_string('panel:companyhealth:title', 'block_dashboardanalytics'), 'companyhealth', get_string('panel:companyhealth:description', 'block_dashboardanalytics'), $overview->company_health_items($filters)),
-                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
                 $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'multibars', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $overview->expired_expiring_by_company_items($filters)),
                 $this->panel('priorityactions', get_string('panel:priorityactions:title', 'block_dashboardanalytics'), 'alerts', get_string('panel:priorityactions:description', 'block_dashboardanalytics'), $overview->priority_action_items($filters)),
                 $this->panel('coursecompliance', get_string('panel:coursecompliance:title', 'block_dashboardanalytics'), 'bar', get_string('panel:coursecompliance:description', 'block_dashboardanalytics'), $overview->course_non_compliance_items($filters)),
@@ -116,6 +115,7 @@ class visual_service {
     }
 
     private function compliance(array $filters): array {
+        $overview = new overview_repository();
         $documents = new document_repository();
         $eds = new eds_repository();
         $edsrows = $eds->pending_manual_rows($filters, 0, 1);
@@ -124,7 +124,9 @@ class visual_service {
             'title' => get_string('panel:compliance:title', 'block_dashboardanalytics'),
             'description' => get_string('panel:compliance:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('riskcompany', get_string('panel:riskcompanyshort:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcompanyshort:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
+                $this->panel('compliancetrend', get_string('panel:compliancetrendchart:title', 'block_dashboardanalytics'), 'compliancetrendchart', get_string('panel:compliancetrendchart:description', 'block_dashboardanalytics'), $overview->compliance_trend_items($filters)),
+                $this->panel('companycompliance', get_string('panel:companycompliancesnapshot:title', 'block_dashboardanalytics'), 'compliancesnapshot', get_string('panel:companycompliancesnapshot:description', 'block_dashboardanalytics'), $overview->company_compliance_items($filters)),
+                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
                 $this->panel('riskcourse', get_string('panel:riskcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters)),
                 $this->panel('edsqueue', get_string('panel:edsqueue:title', 'block_dashboardanalytics'), 'cards', get_string('panel:edsqueue:description', 'block_dashboardanalytics'), [[
                     'label' => get_string('panel:pendingmanual', 'block_dashboardanalytics'),

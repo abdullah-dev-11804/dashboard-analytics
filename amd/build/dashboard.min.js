@@ -868,6 +868,62 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>'
                     + '<div class="da-server-forecast-meta">' + escapeHtml(forecast.meta || '') + '</div>'
                     + '</div>';
+            } else if (panel.type === 'compliancetrendchart') {
+                var monthLabels = ((items[0] || {}).segments || []).map(function(segment) {
+                    return segment.label || '';
+                });
+                var xLabels = monthLabels.map(function(label, index) {
+                    var left = monthLabels.length <= 1 ? 0 : (index / (monthLabels.length - 1)) * 100;
+                    return '<span class="da-compliance-trend-x-label" style="left:' + left + '%">' + escapeHtml(label) + '</span>';
+                }).join('');
+                var trendSeries = items.map(function(item) {
+                    var points = (item.segments || []).map(function(segment, index, segments) {
+                        var x = segments.length <= 1 ? 0 : (index / (segments.length - 1)) * 100;
+                        var y = 100 - Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                        return x.toFixed(1) + ',' + y.toFixed(1);
+                    }).join(' ');
+                    var lastSegment = ((item.segments || []).slice(-1)[0]) || {percent: 0};
+                    var labelY = 100 - Math.max(0, Math.min(100, Number(lastSegment.percent) || 0));
+                    return '<div class="da-compliance-trend-series">'
+                        + '<svg class="da-compliance-trend-series-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                        + '<polyline points="' + escapeHtml(points) + '" class="da-compliance-trend-path da-compliance-trend-path-' + escapeHtml(item.status) + '"></polyline>'
+                        + '</svg>'
+                        + '<span class="da-compliance-trend-series-label da-text-' + escapeHtml(item.status) + '" style="top:' + Math.max(2, Math.min(94, labelY - 4)) + '%">'
+                        + escapeHtml(item.label + ' ' + item.value) + '</span>'
+                        + '</div>';
+                }).join('');
+
+                body = '<div class="da-compliance-trend-wrap">'
+                    + '<div class="da-compliance-trend-chart">'
+                    + '<svg class="da-compliance-trend-base" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                    + '<line x1="0" y1="20" x2="100" y2="20" class="da-compliance-trend-reference"></line>'
+                    + '</svg>'
+                    + trendSeries
+                    + '<span class="da-compliance-trend-reference-label">80% target</span>'
+                    + '<div class="da-compliance-trend-x-axis">' + xLabels + '</div>'
+                    + '</div>'
+                    + '</div>';
+            } else if (panel.type === 'compliancesnapshot') {
+                body = '<div class="da-compliance-snapshot-wrap">'
+                    + '<div class="da-compliance-snapshot-list">' + items.map(function(item) {
+                        var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                        return '<div class="da-compliance-snapshot-row">'
+                            + '<div class="da-compliance-snapshot-label">' + escapeHtml(item.label) + '</div>'
+                            + '<div class="da-compliance-snapshot-track">'
+                            + '<span class="da-compliance-snapshot-reference" style="left:80%"></span>'
+                            + '<span class="da-compliance-snapshot-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%">'
+                            + '<span class="da-compliance-snapshot-fill-value">' + escapeHtml(item.value) + '</span>'
+                            + '</span>'
+                            + '</div>'
+                            + '<div class="da-compliance-snapshot-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</div>'
+                            + '</div>';
+                    }).join('') + '</div>'
+                    + '<div class="da-compliance-snapshot-legend">'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>&ge;80% Compliant</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>70-79% At risk</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>&lt;70% Critical</span>'
+                    + '</div>'
+                    + '</div>';
             } else if (panel.type === 'servererrors') {
                 body = '<div class="da-server-error-list">' + items.map(function(item) {
                     return '<div class="da-server-error-row da-server-error-row-' + escapeHtml(item.status) + '">'

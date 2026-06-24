@@ -1220,6 +1220,170 @@
     font-size: .84rem;
 }
 
+.block-dashboardanalytics .da-compliance-trend-wrap,
+.block-dashboardanalytics .da-compliance-snapshot-wrap {
+    margin-top: .75rem;
+}
+
+.block-dashboardanalytics .da-compliance-trend-chart {
+    position: relative;
+    min-height: 220px;
+    border-top: 1px solid #edf1f6;
+    padding: 1rem 1rem 2rem;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-compliance-trend-base,
+.block-dashboardanalytics .da-compliance-trend-series-svg {
+    position: absolute;
+    inset: 1rem 1rem 2rem 1rem;
+    width: calc(100% - 2rem);
+    height: calc(100% - 3rem);
+    display: block;
+}
+
+.block-dashboardanalytics .da-compliance-trend-reference {
+    stroke: #a7b8d4;
+    stroke-width: 1;
+    stroke-dasharray: 2.5 2.5;
+}
+
+.block-dashboardanalytics .da-compliance-trend-reference-label {
+    position: absolute;
+    top: .8rem;
+    right: 1rem;
+    color: #7a8ca7;
+    font-size: .76rem;
+}
+
+.block-dashboardanalytics .da-compliance-trend-series {
+    position: absolute;
+    inset: 0;
+}
+
+.block-dashboardanalytics .da-compliance-trend-path {
+    fill: none;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.block-dashboardanalytics .da-compliance-trend-path-ok {
+    stroke: #1d9b67;
+}
+
+.block-dashboardanalytics .da-compliance-trend-path-warning {
+    stroke: #d87a1f;
+    stroke-dasharray: 4 2;
+}
+
+.block-dashboardanalytics .da-compliance-trend-path-danger {
+    stroke: #e24b4a;
+    stroke-dasharray: 1.2 2;
+}
+
+.block-dashboardanalytics .da-compliance-trend-path-info {
+    stroke: #378add;
+}
+
+.block-dashboardanalytics .da-compliance-trend-path-muted {
+    stroke: #8da0bc;
+}
+
+.block-dashboardanalytics .da-compliance-trend-series-label {
+    position: absolute;
+    left: 1rem;
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.block-dashboardanalytics .da-compliance-trend-x-axis {
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    bottom: .3rem;
+    height: 1rem;
+}
+
+.block-dashboardanalytics .da-compliance-trend-x-label {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    color: #7186a8;
+    font-size: .76rem;
+    white-space: nowrap;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-list {
+    display: grid;
+    gap: .85rem;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) 56px;
+    gap: .75rem;
+    align-items: center;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-label {
+    color: #243b63;
+    font-weight: 600;
+    text-align: right;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-track {
+    position: relative;
+    width: 100%;
+    height: 18px;
+    background: #e9eff7;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-reference {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(83, 103, 131, .4);
+    z-index: 1;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-fill {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    height: 100%;
+    min-width: 32px;
+    border-radius: 5px;
+    padding: 0 .4rem;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-fill-value {
+    color: #fff;
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-value {
+    font-size: .86rem;
+    font-weight: 700;
+    text-align: right;
+}
+
+.block-dashboardanalytics .da-compliance-snapshot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: .9rem;
+    color: #4f6690;
+    font-size: .84rem;
+}
+
 .block-dashboardanalytics .da-newhire-risk-wrap {
     display: flex;
     flex-direction: column;

@@ -73,36 +73,45 @@ class overview_repository {
         $months = $this->month_windows($filters);
         $current = $this->company_compliance_items($filters, 8);
         $companies = array_slice(array_column($current, 'label'), 0, 4);
-        $seriesstatuses = ['info', 'danger', 'warning', 'ok', 'muted'];
+        $seriesstatuses = ['danger', 'warning', 'ok', 'info', 'muted'];
+        $monthlabels = array_column($months, 'label');
+        $monthkeys = array_column($months, 'key');
+        $monthsummarymap = [];
 
-        $items = [];
         foreach ($months as $month) {
             $summaries = $this->company_summaries($filters, $month['end']);
-            $summarymap = [];
             foreach ($summaries as $summary) {
-                $summarymap[$summary['label']] = $summary;
+                $monthsummarymap[$month['key']][$summary['label']] = $summary;
+            }
+        }
+
+        $items = [];
+        foreach ($companies as $index => $company) {
+            $currentitem = null;
+            foreach ($current as $candidate) {
+                if ($candidate['label'] === $company) {
+                    $currentitem = $candidate;
+                    break;
+                }
             }
 
             $segments = [];
-            $maxpercent = 1.0;
-            foreach ($companies as $index => $company) {
-                $summary = $summarymap[$company] ?? ['percent' => 0.0, 'total' => 0, 'compliant' => 0];
-                $percent = (float)$summary['percent'];
-                $maxpercent = max($maxpercent, $percent);
+            foreach ($monthkeys as $monthindex => $monthkey) {
+                $summary = $monthsummarymap[$monthkey][$company] ?? ['percent' => 0.0, 'total' => 0, 'compliant' => 0];
                 $segments[] = [
-                    'label' => $company,
-                    'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : '0%',
-                    'percent' => $percent,
+                    'label' => $monthlabels[$monthindex],
+                    'value' => $summary['total'] > 0 ? round((float)$summary['percent'], 1) . '%' : '0%',
+                    'percent' => (float)$summary['percent'],
                     'status' => $seriesstatuses[$index % count($seriesstatuses)],
                 ];
             }
 
             $items[] = [
-                'label' => $month['label'],
-                'value' => '',
-                'percent' => $maxpercent,
-                'status' => 'info',
-                'meta' => 'Monthly compliance by company',
+                'label' => $company,
+                'value' => $currentitem ? (string)$currentitem['value'] : '0%',
+                'percent' => $currentitem ? (float)$currentitem['percent'] : 0.0,
+                'status' => $seriesstatuses[$index % count($seriesstatuses)],
+                'meta' => get_string('panel:compliancetrendchart:meta', 'block_dashboardanalytics'),
                 'segments' => $segments,
             ];
         }
