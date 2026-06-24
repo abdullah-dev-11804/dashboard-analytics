@@ -872,34 +872,55 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var monthLabels = ((items[0] || {}).segments || []).map(function(segment) {
                     return segment.label || '';
                 });
+                var chartLeft = 26;
+                var chartRight = 4;
+                var chartTop = 16;
+                var chartBottom = 16;
+                var chartWidth = 100 - chartLeft - chartRight;
+                var chartHeight = 100 - chartTop - chartBottom;
+                var xForIndex = function(index, total) {
+                    if (total <= 1) {
+                        return chartLeft;
+                    }
+
+                    return chartLeft + ((index / (total - 1)) * chartWidth);
+                };
+                var yForPercent = function(percent) {
+                    var safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+                    return chartTop + ((100 - safePercent) / 100) * chartHeight;
+                };
                 var xLabels = monthLabels.map(function(label, index) {
-                    var left = monthLabels.length <= 1 ? 0 : (index / (monthLabels.length - 1)) * 100;
+                    var shouldShow = index === 0 || index === monthLabels.length - 1 || index % 3 === 0;
+                    if (!shouldShow) {
+                        return '';
+                    }
+
+                    var left = xForIndex(index, monthLabels.length);
                     return '<span class="da-compliance-trend-x-label" style="left:' + left + '%">' + escapeHtml(label) + '</span>';
                 }).join('');
                 var trendSeries = items.map(function(item) {
                     var points = (item.segments || []).map(function(segment, index, segments) {
-                        var x = segments.length <= 1 ? 0 : (index / (segments.length - 1)) * 100;
-                        var y = 100 - Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                        var x = xForIndex(index, segments.length);
+                        var y = yForPercent(segment.percent);
                         return x.toFixed(1) + ',' + y.toFixed(1);
                     }).join(' ');
-                    var lastSegment = ((item.segments || []).slice(-1)[0]) || {percent: 0};
-                    var labelY = 100 - Math.max(0, Math.min(100, Number(lastSegment.percent) || 0));
-                    return '<div class="da-compliance-trend-series">'
-                        + '<svg class="da-compliance-trend-series-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
-                        + '<polyline points="' + escapeHtml(points) + '" class="da-compliance-trend-path da-compliance-trend-path-' + escapeHtml(item.status) + '"></polyline>'
-                        + '</svg>'
-                        + '<span class="da-compliance-trend-series-label da-text-' + escapeHtml(item.status) + '" style="top:' + Math.max(2, Math.min(94, labelY - 4)) + '%">'
-                        + escapeHtml(item.label + ' ' + item.value) + '</span>'
-                        + '</div>';
-                }).join('');
-
+                    var firstSegment = (item.segments || [])[0] || {percent: 0};
+                    var labelY = Math.max(chartTop + 2, Math.min(100 - chartBottom - 2, yForPercent(firstSegment.percent) - 3));
+                    return {
+                        path: '<polyline points="' + escapeHtml(points) + '" class="da-compliance-trend-path da-compliance-trend-path-' + escapeHtml(item.status) + '"></polyline>',
+                        label: '<text x="' + (chartLeft + 1).toFixed(1) + '" y="' + labelY.toFixed(1) + '" class="da-compliance-trend-svg-label da-text-' + escapeHtml(item.status) + '">'
+                            + escapeHtml(item.label + ' ' + item.value) + '</text>'
+                    };
+                });
+                var referenceY = yForPercent(80);
                 body = '<div class="da-compliance-trend-wrap">'
                     + '<div class="da-compliance-trend-chart">'
-                    + '<svg class="da-compliance-trend-base" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
-                    + '<line x1="0" y1="20" x2="100" y2="20" class="da-compliance-trend-reference"></line>'
+                    + '<svg class="da-compliance-trend-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                    + '<line x1="' + chartLeft + '" y1="' + referenceY.toFixed(1) + '" x2="' + (100 - chartRight) + '" y2="' + referenceY.toFixed(1) + '" class="da-compliance-trend-reference"></line>'
+                    + trendSeries.map(function(series) { return series.path; }).join('')
+                    + trendSeries.map(function(series) { return series.label; }).join('')
+                    + '<text x="' + (100 - chartRight - 5).toFixed(1) + '" y="' + Math.max(4, referenceY - 1.5).toFixed(1) + '" class="da-compliance-trend-target-label">80% target</text>'
                     + '</svg>'
-                    + trendSeries
-                    + '<span class="da-compliance-trend-reference-label">80% target</span>'
                     + '<div class="da-compliance-trend-x-axis">' + xLabels + '</div>'
                     + '</div>'
                     + '</div>';

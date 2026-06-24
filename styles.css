@@ -1229,16 +1229,13 @@
     position: relative;
     min-height: 220px;
     border-top: 1px solid #edf1f6;
-    padding: 1rem 1rem 2rem;
+    padding: .9rem 0 2rem;
     overflow: hidden;
 }
 
-.block-dashboardanalytics .da-compliance-trend-base,
-.block-dashboardanalytics .da-compliance-trend-series-svg {
-    position: absolute;
-    inset: 1rem 1rem 2rem 1rem;
-    width: calc(100% - 2rem);
-    height: calc(100% - 3rem);
+.block-dashboardanalytics .da-compliance-trend-svg {
+    width: 100%;
+    height: 190px;
     display: block;
 }
 
@@ -1248,22 +1245,9 @@
     stroke-dasharray: 2.5 2.5;
 }
 
-.block-dashboardanalytics .da-compliance-trend-reference-label {
-    position: absolute;
-    top: .8rem;
-    right: 1rem;
-    color: #7a8ca7;
-    font-size: .76rem;
-}
-
-.block-dashboardanalytics .da-compliance-trend-series {
-    position: absolute;
-    inset: 0;
-}
-
 .block-dashboardanalytics .da-compliance-trend-path {
     fill: none;
-    stroke-width: 1.7;
+    stroke-width: 1.2;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
@@ -1290,18 +1274,21 @@
     stroke: #8da0bc;
 }
 
-.block-dashboardanalytics .da-compliance-trend-series-label {
-    position: absolute;
-    left: 1rem;
-    font-size: .78rem;
+.block-dashboardanalytics .da-compliance-trend-svg-label,
+.block-dashboardanalytics .da-compliance-trend-target-label {
+    font-size: 4px;
     font-weight: 700;
     white-space: nowrap;
 }
 
+.block-dashboardanalytics .da-compliance-trend-target-label {
+    fill: #7a8ca7;
+}
+
 .block-dashboardanalytics .da-compliance-trend-x-axis {
     position: absolute;
-    left: 1rem;
-    right: 1rem;
+    left: 0;
+    right: 0;
     bottom: .3rem;
     height: 1rem;
 }
