@@ -213,6 +213,7 @@ class visual_service {
             'panels' => [
                 $this->panel('staffdynamics', get_string('panel:staffdynamics:title', 'block_dashboardanalytics'), 'turnovercombo', get_string('panel:staffdynamics:description', 'block_dashboardanalytics'), $turnover->staff_dynamics_items($filters)),
                 $this->panel('turnovercompany', get_string('panel:turnovercompany:title', 'block_dashboardanalytics'), 'turnoverbars', get_string('panel:turnovercompany:description', 'block_dashboardanalytics'), $turnover->turnover_rate_by_company_items($filters)),
+                $this->panel('newhirerisk', get_string('panel:newhirerisk:title', 'block_dashboardanalytics'), 'bar', get_string('panel:newhirerisk:description', 'block_dashboardanalytics'), $turnover->new_hires_without_documents_items($filters)),
             ],
         ];
     }

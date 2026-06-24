@@ -134,6 +134,58 @@ class turnover_repository {
         return $items;
     }
 
+    public function new_hires_without_documents_items(array $filters, int $months = 12, int $limit = 8): array {
+        $companies = $this->company_scope_options($filters);
+        $windows = $this->rolling_month_windows($months);
+        $periodstart = $windows[0]['start'];
+        $periodend = $windows[count($windows) - 1]['end'];
+        $maturedbefore = time() - (30 * DAYSECS);
+        $items = [];
+
+        foreach ($companies as $company) {
+            $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
+            $summary = $this->new_hires_without_documents_summary($companyfilters, $periodstart, $periodend, $maturedbefore, 'newhirerisk' . $company['id']);
+
+            $items[] = [
+                'label' => $company['name'],
+                'value' => $summary['totalnew'] > 0 ? round($summary['riskpercent'], 1) . '%' : '0%',
+                'percent' => $summary['riskpercent'],
+                'status' => $summary['totalnew'] > 0 ? $this->new_hire_risk_status($summary['riskpercent']) : 'muted',
+                'meta' => $summary['totalnew'] > 0
+                    ? get_string('turnover:newhiresriskmeta', 'block_dashboardanalytics', (object)[
+                        'risk' => $summary['riskcount'],
+                        'total' => $summary['totalnew'],
+                    ])
+                    : get_string('turnover:nonewhires', 'block_dashboardanalytics'),
+                'segments' => [],
+            ];
+        }
+
+        $items = array_values(array_filter($items, static function(array $item): bool {
+            return $item['label'] !== '';
+        }));
+
+        usort($items, static function(array $a, array $b): int {
+            return $b['percent'] <=> $a['percent'];
+        });
+
+        $items = array_slice($items, 0, $limit);
+        $max = 1.0;
+        foreach ($items as $item) {
+            $max = max($max, (float)$item['percent']);
+        }
+
+        foreach ($items as $index => $item) {
+            if ($item['status'] === 'muted') {
+                $items[$index]['percent'] = 0.0;
+            } else {
+                $items[$index]['percent'] = round((((float)$item['percent']) / $max) * 100, 1);
+            }
+        }
+
+        return $items;
+    }
+
     private function scoped_user_lifecycle_records(array $filters, int $start, int $end, string $prefix): array {
         global $DB;
 
@@ -168,6 +220,98 @@ class turnover_repository {
                  WHERE " . implode(' AND ', $where);
 
         return $DB->get_records_sql($sql, $params);
+    }
+
+    private function new_hires_without_documents_summary(
+        array $filters,
+        int $periodstart,
+        int $periodend,
+        int $maturedbefore,
+        string $prefix
+    ): array {
+        global $DB;
+
+        $employee = new employee_repository();
+        $documents = new document_repository();
+        $source = $documents->source();
+        $filter = $employee->user_filter_sql($filters, 'u', $prefix);
+
+        $totalparams = $filter['params'] + [
+            $prefix . 'totalstart' => $periodstart,
+            $prefix . 'totalend' => $periodend,
+        ];
+        $totalwhere = [
+            $filter['sql'],
+            "u.timecreated >= :{$prefix}totalstart",
+            "u.timecreated <= :{$prefix}totalend",
+        ];
+
+        $totalsql = "SELECT COUNT(1)
+                       FROM {user} u
+                      WHERE " . implode(' AND ', $totalwhere);
+        $totalnew = (int)$DB->count_records_sql($totalsql, $totalparams);
+
+        if ($totalnew <= 0) {
+            return [
+                'totalnew' => 0,
+                'riskcount' => 0,
+                'riskpercent' => 0.0,
+            ];
+        }
+
+        $riskparams = $filter['params'] + [
+            $prefix . 'riskstart' => $periodstart,
+            $prefix . 'riskend' => $periodend,
+            $prefix . 'maturedbefore' => $maturedbefore,
+        ];
+        $riskwhere = [
+            $filter['sql'],
+            "u.timecreated >= :{$prefix}riskstart",
+            "u.timecreated <= :{$prefix}riskend",
+            "u.timecreated <= :{$prefix}maturedbefore",
+        ];
+
+        if ($source !== null) {
+            $riskwhere[] = 'NOT EXISTS (' . $this->document_exists_subquery_sql($filters, $source, $riskparams, $prefix . 'doc') . ')';
+        }
+
+        $risksql = "SELECT COUNT(1)
+                      FROM {user} u
+                     WHERE " . implode(' AND ', $riskwhere);
+        $riskcount = $source !== null ? (int)$DB->count_records_sql($risksql, $riskparams) : $totalnew;
+
+        return [
+            'totalnew' => $totalnew,
+            'riskcount' => $riskcount,
+            'riskpercent' => round(($riskcount / $totalnew) * 100, 1),
+        ];
+    }
+
+    private function document_exists_subquery_sql(array $filters, array $source, array &$params, string $prefix): string {
+        global $DB;
+
+        $where = ["d.{$source['userid']} = u.id"];
+
+        if (!empty($source['origin'])) {
+            $where[] = "(d.{$source['origin']} <> :{$prefix}demo OR d.{$source['origin']} IS NULL)";
+            $params[$prefix . 'demo'] = 'demo_job';
+        }
+
+        if (!empty($source['status'])) {
+            $where[] = "d.{$source['status']} IN (:{$prefix}statusmanual, :{$prefix}statusauto)";
+            $params[$prefix . 'statusmanual'] = 'completed_manual';
+            $params[$prefix . 'statusauto'] = 'completed_auto';
+        }
+
+        if (!empty($filters['courseids']) && !empty($source['courseid'])) {
+            [$insql, $inparams] = $DB->get_in_or_equal($filters['courseids'], SQL_PARAMS_NAMED, $prefix . 'course');
+            $where[] = "d.{$source['courseid']} {$insql}";
+            $params += $inparams;
+        }
+
+        return "SELECT 1
+                  FROM {{$source['table']}} d
+                 WHERE " . implode(' AND ', $where);
     }
 
     private function rolling_month_windows(int $months): array {
@@ -258,6 +402,16 @@ class turnover_repository {
             return 'danger';
         }
         if ($percent >= 5) {
+            return 'warning';
+        }
+        return 'ok';
+    }
+
+    private function new_hire_risk_status(float $percent): string {
+        if ($percent > 20) {
+            return 'danger';
+        }
+        if ($percent >= 10) {
             return 'warning';
         }
         return 'ok';
