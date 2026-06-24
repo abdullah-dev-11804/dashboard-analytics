@@ -157,7 +157,20 @@ class turnover_repository {
                         'total' => $summary['totalnew'],
                     ])
                     : get_string('turnover:nonewhires', 'block_dashboardanalytics'),
-                'segments' => [],
+                'segments' => [
+                    [
+                        'label' => get_string('turnover:atrisk', 'block_dashboardanalytics'),
+                        'value' => (string)$summary['riskcount'],
+                        'percent' => $summary['riskpercent'],
+                        'status' => $summary['totalnew'] > 0 ? $this->new_hire_risk_status($summary['riskpercent']) : 'muted',
+                    ],
+                    [
+                        'label' => get_string('turnover:totalnewhires', 'block_dashboardanalytics'),
+                        'value' => (string)$summary['totalnew'],
+                        'percent' => 100.0,
+                        'status' => 'info',
+                    ],
+                ],
             ];
         }
 

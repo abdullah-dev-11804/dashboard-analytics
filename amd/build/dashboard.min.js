@@ -572,7 +572,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
         var isFullRowVisualPanel = function(panel) {
             return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts'].indexOf(panel.type) !== -1
-                || ['coursecompliance'].indexOf(panel.key) !== -1;
+                || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1;
         };
         if (!panels.length) {
             container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noVisualData', 'No visual data available.')) + '</div>';
@@ -705,6 +705,25 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('turnoverHigh', '>10% High')) + '</span>'
                     + '</div>'
                     + '<div class="da-turnover-rate-formula">' + escapeHtml(text('turnoverFormula', 'Formula: Deactivated / Avg active × 100')) + '</div>'
+                    + '</div>';
+            } else if (panel.key === 'newhirerisk') {
+                body = '<div class="da-newhire-risk-wrap">'
+                    + '<div class="da-newhire-risk-list">' + items.map(function(item) {
+                        var width = Math.max(4, Math.min(100, Number(item.percent) || 0));
+                        var segments = item.segments || [];
+                        var riskSegment = segments[0] || {value: '0', label: 'at risk', status: item.status};
+                        return '<div class="da-newhire-risk-row">'
+                            + '<div class="da-newhire-risk-left">'
+                            + '<div class="da-newhire-risk-company">' + escapeHtml(item.label) + '</div>'
+                            + '<span class="da-newhire-risk-badge da-newhire-risk-badge-' + escapeHtml(riskSegment.status || item.status) + '">'
+                            + escapeHtml((riskSegment.value || '0') + ' ' + (riskSegment.label || 'at risk')) + '</span>'
+                            + '</div>'
+                            + '<div class="da-newhire-risk-track"><span class="da-newhire-risk-fill da-bar-fill-' + escapeHtml(item.status)
+                            + '" style="width:' + width + '%"></span></div>'
+                            + '<div class="da-newhire-risk-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</div>'
+                            + '</div>';
+                    }).join('') + '</div>'
+                    + '<div class="da-turnover-rate-formula">' + escapeHtml(panel.description || '') + '</div>'
                     + '</div>';
             } else if (panel.type === 'activitysnapshot') {
                 var metrics = items.slice(0, 4);
