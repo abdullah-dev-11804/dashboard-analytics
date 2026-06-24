@@ -183,17 +183,10 @@ class turnover_repository {
         });
 
         $items = array_slice($items, 0, $limit);
-        $max = 1.0;
-        foreach ($items as $item) {
-            $max = max($max, (float)$item['percent']);
-        }
-
         foreach ($items as $index => $item) {
-            if ($item['status'] === 'muted') {
-                $items[$index]['percent'] = 0.0;
-            } else {
-                $items[$index]['percent'] = round((((float)$item['percent']) / $max) * 100, 1);
-            }
+            $items[$index]['percent'] = $item['status'] === 'muted'
+                ? 0.0
+                : round((float)$item['percent'], 1);
         }
 
         return $items;

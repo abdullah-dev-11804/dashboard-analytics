@@ -709,7 +709,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             } else if (panel.key === 'newhirerisk') {
                 body = '<div class="da-newhire-risk-wrap">'
                     + '<div class="da-newhire-risk-list">' + items.map(function(item) {
-                        var width = Math.max(4, Math.min(100, Number(item.percent) || 0));
+                        var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                         var segments = item.segments || [];
                         var riskSegment = segments[0] || {value: '0', label: 'at risk', status: item.status};
                         return '<div class="da-newhire-risk-row">'
