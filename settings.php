@@ -14,7 +14,7 @@ if ($ADMIN->fulltree) {
         'block_dashboardanalytics/companyownerroles',
         get_string('settings:companyroles', 'block_dashboardanalytics'),
         get_string('settings:rolescsv_desc', 'block_dashboardanalytics'),
-        'companyowner',
+        'companyowner,companymanager',
         PARAM_RAW_TRIMMED
     ));
 
@@ -22,7 +22,7 @@ if ($ADMIN->fulltree) {
         'block_dashboardanalytics/clientroles',
         get_string('settings:clientroles', 'block_dashboardanalytics'),
         get_string('settings:rolescsv_desc', 'block_dashboardanalytics'),
-        'trainingmanager',
+        'trainingmanager,hrcoordinator',
         PARAM_RAW_TRIMMED
     ));
 
@@ -76,5 +76,19 @@ if ($ADMIN->fulltree) {
         get_string('settings:forecastthreshold_desc', 'block_dashboardanalytics'),
         '10',
         PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_heading(
+        'block_dashboardanalytics/qualityheading',
+        get_string('settings:qualityheading', 'block_dashboardanalytics'),
+        get_string('settings:qualityheading_desc', 'block_dashboardanalytics')
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'block_dashboardanalytics/qualitypassratethreshold',
+        get_string('settings:qualitypassratethreshold', 'block_dashboardanalytics'),
+        get_string('settings:qualitypassratethreshold_desc', 'block_dashboardanalytics'),
+        '60',
+        PARAM_FLOAT
     ));
 }

@@ -58,7 +58,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         turnoverFormula: 'Formula: Deactivated / Avg active × 100',
         turnoverGood: '<5% Good',
         turnoverMonitor: '5–10% Monitor',
-        turnoverHigh: '>10% High'
+        turnoverHigh: '>10% High',
+        qualityCourseHeader: 'Course',
+        qualityRatingHeader: 'Rating',
+        qualityReviewsHeader: 'Reviews',
+        qualityNpsHeader: 'NPS',
+        qualityFeedbackHeader: 'Latest feedback',
+        qualityRelevanceHeader: 'Relevance',
+        qualityNoFeedback: 'No review text available'
     };
 
     var stringList = [
@@ -126,7 +133,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:turnoverformula', component: 'block_dashboardanalytics'},
         {key: 'js:turnovergood', component: 'block_dashboardanalytics'},
         {key: 'js:turnovermonitor', component: 'block_dashboardanalytics'},
-        {key: 'js:turnoverhigh', component: 'block_dashboardanalytics'}
+        {key: 'js:turnoverhigh', component: 'block_dashboardanalytics'},
+        {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
+        {key: 'js:qualityratingheader', component: 'block_dashboardanalytics'},
+        {key: 'js:qualityreviewsheader', component: 'block_dashboardanalytics'},
+        {key: 'js:qualitynpsheader', component: 'block_dashboardanalytics'},
+        {key: 'js:qualityfeedbackheader', component: 'block_dashboardanalytics'},
+        {key: 'js:qualityrelevanceheader', component: 'block_dashboardanalytics'},
+        {key: 'js:qualitynofeedback', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -571,7 +585,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1;
         };
         if (!panels.length) {
@@ -584,7 +598,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var body = '';
 
             if (!items.length) {
-                body = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+                body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
             } else if (panel.type === 'overviewsummary') {
                 body = '<div class="da-overview-summary-grid">' + items.map(function(item) {
                     return '<article class="da-overview-summary-card da-overview-summary-card-' + escapeHtml(item.status) + '">'
@@ -1018,6 +1032,178 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '</div>';
                     }).join('') + '</div>'
                     + '</div>';
+            } else if (panel.type === 'qualitypassrate') {
+                var passMarker = '';
+                var passThreshold = Number(panel.threshold);
+                if (!isNaN(passThreshold) && passThreshold >= 0 && passThreshold <= 100) {
+                    passMarker = '<span class="da-quality-pass-reference" style="left:'
+                        + Math.max(0, Math.min(100, passThreshold)).toFixed(1) + '%" title="'
+                        + escapeHtml(panel.thresholdlabel || '') + '"></span>';
+                }
+                body = '<div class="da-quality-pass-chart">' + items.map(function(item) {
+                    var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                    var label = item.url
+                        ? '<a class="da-quality-course-link" href="' + escapeHtml(item.url) + '">' + escapeHtml(item.label) + '</a>'
+                        : '<span>' + escapeHtml(item.label) + '</span>';
+                    var tag = item.url ? 'a' : 'span';
+                    var href = item.url ? ' href="' + escapeHtml(item.url) + '"' : '';
+                    var titleText = String(item.label || '') + ': ' + String(item.value || '');
+                    return '<div class="da-quality-pass-row da-quality-pass-row-' + escapeHtml(item.status) + '">'
+                        + '<div class="da-quality-pass-label">' + label + '</div>'
+                        + '<div class="da-quality-pass-track">' + passMarker
+                        + '<' + tag + ' class="da-quality-pass-fill da-bar-fill-' + escapeHtml(item.status) + '"'
+                        + href + ' style="width:' + width.toFixed(1) + '%" title="' + escapeHtml(titleText) + '">'
+                        + '<span>' + escapeHtml(item.value || '') + '</span></' + tag + '>'
+                        + '</div>'
+                        + '</div>';
+                }).join('') + '</div>'
+                    + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
+                        + escapeHtml(panel.footer) + '</div>' : '');
+            } else if (panel.type === 'qualityengagementtime') {
+                body = '<div class="da-quality-engagement-chart">' + items.map(function(item) {
+                    var segments = item.segments || [];
+                    var activeSegment = segments[0] || {};
+                    var sessionSegment = segments[1] || {};
+                    var activeWidth = Number(item.activepercent);
+                    if (isNaN(activeWidth)) {
+                        activeWidth = Number(activeSegment.percent);
+                    }
+                    if (isNaN(activeWidth)) {
+                        activeWidth = Number(item.percent) || 0;
+                    }
+                    var sessionWidth = Number(item.sessionpercent);
+                    if (isNaN(sessionWidth)) {
+                        sessionWidth = Number(sessionSegment.percent);
+                    }
+                    if (isNaN(sessionWidth)) {
+                        sessionWidth = 100;
+                    }
+                    activeWidth = Math.max(0, Math.min(100, activeWidth));
+                    sessionWidth = Math.max(0, Math.min(100, sessionWidth));
+                    var activeValue = item.activevalue || activeSegment.value || '';
+                    var sessionValue = item.sessionvalue || sessionSegment.value || '';
+                    var ratio = Number(item.percent) || 0;
+                    var status = item.status || (ratio < 30 ? 'danger' : (ratio <= 60 ? 'warning' : 'ok'));
+                    var label = item.url
+                        ? '<a class="da-quality-course-link" href="' + escapeHtml(item.url) + '">' + escapeHtml(item.label) + '</a>'
+                        : '<span>' + escapeHtml(item.label) + '</span>';
+                    return '<div class="da-quality-engagement-row da-quality-engagement-row-' + escapeHtml(status) + '">'
+                        + '<div class="da-quality-engagement-label">' + label + '</div>'
+                        + '<div class="da-quality-engagement-bars">'
+                        + '<div class="da-quality-engagement-track da-quality-engagement-track-active">'
+                        + '<span class="da-quality-engagement-fill da-quality-engagement-fill-active" style="width:' + activeWidth.toFixed(1) + '%">'
+                        + '<span>' + escapeHtml(activeValue) + '</span></span></div>'
+                        + '<div class="da-quality-engagement-track da-quality-engagement-track-session">'
+                        + '<span class="da-quality-engagement-fill da-quality-engagement-fill-session" style="width:' + sessionWidth.toFixed(1) + '%">'
+                        + '<span>' + escapeHtml(sessionValue) + '</span></span></div>'
+                        + '</div>'
+                        + '<div class="da-quality-engagement-ratio da-text-' + escapeHtml(status) + '">' + escapeHtml(item.value || '') + '</div>'
+                        + '</div>';
+                }).join('') + '</div>'
+                    + '<div class="da-quality-engagement-legend">'
+                    + '<span><i class="da-quality-legend-active"></i>Active time</span>'
+                    + '<span><i class="da-quality-legend-session"></i>Session time</span>'
+                    + '<span><strong>%</strong> = engagement ratio</span>'
+                    + '</div>'
+                    + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
+                        + escapeHtml(panel.footer) + '</div>' : '');
+            } else if (panel.type === 'qualityratingtable') {
+                var info = '<span class="da-quality-info" aria-hidden="true">i</span>';
+                var npsStatus = function(value) {
+                    var numeric = Number(value);
+                    if (isNaN(numeric)) {
+                        return 'muted';
+                    }
+                    if (numeric < 0) {
+                        return 'danger';
+                    }
+                    if (numeric < 30) {
+                        return 'warning';
+                    }
+                    return 'ok';
+                };
+                var relevanceStatus = function(item) {
+                    if (item.relevancestatus) {
+                        return item.relevancestatus;
+                    }
+                    var numeric = Number(item.relevance);
+                    if (isNaN(numeric)) {
+                        return 'muted';
+                    }
+                    if (numeric < 60) {
+                        return 'danger';
+                    }
+                    if (numeric < 80) {
+                        return 'warning';
+                    }
+                    return 'ok';
+                };
+                body = '<div class="da-quality-rating-wrap"><table class="da-quality-rating-table">'
+                    + '<thead><tr>'
+                    + '<th>' + escapeHtml(text('qualityCourseHeader', 'Course')) + ' ' + info + '</th>'
+                    + '<th>' + escapeHtml(text('qualityRatingHeader', 'Rating')) + ' ' + info + '</th>'
+                    + '<th>' + escapeHtml(text('qualityReviewsHeader', 'Reviews')) + ' ' + info + '</th>'
+                    + '<th>' + escapeHtml(text('qualityNpsHeader', 'NPS')) + ' ' + info + '</th>'
+                    + '<th>' + escapeHtml(text('qualityFeedbackHeader', 'Latest feedback')) + '</th>'
+                    + '<th>' + escapeHtml(text('qualityRelevanceHeader', 'Relevance')) + ' ' + info + '</th>'
+                    + '</tr></thead><tbody>'
+                    + items.map(function(item) {
+                        var ratingStatus = item.status || 'muted';
+                        var npsClass = npsStatus(item.nps);
+                        var relevanceClass = relevanceStatus(item);
+                        var feedback = item.latestfeedback || text('qualityNoFeedback', 'No review text available');
+                        var feedbackText = item.latestfeedback ? '"' + feedback + '"' : feedback;
+                        var course = item.url
+                            ? '<a class="da-quality-course-link" href="' + escapeHtml(item.url) + '">' + escapeHtml(item.label) + '</a>'
+                            : '<span>' + escapeHtml(item.label) + '</span>';
+                        return '<tr class="da-quality-rating-row da-quality-rating-row-' + escapeHtml(ratingStatus) + '">'
+                            + '<td class="da-quality-rating-course">' + course + '</td>'
+                            + '<td class="da-quality-rating-score da-text-' + escapeHtml(ratingStatus) + '"><span class="da-quality-star">&#9733;</span> '
+                            + '<strong>' + escapeHtml(item.ratinglabel || item.value || '') + '</strong></td>'
+                            + '<td class="da-quality-rating-reviews">' + escapeHtml(String(item.reviews || 0)) + '</td>'
+                            + '<td><span class="da-quality-nps da-quality-nps-' + escapeHtml(npsClass) + '">'
+                            + escapeHtml(item.npslabel || '') + '</span></td>'
+                            + '<td class="da-quality-rating-feedback">' + escapeHtml(feedbackText) + '</td>'
+                            + '<td class="da-quality-rating-relevance da-text-' + escapeHtml(relevanceClass) + '">'
+                            + escapeHtml(item.relevancelabel || '') + '</td>'
+                            + '</tr>';
+                    }).join('')
+                    + '</tbody></table></div>'
+                    + (panel.alertmessage ? '<div class="da-quality-alert da-quality-alert-' + escapeHtml(panel.alertstatus || 'warning') + '">'
+                        + '<span class="da-quality-alert-icon">&#9888;</span> '
+                        + escapeHtml(panel.alertmessage) + '</div>' : '');
+            } else if (panel.type === 'qualitybar') {
+                var reference = function(value, label, secondary) {
+                    var numeric = Number(value);
+                    if (isNaN(numeric) || numeric < 0 || numeric > 100) {
+                        return '';
+                    }
+                    var className = secondary ? ' da-quality-reference-secondary' : '';
+                    return '<span class="da-quality-reference' + className + '" style="left:'
+                        + Math.max(0, Math.min(100, numeric)).toFixed(1) + '%" title="'
+                        + escapeHtml(label || '') + '"></span>';
+                };
+                var markers = reference(panel.threshold, panel.thresholdlabel, false)
+                    + reference(panel.secondarythreshold, panel.secondarythresholdlabel, true);
+                var legendItems = [];
+                if (panel.thresholdlabel) {
+                    legendItems.push('<span><i class="da-quality-legend-line"></i>' + escapeHtml(panel.thresholdlabel) + '</span>');
+                }
+                if (panel.secondarythresholdlabel) {
+                    legendItems.push('<span><i class="da-quality-legend-line da-quality-legend-line-secondary"></i>'
+                        + escapeHtml(panel.secondarythresholdlabel) + '</span>');
+                }
+                body = (legendItems.length ? '<div class="da-quality-legend">' + legendItems.join('') + '</div>' : '')
+                    + '<div class="da-quality-bars">' + items.map(function(item) {
+                    var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                    return '<div class="da-quality-row da-quality-row-' + escapeHtml(item.status) + '">'
+                        + '<div class="da-quality-label"><span>' + escapeHtml(item.label) + '</span><strong>'
+                        + escapeHtml(item.value) + '</strong></div>'
+                        + '<div class="da-quality-track"><span class="da-quality-fill da-bar-fill-'
+                        + escapeHtml(item.status) + '" style="width:' + width + '%"></span>' + markers + '</div>'
+                        + '<div class="da-quality-meta">' + escapeHtml(item.meta || '') + '</div>'
+                        + '</div>';
+                }).join('') + '</div>';
             } else if (panel.type === 'line') {
                 body = '<div class="da-line-chart">' + items.map(function(item) {
                     var segments = item.segments || [];
@@ -1111,9 +1297,21 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }).join('') + '</div>';
             }
 
-            return '<article class="da-visual-panel' + (isFullRowVisualPanel(panel) ? ' da-visual-panel-fullrow' : '') + '" data-panel-key="' + escapeHtml(panel.key) + '">'
+            var isQualityPrototypePanel = ['qualitypassrate', 'qualityengagementtime', 'qualityratingtable'].indexOf(panel.type) !== -1;
+            var qualityPanelActions = '';
+            if (isQualityPrototypePanel) {
+                qualityPanelActions = '<div class="da-quality-panel-actions">'
+                    + (panel.chartlabel ? '<span class="da-quality-chip da-quality-chip-blue">' + escapeHtml(panel.chartlabel) + '</span>' : '')
+                    + (panel.interactivelabel ? '<span class="da-quality-chip">' + escapeHtml(panel.interactivelabel) + '</span>' : '')
+                    + '<span class="da-quality-caret" aria-hidden="true">&#9662;</span>'
+                    + '</div>';
+            }
+
+            return '<article class="da-visual-panel' + (isFullRowVisualPanel(panel) ? ' da-visual-panel-fullrow' : '')
+                + (isQualityPrototypePanel ? ' da-quality-prototype-panel' : '') + '" data-panel-key="' + escapeHtml(panel.key) + '">'
                 + '<h5>' + escapeHtml(panel.title) + '</h5>'
                 + '<p>' + escapeHtml(panel.description) + '</p>'
+                + qualityPanelActions
                 + body
                 + '</article>';
         }).join('') + '</div>';
@@ -1709,6 +1907,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.turnoverGood = values[62];
             strings.turnoverMonitor = values[63];
             strings.turnoverHigh = values[64];
+            strings.qualityCourseHeader = values[65];
+            strings.qualityRatingHeader = values[66];
+            strings.qualityReviewsHeader = values[67];
+            strings.qualityNpsHeader = values[68];
+            strings.qualityFeedbackHeader = values[69];
+            strings.qualityRelevanceHeader = values[70];
+            strings.qualityNoFeedback = values[71];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {

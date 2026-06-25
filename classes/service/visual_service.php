@@ -5,6 +5,7 @@ namespace block_dashboardanalytics\service;
 
 use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\service\kpi_service;
+use block_dashboardanalytics\service\training_quality_service;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
@@ -51,10 +52,7 @@ class visual_service {
         }
 
         if ($tabkey === 'quality') {
-            return $this->company_pending(
-                get_string('panel:quality:title', 'block_dashboardanalytics'),
-                get_string('panel:quality:pending', 'block_dashboardanalytics')
-            );
+            return $this->quality($filters);
         }
 
         if ($tabkey === 'server') {
@@ -187,6 +185,44 @@ class visual_service {
             'panels' => [
                 $this->panel('expirywindows', get_string('panel:expirywindows:title', 'block_dashboardanalytics'), 'cards', get_string('panel:expirywindows:description', 'block_dashboardanalytics'), $documents->forecast_window_items($filters)),
                 $this->panel('forecastcompany', get_string('panel:forecastcompany:title', 'block_dashboardanalytics'), 'bar', get_string('panel:forecastcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
+            ],
+        ];
+    }
+
+    private function quality(array $filters): array {
+        $quality = new training_quality_service();
+        $passthreshold = $quality->pass_rate_threshold();
+        $ratingitems = $quality->course_feedback_items($filters);
+
+        return [
+            'title' => get_string('panel:quality:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:quality:description', 'block_dashboardanalytics'),
+            'panels' => [
+                $this->panel('qualitypassrate', get_string('panel:qualitypassrate:title', 'block_dashboardanalytics'), 'qualitypassrate', get_string('panel:qualitypassrate:description', 'block_dashboardanalytics', $this->format_number($passthreshold) . '%'), $quality->first_attempt_pass_rate_items($filters), [
+                    'threshold' => $passthreshold,
+                    'thresholdlabel' => get_string('quality:reference:passrate', 'block_dashboardanalytics', $this->format_number($passthreshold) . '%'),
+                    'chartlabel' => get_string('quality:badge:horizontalbar', 'block_dashboardanalytics'),
+                    'interactivelabel' => get_string('quality:badge:interactive', 'block_dashboardanalytics'),
+                    'footer' => get_string('quality:passrate:footer', 'block_dashboardanalytics', $this->format_number($passthreshold) . '%'),
+                    'emptymessage' => get_string('quality:passrate:empty', 'block_dashboardanalytics'),
+                ]),
+                $this->panel('qualityengagement', get_string('panel:qualityengagement:title', 'block_dashboardanalytics'), 'qualityengagementtime', get_string('panel:qualityengagement:description', 'block_dashboardanalytics'), $quality->engagement_ratio_items($filters), [
+                    'threshold' => 30.0,
+                    'secondarythreshold' => 60.0,
+                    'thresholdlabel' => get_string('quality:reference:engagementlow', 'block_dashboardanalytics'),
+                    'secondarythresholdlabel' => get_string('quality:reference:engagementgood', 'block_dashboardanalytics'),
+                    'chartlabel' => get_string('quality:badge:groupedbar', 'block_dashboardanalytics'),
+                    'interactivelabel' => get_string('quality:badge:interactive', 'block_dashboardanalytics'),
+                    'footer' => get_string('quality:engagement:footer', 'block_dashboardanalytics'),
+                    'emptymessage' => get_string('quality:engagement:empty', 'block_dashboardanalytics'),
+                ]),
+                $this->panel('qualityrating', get_string('panel:qualityrating:title', 'block_dashboardanalytics'), 'qualityratingtable', get_string('panel:qualityrating:description', 'block_dashboardanalytics'), $ratingitems, [
+                    'chartlabel' => get_string('quality:badge:feedback', 'block_dashboardanalytics'),
+                    'interactivelabel' => get_string('quality:badge:interactive', 'block_dashboardanalytics'),
+                    'alertmessage' => $quality->course_feedback_alert($ratingitems),
+                    'alertstatus' => 'warning',
+                    'emptymessage' => get_string('quality:rating:empty', 'block_dashboardanalytics'),
+                ]),
             ],
         ];
     }
@@ -342,19 +378,41 @@ class visual_service {
         ];
     }
 
-    private function panel(string $key, string $title, string $type, string $description, array $items): array {
+    private function panel(string $key, string $title, string $type, string $description, array $items, array $options = []): array {
         foreach ($items as $index => $item) {
             if (!isset($item['segments'])) {
                 $items[$index]['segments'] = [];
             }
         }
 
-        return [
+        $panel = [
             'key' => $key,
             'title' => $title,
             'type' => $type,
             'description' => $description,
             'items' => array_values($items),
         ];
+
+        foreach (['threshold', 'secondarythreshold'] as $option) {
+            if (array_key_exists($option, $options)) {
+                $panel[$option] = (float)$options[$option];
+            }
+        }
+
+        foreach (['thresholdlabel', 'secondarythresholdlabel', 'emptymessage', 'chartlabel', 'interactivelabel', 'footer', 'alertmessage', 'alertstatus'] as $option) {
+            if (array_key_exists($option, $options)) {
+                $panel[$option] = (string)$options[$option];
+            }
+        }
+
+        return $panel;
+    }
+
+    private function format_number(float $value): string {
+        $rounded = round($value, 1);
+        if (abs($rounded - round($rounded)) < 0.05) {
+            return (string)(int)round($rounded);
+        }
+        return format_float($rounded, 1);
     }
 }
