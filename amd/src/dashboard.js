@@ -912,9 +912,40 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         points: (item.segments || []).map(function(segment, index, segments) {
                             return '<circle cx="' + xForIndex(index, segments.length).toFixed(1) + '" cy="' + yForPercent(segment.percent).toFixed(1) + '" r="0.7" class="da-compliance-trend-point da-compliance-trend-point-' + escapeHtml(item.status) + '"></circle>';
                         }).join(''),
-                        label: '<span class="da-compliance-trend-series-label da-text-' + escapeHtml(item.status) + '" style="left:' + firstX.toFixed(1) + '%; top:' + labelY.toFixed(1) + '%">'
-                            + escapeHtml(item.label + ' ' + item.value) + '</span>'
+                        labelLeft: firstX,
+                        labelTop: labelY,
+                        labelText: item.label + ' ' + item.value,
+                        labelStatus: item.status
                     };
+                });
+                var sortedLabels = trendSeries.map(function(series, index) {
+                    return {
+                        index: index,
+                        top: series.labelTop
+                    };
+                }).sort(function(a, b) {
+                    return a.top - b.top;
+                });
+                var minLabelGap = 8;
+                sortedLabels.forEach(function(entry, index) {
+                    if (index === 0) {
+                        return;
+                    }
+
+                    var previous = sortedLabels[index - 1];
+                    if (entry.top - previous.top < minLabelGap) {
+                        entry.top = previous.top + minLabelGap;
+                    }
+                });
+                for (var labelIndex = sortedLabels.length - 2; labelIndex >= 0; labelIndex--) {
+                    var currentLabel = sortedLabels[labelIndex];
+                    var nextLabel = sortedLabels[labelIndex + 1];
+                    if (nextLabel.top > 92) {
+                        currentLabel.top = Math.min(currentLabel.top, nextLabel.top - minLabelGap);
+                    }
+                }
+                sortedLabels.forEach(function(entry) {
+                    trendSeries[entry.index].labelTop = Math.max(chartTop + 1, Math.min(92, entry.top));
                 });
                 var referenceY = yForPercent(80);
                 body = '<div class="da-compliance-trend-wrap">'
@@ -924,7 +955,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + trendSeries.map(function(series) { return series.path; }).join('')
                     + trendSeries.map(function(series) { return series.points; }).join('')
                     + '</svg>'
-                    + trendSeries.map(function(series) { return series.label; }).join('')
+                    + trendSeries.map(function(series) {
+                        return '<span class="da-compliance-trend-series-label da-text-' + escapeHtml(series.labelStatus) + '" style="left:' + series.labelLeft.toFixed(1) + '%; top:' + series.labelTop.toFixed(1) + '%">'
+                            + escapeHtml(series.labelText) + '</span>';
+                    }).join('')
                     + '<span class="da-compliance-trend-target-label" style="top:' + Math.max(2, referenceY - 4).toFixed(1) + '%">80% target</span>'
                     + '<div class="da-compliance-trend-x-axis">' + xLabels + '</div>'
                     + '</div>'
