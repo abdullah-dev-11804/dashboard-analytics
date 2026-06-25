@@ -334,7 +334,7 @@ $string['overview:trustscore'] = 'Trust score';
 $string['overview:completion'] = 'Завершение';
 $string['overview:report'] = 'Отчёт';
 $string['overview:viewreportcta'] = 'Открыть отчёт';
-$string['overview:employeeswithoutvaliddocs'] = 'сотрудников без валидных документов.';
+$string['overview:employeeswithoutvaliddocs'] = 'сотрудников ниже полного соответствия.';
 $string['overview:documentsexpired'] = 'документов просрочено';
 $string['overview:viewexpiredcta'] = 'Открыть просроченные';
 $string['overview:daysoverdue'] = 'дней просрочки';
@@ -444,6 +444,7 @@ $string['meta:createdlastdays'] = 'создано за последние {$a} �
 $string['meta:activeusers'] = 'активные пользователи';
 $string['meta:headcountbydepartment'] = 'численность по подразделениям';
 $string['meta:validusers'] = '{$a->valid} / {$a->total} пользователей с валидными документами';
+$string['meta:fullycompliantemployees'] = '{$a->compliant} полностью соответствуют / {$a->total} сотрудников';
 
 $string['settings:clientroles'] = 'Короткие названия ролей панели клиента';
 $string['settings:companyroles'] = 'Короткие названия ролей панели компании';

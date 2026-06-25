@@ -77,13 +77,24 @@ class document_repository {
     public function compliance_summary(array $filters): array {
         $employee = new employee_repository();
         $totalactiveusers = $employee->count_active_users($filters);
-        $validusers = $this->count_valid_signed_users($filters);
-        $compliance = $totalactiveusers > 0 ? round(($validusers / $totalactiveusers) * 100, 1) : 0.0;
+        if ($this->source() === null) {
+            return [
+                'configured' => false,
+                'totalactiveusers' => $totalactiveusers,
+                'validusers' => 0,
+                'compliance' => 0.0,
+                'status' => 'muted',
+            ];
+        }
+
+        $overview = new overview_repository();
+        $summary = $overview->overall_employee_compliance_summary($filters);
+        $compliance = (float)$summary['percent'];
 
         return [
-            'configured' => $this->source() !== null,
-            'totalactiveusers' => $totalactiveusers,
-            'validusers' => $validusers,
+            'configured' => true,
+            'totalactiveusers' => (int)$summary['total'],
+            'validusers' => (int)$summary['compliant'],
             'compliance' => $compliance,
             'status' => $this->compliance_status($compliance),
         ];
@@ -321,7 +332,10 @@ class document_repository {
                 'value' => $summary['compliance'] . '%',
                 'percent' => (float)$summary['compliance'],
                 'status' => strtolower($summary['status']),
-                'meta' => $summary['validusers'] . ' / ' . $summary['totalactiveusers'] . ' valid users',
+                'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
+                    'compliant' => $summary['validusers'],
+                    'total' => $summary['totalactiveusers'],
+                ]),
             ];
         }
 
@@ -360,7 +374,10 @@ class document_repository {
                 'value' => $summary['compliance'] . '%',
                 'percent' => (float)$summary['compliance'],
                 'status' => strtolower($summary['status']),
-                'meta' => (int)$record->activeusers . ' active users',
+                'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
+                    'compliant' => $summary['validusers'],
+                    'total' => $summary['totalactiveusers'],
+                ]),
             ];
         }
 

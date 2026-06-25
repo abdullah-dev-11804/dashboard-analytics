@@ -334,7 +334,7 @@ $string['overview:trustscore'] = 'Trust score';
 $string['overview:completion'] = 'Completion';
 $string['overview:report'] = 'Report';
 $string['overview:viewreportcta'] = 'View report';
-$string['overview:employeeswithoutvaliddocs'] = 'employees without valid documents.';
+$string['overview:employeeswithoutvaliddocs'] = 'employees below full compliance.';
 $string['overview:documentsexpired'] = 'documents expired';
 $string['overview:viewexpiredcta'] = 'View expired';
 $string['overview:daysoverdue'] = 'days overdue';
@@ -444,6 +444,7 @@ $string['meta:createdlastdays'] = 'created in last {$a} days';
 $string['meta:activeusers'] = 'active users';
 $string['meta:headcountbydepartment'] = 'headcount by department';
 $string['meta:validusers'] = '{$a->valid} / {$a->total} valid users';
+$string['meta:fullycompliantemployees'] = '{$a->compliant} fully compliant / {$a->total} employees';
 
 $string['settings:clientroles'] = 'Client dashboard role shortnames';
 $string['settings:companyroles'] = 'Company dashboard role shortnames';

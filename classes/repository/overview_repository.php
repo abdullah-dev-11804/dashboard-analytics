@@ -10,38 +10,7 @@ class overview_repository {
 
     public function overall_employee_compliance_summary(array $filters, ?int $reportdate = null): array {
         $reportdate = $reportdate ?? $this->current_report_date();
-        $rows = $this->enrolment_status_rows($filters, $reportdate);
-        $users = [];
-
-        foreach ($rows as $row) {
-            if (!isset($users[$row['userid']])) {
-                $users[$row['userid']] = ['total' => 0, 'bad' => 0];
-            }
-
-            $users[$row['userid']]['total']++;
-            if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
-                $users[$row['userid']]['bad']++;
-            }
-        }
-
-        $total = 0;
-        $compliant = 0;
-        foreach ($users as $user) {
-            if ($user['total'] <= 0) {
-                continue;
-            }
-
-            $total++;
-            if ($user['bad'] === 0) {
-                $compliant++;
-            }
-        }
-
-        return [
-            'total' => $total,
-            'compliant' => $compliant,
-            'percent' => $total > 0 ? round(($compliant / $total) * 100, 1) : 0.0,
-        ];
+        return $this->compliance_rollup_from_rows($this->enrolment_status_rows($filters, $reportdate));
     }
 
     public function status_counts(array $filters, ?int $reportdate = null): array {
@@ -132,7 +101,10 @@ class overview_repository {
                 'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
                 'percent' => (float)$summary['percent'],
                 'status' => $summary['total'] > 0 ? $this->status_for_percent((float)$summary['percent']) : 'muted',
-                'meta' => $summary['compliant'] . ' compliant / ' . $summary['total'] . ' enrolled employees',
+                'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
+                    'compliant' => $summary['compliant'],
+                    'total' => $summary['total'],
+                ]),
             ];
         }
 
@@ -629,38 +601,64 @@ class overview_repository {
             if (!isset($companies[$company])) {
                 $companies[$company] = [];
             }
-            if (!isset($companies[$company][$row['userid']])) {
-                $companies[$company][$row['userid']] = ['total' => 0, 'bad' => 0];
-            }
-            $companies[$company][$row['userid']]['total']++;
-            if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
-                $companies[$company][$row['userid']]['bad']++;
-            }
+            $companies[$company][] = $row;
         }
 
         $summaries = [];
-        foreach ($companies as $company => $users) {
-            $total = 0;
-            $compliant = 0;
-            foreach ($users as $user) {
-                if ($user['total'] <= 0) {
-                    continue;
-                }
-                $total++;
-                if ($user['bad'] === 0) {
-                    $compliant++;
-                }
-            }
-
+        foreach ($companies as $company => $companyrows) {
+            $summary = $this->compliance_rollup_from_rows($companyrows);
             $summaries[] = [
                 'label' => $company,
-                'total' => $total,
-                'compliant' => $compliant,
-                'percent' => $total > 0 ? round(($compliant / $total) * 100, 1) : 0.0,
+                'total' => $summary['total'],
+                'compliant' => $summary['compliant'],
+                'percent' => $summary['percent'],
             ];
         }
 
         return $summaries;
+    }
+
+    private function compliance_rollup_from_rows(array $rows): array {
+        $users = [];
+
+        foreach ($rows as $row) {
+            $userid = (int)$row['userid'];
+            if (!isset($users[$userid])) {
+                $users[$userid] = [
+                    'totalcourses' => 0,
+                    'validcourses' => 0,
+                ];
+            }
+
+            $users[$userid]['totalcourses']++;
+            if ($row['status'] === 'Active' || $row['status'] === 'Expiring') {
+                $users[$userid]['validcourses']++;
+            }
+        }
+
+        $total = 0;
+        $compliant = 0;
+        $sumpercent = 0.0;
+
+        foreach ($users as $user) {
+            if ($user['totalcourses'] <= 0) {
+                continue;
+            }
+
+            $total++;
+            $employeepercent = ($user['validcourses'] / $user['totalcourses']) * 100.0;
+            $sumpercent += $employeepercent;
+
+            if ($user['validcourses'] >= $user['totalcourses']) {
+                $compliant++;
+            }
+        }
+
+        return [
+            'total' => $total,
+            'compliant' => $compliant,
+            'percent' => $total > 0 ? round($sumpercent / $total, 1) : 0.0,
+        ];
     }
 
     private function enrolment_status_rows(array $filters, int $reportdate): array {

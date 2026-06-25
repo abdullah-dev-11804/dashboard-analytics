@@ -292,8 +292,8 @@ class company_repository {
                 'value' => $summary['compliance'] . '%',
                 'percent' => (float)$summary['compliance'],
                 'status' => strtolower($summary['status']),
-                'meta' => get_string('meta:validusers', 'block_dashboardanalytics', (object)[
-                    'valid' => $summary['validusers'],
+                'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
+                    'compliant' => $summary['validusers'],
                     'total' => $summary['totalactiveusers'],
                 ]),
             ];
