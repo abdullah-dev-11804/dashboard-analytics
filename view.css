@@ -299,33 +299,33 @@
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-prototype-panel {
-    min-height: 14.2rem;
-    padding: .95rem 1rem .85rem;
-    border-radius: 12px;
-    box-shadow: none;
+    min-height: 13.5rem;
+    padding: 1rem 1rem .95rem;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .04);
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-prototype-panel h5 {
-    max-width: calc(100% - 14rem);
-    margin: 0 0 .12rem;
-    font-size: .92rem;
-    line-height: 1.2;
+    max-width: 100%;
+    margin: 0 0 .18rem;
+    font-size: 1rem;
+    line-height: 1.25;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-prototype-panel p {
-    max-width: calc(100% - 14rem);
-    margin: 0 0 .85rem;
-    font-size: .72rem;
-    line-height: 1.25;
+    max-width: 100%;
+    margin: 0 0 .95rem;
+    font-size: .78rem;
+    line-height: 1.35;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-rating-table th,
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-rating-table td {
-    font-size: .73rem;
+    font-size: .78rem;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-rating-table th {
-    font-size: .67rem;
+    font-size: .7rem;
 }
 
 @media (max-width: 960px) {

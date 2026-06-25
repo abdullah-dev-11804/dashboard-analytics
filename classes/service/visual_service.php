@@ -201,8 +201,6 @@ class visual_service {
                 $this->panel('qualitypassrate', get_string('panel:qualitypassrate:title', 'block_dashboardanalytics'), 'qualitypassrate', get_string('panel:qualitypassrate:description', 'block_dashboardanalytics', $this->format_number($passthreshold) . '%'), $quality->first_attempt_pass_rate_items($filters), [
                     'threshold' => $passthreshold,
                     'thresholdlabel' => get_string('quality:reference:passrate', 'block_dashboardanalytics', $this->format_number($passthreshold) . '%'),
-                    'chartlabel' => get_string('quality:badge:horizontalbar', 'block_dashboardanalytics'),
-                    'interactivelabel' => get_string('quality:badge:interactive', 'block_dashboardanalytics'),
                     'footer' => get_string('quality:passrate:footer', 'block_dashboardanalytics', $this->format_number($passthreshold) . '%'),
                     'emptymessage' => get_string('quality:passrate:empty', 'block_dashboardanalytics'),
                 ]),
@@ -211,14 +209,10 @@ class visual_service {
                     'secondarythreshold' => 60.0,
                     'thresholdlabel' => get_string('quality:reference:engagementlow', 'block_dashboardanalytics'),
                     'secondarythresholdlabel' => get_string('quality:reference:engagementgood', 'block_dashboardanalytics'),
-                    'chartlabel' => get_string('quality:badge:groupedbar', 'block_dashboardanalytics'),
-                    'interactivelabel' => get_string('quality:badge:interactive', 'block_dashboardanalytics'),
                     'footer' => get_string('quality:engagement:footer', 'block_dashboardanalytics'),
                     'emptymessage' => get_string('quality:engagement:empty', 'block_dashboardanalytics'),
                 ]),
                 $this->panel('qualityrating', get_string('panel:qualityrating:title', 'block_dashboardanalytics'), 'qualityratingtable', get_string('panel:qualityrating:description', 'block_dashboardanalytics'), $ratingitems, [
-                    'chartlabel' => get_string('quality:badge:feedback', 'block_dashboardanalytics'),
-                    'interactivelabel' => get_string('quality:badge:interactive', 'block_dashboardanalytics'),
                     'alertmessage' => $quality->course_feedback_alert($ratingitems),
                     'alertstatus' => 'warning',
                     'emptymessage' => get_string('quality:rating:empty', 'block_dashboardanalytics'),

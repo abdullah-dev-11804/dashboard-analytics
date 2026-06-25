@@ -1040,7 +1040,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + Math.max(0, Math.min(100, passThreshold)).toFixed(1) + '%" title="'
                         + escapeHtml(panel.thresholdlabel || '') + '"></span>';
                 }
-                body = '<div class="da-quality-pass-chart">' + items.map(function(item) {
+                if (!items.length) {
+                    body = '<div class="da-quality-empty">' + escapeHtml(panel.emptymessage || text('noData', 'No data')) + '</div>'
+                        + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
+                            + escapeHtml(panel.footer) + '</div>' : '');
+                } else {
+                    body = '<div class="da-quality-pass-chart">' + items.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                     var label = item.url
                         ? '<a class="da-quality-course-link" href="' + escapeHtml(item.url) + '">' + escapeHtml(item.label) + '</a>'
@@ -1056,11 +1061,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<span>' + escapeHtml(item.value || '') + '</span></' + tag + '>'
                         + '</div>'
                         + '</div>';
-                }).join('') + '</div>'
-                    + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
-                        + escapeHtml(panel.footer) + '</div>' : '');
+                    }).join('') + '</div>'
+                        + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
+                            + escapeHtml(panel.footer) + '</div>' : '');
+                }
             } else if (panel.type === 'qualityengagementtime') {
-                body = '<div class="da-quality-engagement-chart">' + items.map(function(item) {
+                if (!items.length) {
+                    body = '<div class="da-quality-empty">' + escapeHtml(panel.emptymessage || text('noData', 'No data')) + '</div>'
+                        + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
+                            + escapeHtml(panel.footer) + '</div>' : '');
+                } else {
+                    body = '<div class="da-quality-engagement-chart">' + items.map(function(item) {
                     var segments = item.segments || [];
                     var activeSegment = segments[0] || {};
                     var sessionSegment = segments[1] || {};
@@ -1099,14 +1110,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>'
                         + '<div class="da-quality-engagement-ratio da-text-' + escapeHtml(status) + '">' + escapeHtml(item.value || '') + '</div>'
                         + '</div>';
-                }).join('') + '</div>'
-                    + '<div class="da-quality-engagement-legend">'
-                    + '<span><i class="da-quality-legend-active"></i>Active time</span>'
-                    + '<span><i class="da-quality-legend-session"></i>Session time</span>'
-                    + '<span><strong>%</strong> = engagement ratio</span>'
-                    + '</div>'
-                    + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
-                        + escapeHtml(panel.footer) + '</div>' : '');
+                    }).join('') + '</div>'
+                        + '<div class="da-quality-engagement-legend">'
+                        + '<span><i class="da-quality-legend-active"></i>Active time</span>'
+                        + '<span><i class="da-quality-legend-session"></i>Session time</span>'
+                        + '<span><strong>%</strong> = engagement ratio</span>'
+                        + '</div>'
+                        + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
+                            + escapeHtml(panel.footer) + '</div>' : '');
+                }
             } else if (panel.type === 'qualityratingtable') {
                 var info = '<span class="da-quality-info" aria-hidden="true">i</span>';
                 var npsStatus = function(value) {
@@ -1138,7 +1150,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }
                     return 'ok';
                 };
-                body = '<div class="da-quality-rating-wrap"><table class="da-quality-rating-table">'
+                if (!items.length) {
+                    body = '<div class="da-quality-empty">' + escapeHtml(panel.emptymessage || text('noData', 'No data')) + '</div>';
+                } else {
+                    body = '<div class="da-quality-rating-wrap"><table class="da-quality-rating-table">'
                     + '<thead><tr>'
                     + '<th>' + escapeHtml(text('qualityCourseHeader', 'Course')) + ' ' + info + '</th>'
                     + '<th>' + escapeHtml(text('qualityRatingHeader', 'Rating')) + ' ' + info + '</th>'
@@ -1172,6 +1187,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + (panel.alertmessage ? '<div class="da-quality-alert da-quality-alert-' + escapeHtml(panel.alertstatus || 'warning') + '">'
                         + '<span class="da-quality-alert-icon">&#9888;</span> '
                         + escapeHtml(panel.alertmessage) + '</div>' : '');
+                }
             } else if (panel.type === 'qualitybar') {
                 var reference = function(value, label, secondary) {
                     var numeric = Number(value);
@@ -1299,7 +1315,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var isQualityPrototypePanel = ['qualitypassrate', 'qualityengagementtime', 'qualityratingtable'].indexOf(panel.type) !== -1;
             var qualityPanelActions = '';
-            if (isQualityPrototypePanel) {
+            if (isQualityPrototypePanel && (panel.chartlabel || panel.interactivelabel)) {
                 qualityPanelActions = '<div class="da-quality-panel-actions">'
                     + (panel.chartlabel ? '<span class="da-quality-chip da-quality-chip-blue">' + escapeHtml(panel.chartlabel) + '</span>' : '')
                     + (panel.interactivelabel ? '<span class="da-quality-chip">' + escapeHtml(panel.interactivelabel) + '</span>' : '')
