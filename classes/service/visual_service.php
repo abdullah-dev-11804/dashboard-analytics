@@ -125,6 +125,9 @@ class visual_service {
                 $this->panel('compliancetrend', get_string('panel:compliancetrendchart:title', 'block_dashboardanalytics'), 'compliancetrendchart', get_string('panel:compliancetrendchart:description', 'block_dashboardanalytics'), $overview->compliance_trend_items($filters)),
                 $this->panel('companycompliance', get_string('panel:companycompliancesnapshot:title', 'block_dashboardanalytics'), 'compliancesnapshot', get_string('panel:companycompliancesnapshot:description', 'block_dashboardanalytics'), $overview->company_compliance_items($filters)),
                 $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
+                $this->panel('complianceheatmap', get_string('panel:complianceheatmap:title', 'block_dashboardanalytics'), 'heatmap', get_string('panel:complianceheatmap:description', 'block_dashboardanalytics'), $documents->compliance_heatmap_items($filters, 6), [
+                    'tabs' => $documents->compliance_heatmap_tabs($filters, 8),
+                ]),
                 $this->panel('riskcourse', get_string('panel:riskcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters)),
                 $this->panel('edsqueue', get_string('panel:edsqueue:title', 'block_dashboardanalytics'), 'cards', get_string('panel:edsqueue:description', 'block_dashboardanalytics'), [[
                     'label' => get_string('panel:pendingmanual', 'block_dashboardanalytics'),
@@ -391,6 +394,10 @@ class visual_service {
             if (array_key_exists($option, $options)) {
                 $panel[$option] = (float)$options[$option];
             }
+        }
+
+        if (array_key_exists('tabs', $options) && is_array($options['tabs'])) {
+            $panel['tabs'] = array_values($options['tabs']);
         }
 
         foreach (['thresholdlabel', 'secondarythresholdlabel', 'emptymessage', 'chartlabel', 'interactivelabel', 'footer', 'alertmessage', 'alertstatus'] as $option) {

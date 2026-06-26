@@ -123,6 +123,10 @@ $string['js:turnoverformula'] = 'Формула: Деактивированны�
 $string['js:turnovergood'] = '<5% Норма';
 $string['js:turnovermonitor'] = '5–10% Контроль';
 $string['js:turnoverhigh'] = '>10% Высокая';
+$string['js:heatmapallcombined'] = 'Все компании вместе';
+$string['js:heatmapcompliantlegend'] = '>=80% Соответствует';
+$string['js:heatmaprisklegend'] = '70–79% Под риском';
+$string['js:heatmapcriticallegend'] = '<70% Критично';
 
 $string['kpi:activecourses'] = 'Активные курсы';
 $string['kpi:compliance'] = 'Соответствие';
@@ -241,6 +245,8 @@ $string['panel:companycompliancesnapshot:title'] = 'Соответствие % �
 $string['panel:companycompliancesnapshot:description'] = 'Сортировка по возрастанию, сначала худшие. Контрольная линия 80%.';
 $string['panel:documentstatus:title'] = 'Распределение статусов документов';
 $string['panel:documentstatus:description'] = 'Активные, истекающие, просроченные и отсутствующие проверки сертификатов по зачисленным курсам.';
+$string['panel:complianceheatmap:title'] = 'Тепловая карта соответствия - подразделение x локация x компания';
+$string['panel:complianceheatmap:description'] = 'Каждая ячейка = % соответствия. Выберите вкладку компании. Нажмите ячейку для списка сотрудников.';
 $string['panel:riskcompany:title'] = 'Просроченные и истекающие по компаниям';
 $string['panel:riskcompany:description'] = 'Компании отсортированы по общему количеству рискованных проверок сертификатов.';
 $string['panel:coursecompliance:title'] = 'Несоответствие по курсам';

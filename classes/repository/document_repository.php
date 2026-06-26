@@ -347,41 +347,42 @@ class document_repository {
     }
 
     public function compliance_heatmap_items(array $filters, int $limit = 18): array {
-        global $DB;
-
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'heatmap');
-
-        $sql = "SELECT " . $DB->sql_concat("COALESCE(NULLIF(u.department, ''), 'Unassigned')", "' / '", "COALESCE(NULLIF(u.city, ''), 'Unassigned')") . " AS label,
-                       COALESCE(NULLIF(u.department, ''), 'Unassigned') AS department,
-                       COALESCE(NULLIF(u.city, ''), 'Unassigned') AS location,
-                       COUNT(1) AS activeusers
-                  FROM {user} u
-                 WHERE {$userfilter['sql']}
-              GROUP BY COALESCE(NULLIF(u.department, ''), 'Unassigned'),
-                       COALESCE(NULLIF(u.city, ''), 'Unassigned')
-              ORDER BY activeusers DESC";
-
-        $records = $DB->get_records_sql($sql, $userfilter['params'], 0, $limit);
         $items = [];
-        foreach ($records as $record) {
-            $cellfilters = $filters;
-            $cellfilters['departments'] = [(string)$record->department];
-            $cellfilters['locations'] = [(string)$record->location];
-            $summary = $this->compliance_summary($cellfilters);
-            $items[] = [
-                'label' => (string)$record->label,
-                'value' => $summary['compliance'] . '%',
-                'percent' => (float)$summary['compliance'],
-                'status' => strtolower($summary['status']),
-                'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
-                    'compliant' => $summary['validusers'],
-                    'total' => $summary['totalactiveusers'],
-                ]),
-            ];
+        foreach ($this->compliance_heatmap_tabs($filters, $limit) as $tab) {
+            $scopefilters = $this->heatmap_tab_filters($filters, $tab);
+            foreach ($this->compliance_heatmap_group_items($scopefilters, $tab, $limit) as $item) {
+                $items[] = $item;
+            }
         }
 
         return $items;
+    }
+
+    public function compliance_heatmap_tabs(array $filters, int $limit = 8): array {
+        $tabs = [[
+            'key' => 'all',
+            'label' => get_string('filter:allcompanieslabel', 'block_dashboardanalytics'),
+            'active' => true,
+            'companyid' => 0,
+            'companyname' => '',
+        ]];
+
+        $companyrepo = new company_repository();
+        $options = array_slice($companyrepo->get_company_options($filters), 0, $limit);
+        foreach ($options as $index => $option) {
+            $value = (string)($option['value'] ?? '');
+            $label = (string)($option['label'] ?? $value);
+            $companyid = ctype_digit($value) ? (int)$value : 0;
+            $tabs[] = [
+                'key' => $companyid > 0 ? 'companyid_' . $companyid : 'company_' . md5($label),
+                'label' => $label,
+                'active' => false,
+                'companyid' => $companyid,
+                'companyname' => $companyid > 0 ? '' : $label,
+            ];
+        }
+
+        return $tabs;
     }
 
     public function weekly_expiry_histogram_items(array $filters, int $weeks = 13): array {
@@ -826,6 +827,78 @@ class document_repository {
 
     private function has_completion_sql(string $alias): string {
         return "{$alias}.timecompleted IS NOT NULL AND {$alias}.timecompleted > 0";
+    }
+
+    private function compliance_heatmap_group_items(array $filters, array $tab, int $limit): array {
+        $employee = new employee_repository();
+        $departments = array_slice($employee->active_users_by_dimension_items($filters, 'department', $limit), 0, $limit);
+        $locations = array_slice($employee->active_users_by_dimension_items($filters, 'location', $limit), 0, $limit);
+
+        if (!$departments || !$locations) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($departments as $rowindex => $departmentitem) {
+            $department = (string)$departmentitem['label'];
+            foreach ($locations as $columnindex => $locationitem) {
+                $location = (string)$locationitem['label'];
+                $cellfilters = $filters;
+                $cellfilters['departments'] = [$department];
+                $cellfilters['locations'] = [$location];
+                $summary = $this->compliance_summary($cellfilters);
+                $hasstaff = (int)$summary['totalactiveusers'] > 0;
+                $compliance = $hasstaff ? round((float)$summary['compliance'], 1) : 0.0;
+                $items[] = [
+                    'label' => $department . ' / ' . $location,
+                    'value' => $hasstaff ? $compliance . '%' : '—',
+                    'percent' => $compliance,
+                    'status' => $this->visual_status_for_percent($compliance, $hasstaff),
+                    'meta' => $hasstaff
+                        ? get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
+                            'compliant' => $summary['validusers'],
+                            'total' => $summary['totalactiveusers'],
+                        ])
+                        : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
+                    'groupkey' => (string)$tab['key'],
+                    'rowlabel' => $department,
+                    'columnlabel' => $location,
+                    'drilldownkey' => 'company_compliance',
+                    'companyid' => (int)($tab['companyid'] ?? 0),
+                    'companyname' => (string)($tab['companyname'] ?? ''),
+                ];
+            }
+        }
+
+        return $items;
+    }
+
+    private function heatmap_tab_filters(array $filters, array $tab): array {
+        if (!empty($tab['companyid'])) {
+            $filters['companyids'] = [(int)$tab['companyid']];
+            unset($filters['companies']);
+            return $filters;
+        }
+
+        if (!empty($tab['companyname'])) {
+            $filters['companies'] = [(string)$tab['companyname']];
+            unset($filters['companyids']);
+        }
+
+        return $filters;
+    }
+
+    private function visual_status_for_percent(float $percent, bool $hasstaff = true): string {
+        if (!$hasstaff) {
+            return 'muted';
+        }
+        if ($percent >= 80) {
+            return 'ok';
+        }
+        if ($percent >= 70) {
+            return 'warning';
+        }
+        return 'danger';
     }
 
     private function status_label(?int $expiry): string {

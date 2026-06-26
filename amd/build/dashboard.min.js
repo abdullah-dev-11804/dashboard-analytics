@@ -59,6 +59,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         turnoverGood: '<5% Good',
         turnoverMonitor: '5–10% Monitor',
         turnoverHigh: '>10% High',
+        heatmapAllCombined: 'All companies combined',
+        heatmapCompliantLegend: '>=80% Compliant',
+        heatmapRiskLegend: '70–79% At risk',
+        heatmapCriticalLegend: '<70% Critical',
         qualityCourseHeader: 'Course',
         qualityRatingHeader: 'Rating',
         qualityReviewsHeader: 'Reviews',
@@ -134,6 +138,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:turnovergood', component: 'block_dashboardanalytics'},
         {key: 'js:turnovermonitor', component: 'block_dashboardanalytics'},
         {key: 'js:turnoverhigh', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmapallcombined', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmapcompliantlegend', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmapcriticallegend', component: 'block_dashboardanalytics'},
         {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityratingheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityreviewsheader', component: 'block_dashboardanalytics'},
@@ -585,7 +593,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1;
         };
         if (!panels.length) {
@@ -996,6 +1004,85 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>&ge;80% Compliant</span>'
                     + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>70-79% At risk</span>'
                     + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>&lt;70% Critical</span>'
+                    + '</div>'
+                    + '</div>';
+            } else if (panel.type === 'heatmap') {
+                var heatmapTabs = panel.tabs || [];
+                var selectedHeatmapTab = (((state || {}).currentVisualOverrides) || {}).heatmapcompany
+                    || ((heatmapTabs.filter(function(tab) { return !!tab.active; })[0] || {}).key)
+                    || ((heatmapTabs[0] || {}).key)
+                    || 'all';
+                var visibleHeatmapItems = items.filter(function(item) {
+                    return (item.groupkey || 'all') === selectedHeatmapTab;
+                });
+                if (!visibleHeatmapItems.length && heatmapTabs.length) {
+                    selectedHeatmapTab = (heatmapTabs[0] || {}).key || 'all';
+                    visibleHeatmapItems = items.filter(function(item) {
+                        return (item.groupkey || 'all') === selectedHeatmapTab;
+                    });
+                }
+                var selectedHeatmapMeta = heatmapTabs.filter(function(tab) {
+                    return tab.key === selectedHeatmapTab;
+                })[0] || {};
+                var rowLabels = [];
+                var columnLabels = [];
+                var matrix = {};
+
+                visibleHeatmapItems.forEach(function(item) {
+                    var rowLabel = item.rowlabel || '';
+                    var columnLabel = item.columnlabel || '';
+                    if (rowLabels.indexOf(rowLabel) === -1) {
+                        rowLabels.push(rowLabel);
+                    }
+                    if (columnLabels.indexOf(columnLabel) === -1) {
+                        columnLabels.push(columnLabel);
+                    }
+                    if (!matrix[rowLabel]) {
+                        matrix[rowLabel] = {};
+                    }
+                    matrix[rowLabel][columnLabel] = item;
+                });
+
+                body = '<div class="da-heatmap-wrap">'
+                    + (heatmapTabs.length ? '<div class="da-heatmap-tabs">' + heatmapTabs.map(function(tab) {
+                        return '<button type="button" class="da-heatmap-tab'
+                            + (tab.key === selectedHeatmapTab ? ' is-active' : '')
+                            + '" data-action="heatmap-tab" data-tabkey="' + escapeHtml(tab.key) + '">'
+                            + escapeHtml(tab.label) + '</button>';
+                    }).join('') + '</div>' : '')
+                    + '<div class="da-heatmap-subtitle">'
+                    + escapeHtml(selectedHeatmapTab === 'all'
+                        ? text('heatmapAllCombined', 'All companies combined')
+                        : (selectedHeatmapMeta.label || text('heatmapAllCombined', 'All companies combined')))
+                    + '</div>'
+                    + '<div class="da-heatmap-table-wrap"><table class="da-heatmap-table">'
+                    + '<thead><tr><th></th>' + columnLabels.map(function(label) {
+                        return '<th scope="col">' + escapeHtml(label) + '</th>';
+                    }).join('') + '</tr></thead><tbody>'
+                    + rowLabels.map(function(rowLabel) {
+                        return '<tr><th scope="row">' + escapeHtml(rowLabel) + '</th>'
+                            + columnLabels.map(function(columnLabel) {
+                                var cell = ((matrix[rowLabel] || {})[columnLabel]) || null;
+                                if (!cell) {
+                                    return '<td class="da-heatmap-cell-slot"><span class="da-heatmap-cell da-heatmap-cell-muted">—</span></td>';
+                                }
+                                return '<td class="da-heatmap-cell-slot"><button type="button" class="da-heatmap-cell da-heatmap-cell-'
+                                    + escapeHtml(cell.status || 'muted') + '" data-action="heatmap-cell"'
+                                    + ' data-drilldown="' + escapeHtml(cell.drilldownkey || 'company_compliance') + '"'
+                                    + ' data-department="' + escapeHtml(cell.rowlabel || '') + '"'
+                                    + ' data-location="' + escapeHtml(cell.columnlabel || '') + '"'
+                                    + ' data-companyid="' + escapeHtml(String(cell.companyid || 0)) + '"'
+                                    + ' data-companyname="' + escapeHtml(cell.companyname || '') + '"'
+                                    + ' title="' + escapeHtml(cell.meta || '') + '">'
+                                    + '<span class="da-heatmap-cell-value">' + escapeHtml(cell.value || '—') + '</span>'
+                                    + '</button></td>';
+                            }).join('') + '</tr>';
+                    }).join('')
+                    + '</tbody></table></div>'
+                    + '<div class="da-heatmap-legend">'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(text('heatmapRiskLegend', '70–79% At risk')) + '</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('heatmapCriticalLegend', '<70% Critical')) + '</span>'
                     + '</div>'
                     + '</div>';
             } else if (panel.type === 'servererrors') {
@@ -1750,6 +1837,41 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     platformgrowthperiod: platformGrowthPeriod.getAttribute('data-period') || '1year'
                 });
                 loadVisuals(root, state, state.currentTab || 'overview', state.currentVisualOverrides);
+                return;
+            }
+
+            var heatmapTab = event.target.closest('[data-action="heatmap-tab"]');
+            if (heatmapTab && root.contains(heatmapTab)) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    heatmapcompany: heatmapTab.getAttribute('data-tabkey') || 'all'
+                });
+                loadVisuals(root, state, state.currentTab || 'compliance', state.currentVisualOverrides);
+                return;
+            }
+
+            var heatmapCell = event.target.closest('[data-action="heatmap-cell"]');
+            if (heatmapCell && root.contains(heatmapCell)) {
+                var heatmapOverrides = {
+                    departments: [heatmapCell.getAttribute('data-department') || ''],
+                    locations: [heatmapCell.getAttribute('data-location') || '']
+                };
+                var heatmapCompanyId = heatmapCell.getAttribute('data-companyid') || '0';
+                var heatmapCompanyName = heatmapCell.getAttribute('data-companyname') || '';
+                if (heatmapCompanyId !== '0') {
+                    heatmapOverrides.companyids = [heatmapCompanyId];
+                } else if (heatmapCompanyName !== '') {
+                    heatmapOverrides.companies = [heatmapCompanyName];
+                }
+                state.currentDrilldown = heatmapCell.getAttribute('data-drilldown') || 'company_compliance';
+                state.currentDrilldownPage = 0;
+                loadDrilldown(
+                    root,
+                    state,
+                    state.currentDrilldown,
+                    heatmapOverrides,
+                    0,
+                    state.currentDrilldownPerPage || 20
+                );
                 return;
             }
 

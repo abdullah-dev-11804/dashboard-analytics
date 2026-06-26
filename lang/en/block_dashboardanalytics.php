@@ -123,6 +123,10 @@ $string['js:turnoverformula'] = 'Formula: Deactivated / Avg active × 100';
 $string['js:turnovergood'] = '<5% Good';
 $string['js:turnovermonitor'] = '5–10% Monitor';
 $string['js:turnoverhigh'] = '>10% High';
+$string['js:heatmapallcombined'] = 'All companies combined';
+$string['js:heatmapcompliantlegend'] = '>=80% Compliant';
+$string['js:heatmaprisklegend'] = '70–79% At risk';
+$string['js:heatmapcriticallegend'] = '<70% Critical';
 
 $string['kpi:activecourses'] = 'Active courses';
 $string['kpi:compliance'] = 'Compliance';
@@ -241,6 +245,8 @@ $string['panel:companycompliancesnapshot:title'] = 'Compliance % by company - sn
 $string['panel:companycompliancesnapshot:description'] = 'Sorted ascending (worst first). 80% reference line.';
 $string['panel:documentstatus:title'] = 'Document Status Distribution';
 $string['panel:documentstatus:description'] = 'Active, expiring, expired and missing certification checks across enrolled courses.';
+$string['panel:complianceheatmap:title'] = 'Compliance heatmap - department x location x company';
+$string['panel:complianceheatmap:description'] = 'Each cell = compliance %. Select a company tab. Click a cell for the employee list.';
 $string['panel:riskcompany:title'] = 'Expired vs Expiring by Company';
 $string['panel:riskcompany:description'] = 'Companies ordered by total at-risk certification checks.';
 $string['panel:coursecompliance:title'] = 'Course Non-compliance';
