@@ -8,6 +8,7 @@ use block_dashboardanalytics\repository\company_repository;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
+use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\server_repository;
 
 defined('MOODLE_INTERNAL') || die();
@@ -51,6 +52,14 @@ class compliance_service {
             return $this->result(get_string('drilldown:title:totalstaff', 'block_dashboardanalytics'), $result);
         }
 
+        if ($drilldownkey === 'company_course_noncompliance') {
+            $overview = new overview_repository();
+            return $this->result(
+                get_string('drilldown:title:coursenoncompliance', 'block_dashboardanalytics'),
+                $overview->compliance_gap_rows($filters, ['Expired', 'No document'], $page, $perpage, $showidentity)
+            );
+        }
+
         if ($drilldownkey === 'employee_courses') {
             return $this->result(get_string('drilldown:title:mycourses', 'block_dashboardanalytics'), [
                 'columns' => [],
@@ -90,6 +99,7 @@ class compliance_service {
                 'company_expired_documents',
                 'company_eds_queue',
                 'company_server_disk',
+                'company_course_noncompliance',
             ],
             permissions::DASHBOARD_CLIENT => [
                 'client_total_staff',

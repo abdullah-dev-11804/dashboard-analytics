@@ -181,7 +181,8 @@ class document_repository {
         ];
 
         $table = $source['table'];
-        $sql = "SELECT COALESCE({$companysql['expr']}, 'Unassigned') AS companyname,
+        $sql = "SELECT COALESCE({$companysql['idexpr']}, 0) AS companyid,
+                       COALESCE({$companysql['expr']}, 'Unassigned') AS companyname,
                        SUM(CASE WHEN {$expiry} < :riskexpirednow THEN 1 ELSE 0 END) AS expired,
                        SUM(CASE WHEN {$expiry} >= :riskexpiringnow AND {$expiry} <= :risksoon THEN 1 ELSE 0 END) AS expiring
                   FROM {{$table}} d
@@ -189,7 +190,7 @@ class document_repository {
                        {$companysql['join']}
                        {$expiryjoin}
                  WHERE " . implode(' AND ', $where) . "
-              GROUP BY COALESCE({$companysql['expr']}, 'Unassigned')";
+              GROUP BY COALESCE({$companysql['idexpr']}, 0), COALESCE({$companysql['expr']}, 'Unassigned')";
 
         $records = $DB->get_records_sql($sql, $params);
         $items = [];
@@ -201,6 +202,8 @@ class document_repository {
                 'label' => (string)$record->companyname,
                 'value' => (string)$total,
                 'rawtotal' => $total,
+                'companyid' => (int)$record->companyid,
+                'companyname' => (string)$record->companyname,
                 'expired' => (int)$record->expired,
                 'expiring' => (int)$record->expiring,
             ];
@@ -221,6 +224,28 @@ class document_repository {
                     'expired' => $item['expired'],
                     'expiring' => $item['expiring'],
                 ]),
+                'companyid' => (int)$item['companyid'],
+                'companyname' => (string)$item['companyname'],
+                'segments' => [
+                    [
+                        'label' => get_string('label:expired', 'block_dashboardanalytics'),
+                        'value' => (string)$item['expired'],
+                        'percent' => round(($item['expired'] / $max) * 100, 1),
+                        'status' => 'danger',
+                        'drilldownkey' => 'company_expired_documents',
+                        'companyid' => (int)$item['companyid'],
+                        'companyname' => (string)$item['companyname'],
+                    ],
+                    [
+                        'label' => get_string('label:expiring', 'block_dashboardanalytics'),
+                        'value' => (string)$item['expiring'],
+                        'percent' => round(($item['expiring'] / $max) * 100, 1),
+                        'status' => 'warning',
+                        'drilldownkey' => 'company_expiring_documents',
+                        'companyid' => (int)$item['companyid'],
+                        'companyname' => (string)$item['companyname'],
+                    ],
+                ],
             ];
         }
 
@@ -228,54 +253,69 @@ class document_repository {
     }
 
     public function noncompliance_by_course_items(array $filters, int $limit = 10): array {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null || empty($source['courseid'])) {
-            return [];
-        }
-
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'riskcourse');
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, 'riskcourseorigin');
-
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $params['riskcoursenow'] = time() + (30 * DAYSECS);
-        $table = $source['table'];
-
-        $sql = "SELECT c.fullname AS coursename,
-                       COUNT(1) AS affected
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$source['userid']}
-                  JOIN {course} c ON c.id = d.{$source['courseid']}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where) . "
-                   AND {$expiry} <= :riskcoursenow
-              GROUP BY c.fullname
-              ORDER BY affected DESC";
-
-        $records = $DB->get_records_sql($sql, $params, 0, $limit);
-        $max = 1;
-        foreach ($records as $record) {
-            $max = max($max, (int)$record->affected);
-        }
-
+        $overview = new overview_repository();
         $items = [];
-        foreach ($records as $record) {
-            $affected = (int)$record->affected;
-            $items[] = [
-                'label' => format_string((string)$record->coursename),
-                'value' => (string)$affected,
-                'percent' => round(($affected / $max) * 100, 1),
-                'status' => $affected > 20 ? 'danger' : ($affected > 10 ? 'warning' : 'ok'),
-                'meta' => get_string('meta:expiredorsoon', 'block_dashboardanalytics'),
-            ];
+        foreach ($this->company_tabs($filters, 8) as $tab) {
+            $scopefilters = $this->heatmap_tab_filters($filters, $tab);
+            $rows = $overview->enrolment_status_snapshot_rows($scopefilters);
+            $courses = [];
+
+            foreach ($rows as $row) {
+                $courseid = (int)$row['courseid'];
+                $coursename = (string)$row['course'];
+                if (!isset($courses[$courseid])) {
+                    $courses[$courseid] = [
+                        'courseid' => $courseid,
+                        'label' => $coursename,
+                        'total' => 0,
+                        'bad' => 0,
+                    ];
+                }
+
+                $courses[$courseid]['total']++;
+                if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
+                    $courses[$courseid]['bad']++;
+                }
+            }
+
+            $courseitems = [];
+            foreach ($courses as $course) {
+                if ($course['total'] <= 0) {
+                    continue;
+                }
+
+                $percent = round(($course['bad'] / $course['total']) * 100, 1);
+                $courseitems[] = [
+                    'courseid' => (int)$course['courseid'],
+                    'label' => (string)$course['label'],
+                    'value' => $percent . '%',
+                    'percent' => $percent,
+                    'status' => $this->visual_status_for_percent(100.0 - $percent, true),
+                    'meta' => get_string('meta:coursewithoutvaliddoc', 'block_dashboardanalytics', (object)[
+                        'affected' => $course['bad'],
+                        'total' => $course['total'],
+                    ]),
+                ];
+            }
+
+            usort($courseitems, static function(array $a, array $b): int {
+                return $b['percent'] <=> $a['percent'];
+            });
+
+            foreach (array_slice($courseitems, 0, $limit) as $item) {
+                $item['groupkey'] = (string)$tab['key'];
+                $item['drilldownkey'] = 'company_course_noncompliance';
+                $item['companyid'] = (int)($tab['companyid'] ?? 0);
+                $item['companyname'] = (string)($tab['companyname'] ?? '');
+                $items[] = $item;
+            }
         }
 
         return $items;
+    }
+
+    public function company_tabs(array $filters, int $limit = 8): array {
+        return $this->compliance_heatmap_tabs($filters, $limit);
     }
 
     public function forecast_window_items(array $filters): array {

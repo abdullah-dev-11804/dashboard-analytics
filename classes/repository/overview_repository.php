@@ -8,6 +8,71 @@ ini_set('log_errors', '1');
 ini_set('error_log', '/tmp/ncasign-debug.log');
 class overview_repository {
 
+    public function enrolment_status_snapshot_rows(array $filters, ?int $reportdate = null): array {
+        $reportdate = $reportdate ?? $this->current_report_date();
+        return $this->enrolment_status_rows($filters, $reportdate);
+    }
+
+    public function compliance_gap_rows(array $filters, array $allowedstatuses, int $page, int $perpage, bool $showidentity): array {
+        $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
+        $allowedstatuses = array_values(array_unique(array_map('strval', $allowedstatuses)));
+
+        $rows = array_values(array_filter($rows, static function(array $row) use ($allowedstatuses): bool {
+            return in_array((string)$row['status'], $allowedstatuses, true);
+        }));
+
+        usort($rows, static function(array $a, array $b): int {
+            $aprimary = $a['status'] === 'Expired' ? 0 : 1;
+            $bprimary = $b['status'] === 'Expired' ? 0 : 1;
+            if ($aprimary !== $bprimary) {
+                return $aprimary <=> $bprimary;
+            }
+
+            $aexpiry = !empty($a['expirytime']) ? (int)$a['expirytime'] : PHP_INT_MAX;
+            $bexpiry = !empty($b['expirytime']) ? (int)$b['expirytime'] : PHP_INT_MAX;
+            return $aexpiry <=> $bexpiry;
+        });
+
+        $totalcount = count($rows);
+        $rows = array_slice($rows, $page * $perpage, $perpage);
+        $tablerows = [];
+        foreach ($rows as $row) {
+            $expirytime = !empty($row['expirytime']) ? (int)$row['expirytime'] : null;
+            $days = $expirytime !== null ? (int)floor(($expirytime - time()) / DAYSECS) : null;
+            $tablerows[] = [
+                'cells' => [
+                    ['key' => 'employee', 'value' => $showidentity ? (string)$row['employee'] : get_string('hiddenuser')],
+                    ['key' => 'company', 'value' => (string)$row['company']],
+                    ['key' => 'department', 'value' => (string)$row['department']],
+                    ['key' => 'location', 'value' => (string)$row['location']],
+                    ['key' => 'position', 'value' => (string)$row['position']],
+                    ['key' => 'course', 'value' => (string)$row['course']],
+                    ['key' => 'expiry', 'value' => $expirytime !== null ? userdate($expirytime, get_string('strftimedate')) : '-'],
+                    ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
+                    ['key' => 'status', 'value' => (string)$row['status']],
+                ],
+            ];
+        }
+
+        return [
+            'columns' => [
+                ['key' => 'employee', 'label' => get_string('label:employee', 'block_dashboardanalytics')],
+                ['key' => 'company', 'label' => get_string('label:company', 'block_dashboardanalytics')],
+                ['key' => 'department', 'label' => get_string('label:department', 'block_dashboardanalytics')],
+                ['key' => 'location', 'label' => get_string('label:location', 'block_dashboardanalytics')],
+                ['key' => 'position', 'label' => get_string('label:position', 'block_dashboardanalytics')],
+                ['key' => 'course', 'label' => get_string('label:course', 'block_dashboardanalytics')],
+                ['key' => 'expiry', 'label' => get_string('label:expirydate', 'block_dashboardanalytics')],
+                ['key' => 'days', 'label' => get_string('label:daysremaining', 'block_dashboardanalytics')],
+                ['key' => 'status', 'label' => get_string('label:status', 'block_dashboardanalytics')],
+            ],
+            'rows' => $tablerows,
+            'totalcount' => $totalcount,
+            'notice' => '',
+            'description' => '',
+        ];
+    }
+
     public function overall_employee_compliance_summary(array $filters, ?int $reportdate = null): array {
         $reportdate = $reportdate ?? $this->current_report_date();
         return $this->compliance_rollup_from_rows($this->enrolment_status_rows($filters, $reportdate));

@@ -604,11 +604,38 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         container.innerHTML = '<div class="da-visual-grid' + (hasServerPanels ? ' da-visual-grid-server' : '') + '">' + panels.map(function(panel) {
             var items = panel.items || [];
             var body = '';
+            var panelTabOverrideKey = 'paneltab_' + panel.key;
+            var panelTabs = panel.tabs || [];
+            var selectedPanelTab = (((state || {}).currentVisualOverrides) || {})[panelTabOverrideKey]
+                || ((panelTabs.filter(function(tab) { return !!tab.active; })[0] || {}).key)
+                || ((panelTabs[0] || {}).key)
+                || '';
+            var visibleItems = selectedPanelTab ? items.filter(function(item) {
+                return (item.groupkey || '') === selectedPanelTab;
+            }) : items;
 
-            if (!items.length) {
+            if (selectedPanelTab && !visibleItems.length && panelTabs.length) {
+                selectedPanelTab = (panelTabs[0] || {}).key || '';
+                visibleItems = selectedPanelTab ? items.filter(function(item) {
+                    return (item.groupkey || '') === selectedPanelTab;
+                }) : items;
+            }
+
+            var panelTabMarkup = '';
+            if (panelTabs.length && panel.type !== 'heatmap') {
+                panelTabMarkup = '<div class="da-panel-tabs">' + panelTabs.map(function(tab) {
+                    return '<button type="button" class="da-panel-tab'
+                        + (tab.key === selectedPanelTab ? ' is-active' : '')
+                        + '" data-action="panel-tab" data-panel="' + escapeHtml(panel.key)
+                        + '" data-tabkey="' + escapeHtml(tab.key) + '">'
+                        + escapeHtml(tab.label) + '</button>';
+                }).join('') + '</div>';
+            }
+
+            if (!(panel.type === 'heatmap' ? items : visibleItems).length) {
                 body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
             } else if (panel.type === 'overviewsummary') {
-                body = '<div class="da-overview-summary-grid">' + items.map(function(item) {
+                body = '<div class="da-overview-summary-grid">' + visibleItems.map(function(item) {
                     return '<article class="da-overview-summary-card da-overview-summary-card-' + escapeHtml(item.status) + '">'
                         + '<span class="da-overview-summary-label">' + escapeHtml(item.label) + '</span>'
                         + '<strong class="da-overview-summary-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</strong>'
@@ -635,12 +662,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 + escapeHtml(option.label) + '</button>';
                         }).join('') + '</div>';
                 }
-                var legend = (((items[0] || {}).segments) || []).map(function(segment) {
+                var legend = (((visibleItems[0] || {}).segments) || []).map(function(segment) {
                     return '<span class="da-multibars-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>' + escapeHtml(segment.label) + '</span>';
                 }).join('');
                 body = (isPlatformGrowth ? '<div class="da-platform-growth-head">' + periodButtons + '</div>' : '')
                     + (legend ? '<div class="da-multibars-legend">' + legend + '</div>' : '')
-                    + '<div class="da-multibars-chart' + (isPlatformGrowth ? ' da-multibars-chart-growth' : '') + '">' + items.map(function(item) {
+                    + '<div class="da-multibars-chart' + (isPlatformGrowth ? ' da-multibars-chart-growth' : '') + '">' + visibleItems.map(function(item) {
                         var segments = item.segments || [];
                         return '<div class="da-multibars-group">'
                             + '<div class="da-multibars-columns">' + segments.map(function(segment) {
@@ -656,12 +683,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '</div>';
                     }).join('') + '</div>';
             } else if (panel.type === 'turnovercombo') {
-                var turnoverLegend = (((items[0] || {}).segments) || []).slice(0, 3).map(function(segment) {
+                var turnoverLegend = (((visibleItems[0] || {}).segments) || []).slice(0, 3).map(function(segment) {
                     return '<span class="da-turnover-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>'
                         + escapeHtml(segment.label) + '</span>';
                 }).join('');
                 var comboMax = 1;
-                items.forEach(function(item) {
+                visibleItems.forEach(function(item) {
                     (item.segments || []).forEach(function(segment) {
                         comboMax = Math.max(comboMax, Math.abs(Number(segment.value) || 0));
                     });
@@ -671,13 +698,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var bottomY = 94;
                 var halfHeight = zeroY - topY;
                 var barWidth = 4;
-                var step = items.length > 0 ? (100 / items.length) : 100;
+                var step = visibleItems.length > 0 ? (100 / visibleItems.length) : 100;
                 var blueBars = [];
                 var redBars = [];
                 var netPoints = [];
                 var axisLabels = [];
 
-                items.forEach(function(item, index) {
+                visibleItems.forEach(function(item, index) {
                     var center = (step * index) + (step / 2);
                     var segments = item.segments || [];
                     var newSegment = segments[0] || {value: '0', percent: 0, status: 'info'};
@@ -713,7 +740,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>';
             } else if (panel.type === 'turnoverbars') {
                 body = '<div class="da-turnover-bars-wrap">'
-                    + '<div class="da-turnover-rate-list">' + items.map(function(item) {
+                    + '<div class="da-turnover-rate-list">' + visibleItems.map(function(item) {
                         var width = Math.max(8, Math.min(100, Number(item.percent) || 0));
                         return '<div class="da-turnover-rate-row">'
                             + '<div class="da-turnover-rate-label">' + escapeHtml(item.label) + '</div>'
@@ -730,7 +757,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>';
             } else if (panel.key === 'newhirerisk') {
                 body = '<div class="da-newhire-risk-wrap">'
-                    + '<div class="da-newhire-risk-list">' + items.map(function(item) {
+                    + '<div class="da-newhire-risk-list">' + visibleItems.map(function(item) {
                         var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                         var segments = item.segments || [];
                         var riskSegment = segments[0] || {value: '0', label: 'at risk', status: item.status};
@@ -748,8 +775,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<div class="da-turnover-rate-formula">' + escapeHtml(panel.description || '') + '</div>'
                     + '</div>';
             } else if (panel.type === 'activitysnapshot') {
-                var metrics = items.slice(0, 4);
-                var courses = items.slice(4);
+                var metrics = visibleItems.slice(0, 4);
+                var courses = visibleItems.slice(4);
                 body = '<div class="da-activity-snapshot-grid">' + metrics.map(function(item) {
                     return '<article class="da-activity-snapshot-card da-activity-snapshot-card-' + escapeHtml(item.status) + '">'
                         + '<strong class="da-activity-snapshot-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</strong>'
@@ -794,7 +821,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<th scope="col">' + escapeHtml(text('statusHeader', 'Status')) + '</th>'
                     + '<th scope="col"></th>'
                     + '</tr></thead><tbody>'
-                    + items.map(function(item) {
+                    + visibleItems.map(function(item) {
                         var segments = item.segments || [];
                         var compliance = segments[0] || {value: '—', status: 'muted'};
                         var trust = segments[1] || {value: '—', status: 'muted'};
@@ -816,7 +843,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }).join('')
                     + '</tbody></table></div>';
             } else if (panel.type === 'alerts') {
-                body = '<div class="da-alerts-grid">' + items.map(function(item) {
+                body = '<div class="da-alerts-grid">' + visibleItems.map(function(item) {
                     var actionAttributes = '';
                     if ((item.value || '') === text('goToServerTab', 'Go to Server tab')) {
                         actionAttributes = ' data-action="goto-tab" data-tab="server"';
@@ -835,7 +862,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<span class="da-server-threshold-label">' + escapeHtml(text('criticalThreshold', 'Critical threshold:')) + '</span>'
                     + '<span class="da-server-threshold-pill da-server-threshold-pill-danger">90%</span>'
                     + '</div>'
-                    + '<div class="da-server-capacity-grid">' + items.map(function(item) {
+                    + '<div class="da-server-capacity-grid">' + visibleItems.map(function(item) {
                         var percent = Math.max(0, Math.min(100, Number(item.percent) || 0));
                         return '<article class="da-server-capacity-card da-server-capacity-card-' + escapeHtml(item.status) + '">'
                             + '<div class="da-server-capacity-head">'
@@ -847,7 +874,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '</article>';
                     }).join('') + '</div>';
             } else if (panel.type === 'serverforecast') {
-                var forecast = items[0] || {segments: [], value: '', status: 'muted', meta: ''};
+                var forecast = visibleItems[0] || {segments: [], value: '', status: 'muted', meta: ''};
                 var points = (forecast.segments || []).map(function(segment, index, segments) {
                     var x = segments.length <= 1 ? 0 : (index / (segments.length - 1)) * 100;
                     var y = 100 - Math.max(0, Math.min(100, Number(segment.percent) || 0));
@@ -891,7 +918,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<div class="da-server-forecast-meta">' + escapeHtml(forecast.meta || '') + '</div>'
                     + '</div>';
             } else if (panel.type === 'compliancetrendchart') {
-                var monthLabels = ((items[0] || {}).segments || []).map(function(segment) {
+                var monthLabels = ((visibleItems[0] || {}).segments || []).map(function(segment) {
                     return segment.label || '';
                 });
                 var chartLeft = 18;
@@ -920,7 +947,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var left = xForIndex(index, monthLabels.length);
                     return '<span class="da-compliance-trend-x-label" style="left:' + left + '%">' + escapeHtml(label) + '</span>';
                 }).join('');
-                var trendSeries = items.map(function(item) {
+                var trendSeries = visibleItems.map(function(item) {
                     var points = (item.segments || []).map(function(segment, index, segments) {
                         var x = xForIndex(index, segments.length);
                         var y = yForPercent(segment.percent);
@@ -987,7 +1014,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>';
             } else if (panel.type === 'compliancesnapshot') {
                 body = '<div class="da-compliance-snapshot-wrap">'
-                    + '<div class="da-compliance-snapshot-list">' + items.map(function(item) {
+                    + '<div class="da-compliance-snapshot-list">' + visibleItems.map(function(item) {
                         var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                         return '<div class="da-compliance-snapshot-row">'
                             + '<div class="da-compliance-snapshot-label">' + escapeHtml(item.label) + '</div>'
@@ -1086,7 +1113,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>'
                     + '</div>';
             } else if (panel.type === 'servererrors') {
-                body = '<div class="da-server-error-list">' + items.map(function(item) {
+                body = '<div class="da-server-error-list">' + visibleItems.map(function(item) {
                     return '<div class="da-server-error-row da-server-error-row-' + escapeHtml(item.status) + '">'
                         + '<div class="da-server-error-label">' + escapeHtml(item.label) + '</div>'
                         + '<div class="da-server-error-count da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</div>'
@@ -1095,7 +1122,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'serversettings') {
-                var summary = items.reduce(function(result, item) {
+                var summary = visibleItems.reduce(function(result, item) {
                     if (item.status === 'ok') {
                         result.ok++;
                     } else if (item.status === 'warning' || item.status === 'danger') {
@@ -1111,7 +1138,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<span class="da-badge da-badge-warning">' + escapeHtml(String(summary.warning) + ' ' + text('warningSummary', 'Warning')) + '</span>'
                     + '<span class="da-badge da-badge-info">' + escapeHtml(String(summary.check) + ' ' + text('checkSummary', 'Check')) + '</span>'
                     + '</div>'
-                    + '<div class="da-server-settings-table">' + items.map(function(item) {
+                    + '<div class="da-server-settings-table">' + visibleItems.map(function(item) {
                         return '<div class="da-server-settings-row">'
                             + '<div class="da-server-settings-label">' + escapeHtml(item.label) + '</div>'
                             + '<div class="da-server-settings-value">' + escapeHtml(item.value) + '</div>'
@@ -1132,7 +1159,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
                             + escapeHtml(panel.footer) + '</div>' : '');
                 } else {
-                    body = '<div class="da-quality-pass-chart">' + items.map(function(item) {
+                    body = '<div class="da-quality-pass-chart">' + visibleItems.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                     var label = item.url
                         ? '<a class="da-quality-course-link" href="' + escapeHtml(item.url) + '">' + escapeHtml(item.label) + '</a>'
@@ -1153,12 +1180,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + escapeHtml(panel.footer) + '</div>' : '');
                 }
             } else if (panel.type === 'qualityengagementtime') {
-                if (!items.length) {
+                if (!visibleItems.length) {
                     body = '<div class="da-quality-empty">' + escapeHtml(panel.emptymessage || text('noData', 'No data')) + '</div>'
                         + (panel.footer ? '<div class="da-quality-note"><span class="da-quality-note-line"></span>'
                             + escapeHtml(panel.footer) + '</div>' : '');
                 } else {
-                    body = '<div class="da-quality-engagement-chart">' + items.map(function(item) {
+                    body = '<div class="da-quality-engagement-chart">' + visibleItems.map(function(item) {
                     var segments = item.segments || [];
                     var activeSegment = segments[0] || {};
                     var sessionSegment = segments[1] || {};
@@ -1237,7 +1264,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }
                     return 'ok';
                 };
-                if (!items.length) {
+                if (!visibleItems.length) {
                     body = '<div class="da-quality-empty">' + escapeHtml(panel.emptymessage || text('noData', 'No data')) + '</div>';
                 } else {
                     body = '<div class="da-quality-rating-wrap"><table class="da-quality-rating-table">'
@@ -1249,7 +1276,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<th>' + escapeHtml(text('qualityFeedbackHeader', 'Latest feedback')) + '</th>'
                     + '<th>' + escapeHtml(text('qualityRelevanceHeader', 'Relevance')) + ' ' + info + '</th>'
                     + '</tr></thead><tbody>'
-                    + items.map(function(item) {
+                    + visibleItems.map(function(item) {
                         var ratingStatus = item.status || 'muted';
                         var npsClass = npsStatus(item.nps);
                         var relevanceClass = relevanceStatus(item);
@@ -1297,7 +1324,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + escapeHtml(panel.secondarythresholdlabel) + '</span>');
                 }
                 body = (legendItems.length ? '<div class="da-quality-legend">' + legendItems.join('') + '</div>' : '')
-                    + '<div class="da-quality-bars">' + items.map(function(item) {
+                    + '<div class="da-quality-bars">' + visibleItems.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                     return '<div class="da-quality-row da-quality-row-' + escapeHtml(item.status) + '">'
                         + '<div class="da-quality-label"><span>' + escapeHtml(item.label) + '</span><strong>'
@@ -1308,7 +1335,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'line') {
-                body = '<div class="da-line-chart">' + items.map(function(item) {
+                body = '<div class="da-line-chart">' + visibleItems.map(function(item) {
                     var segments = item.segments || [];
                     var points = segments.map(function(segment, index) {
                         var x = segments.length <= 1 ? 0 : (index / (segments.length - 1)) * 100;
@@ -1329,7 +1356,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'cards') {
-                body = '<div class="da-mini-cards">' + items.map(function(item) {
+                body = '<div class="da-mini-cards">' + visibleItems.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                     var progress = width > 0 ? '<div class="da-mini-card-progress"><span class="da-mini-card-progress-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"></span></div>' : '';
                     return '<div class="da-mini-card da-mini-card-' + escapeHtml(item.status) + '">'
@@ -1342,7 +1369,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             } else if (panel.type === 'donut') {
                 body = '<div class="da-donut-wrap">'
                     + '<canvas class="da-donut-canvas" width="180" height="180" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
-                    + '<div class="da-donut-list">' + items.map(function(item) {
+                    + '<div class="da-donut-list">' + visibleItems.map(function(item) {
                         return '<div class="da-donut-row">'
                             + '<span class="da-dot da-dot-' + escapeHtml(item.status) + '"></span>'
                             + '<span>' + escapeHtml(item.label) + '</span>'
@@ -1352,7 +1379,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }).join('') + '</div>'
                     + '</div>';
             } else if (panel.type === 'histogram') {
-                body = '<div class="da-histogram">' + items.map(function(item) {
+                body = '<div class="da-histogram">' + visibleItems.map(function(item) {
                     var height = Math.max(5, Math.min(100, Number(item.percent) || 0));
                     return '<div class="da-histogram-bar">'
                         + '<strong>' + escapeHtml(item.value) + '</strong>'
@@ -1361,21 +1388,29 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'grouped') {
-                body = '<div class="da-grouped-bars">' + items.map(function(item) {
+                body = panelTabMarkup + '<div class="da-grouped-bars">' + visibleItems.map(function(item) {
                     var segments = item.segments || [];
                     return '<div class="da-grouped-row">'
                         + '<div class="da-grouped-label">' + escapeHtml(item.label) + '</div>'
                         + '<div class="da-grouped-series">' + segments.map(function(segment) {
-                            var width = Math.max(2, Math.min(100, Number(segment.percent) || 0));
+                            var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                            var isGroupedClickable = !!segment.drilldownkey;
+                            var groupedTag = isGroupedClickable ? 'button' : 'div';
+                            var buttonAttrs = isGroupedClickable ? ' data-action="grouped-drilldown"'
+                                + ' data-drilldown="' + escapeHtml(segment.drilldownkey) + '"'
+                                + ' data-companyid="' + escapeHtml(String(segment.companyid || 0)) + '"'
+                                + ' data-companyname="' + escapeHtml(segment.companyname || '') + '"' : '';
                             return '<div class="da-grouped-segment">'
-                                + '<span class="da-grouped-fill da-bar-fill-' + escapeHtml(segment.status) + '" style="width:' + width + '%"></span>'
-                                + '<small>' + escapeHtml(segment.label) + ': ' + escapeHtml(segment.value) + '</small>'
+                                + '<' + groupedTag + (isGroupedClickable ? ' type="button"' : '') + ' class="da-grouped-track"' + buttonAttrs + '>'
+                                + '<span class="da-grouped-fill da-bar-fill-' + escapeHtml(segment.status) + '" style="width:' + width + '%">'
+                                + '<span class="da-grouped-fill-value">' + escapeHtml(segment.value + ' ' + segment.label.toLowerCase()) + '</span>'
+                                + '</span></' + groupedTag + '>'
                                 + '</div>';
                         }).join('') + '</div>'
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'stacked') {
-                body = '<div class="da-stacked-bars">' + items.map(function(item) {
+                body = '<div class="da-stacked-bars">' + visibleItems.map(function(item) {
                     var segments = item.segments || [];
                     return '<div class="da-stacked-row">'
                         + '<div class="da-bar-label"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>'
@@ -1390,11 +1425,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else {
-                body = '<div class="da-bars">' + items.map(function(item) {
+                body = panelTabMarkup + '<div class="da-bars">' + visibleItems.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
+                    var isBarClickable = !!item.drilldownkey;
+                    var barTag = isBarClickable ? 'button' : 'div';
+                    var barAttrs = isBarClickable ? ' data-action="bar-drilldown"'
+                        + ' data-drilldown="' + escapeHtml(item.drilldownkey) + '"'
+                        + ' data-companyid="' + escapeHtml(String(item.companyid || 0)) + '"'
+                        + ' data-companyname="' + escapeHtml(item.companyname || '') + '"'
+                        + ' data-courseid="' + escapeHtml(String(item.courseid || 0)) + '"' : '';
                     return '<div class="da-bar-row">'
-                        + '<div class="da-bar-label"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>'
-                        + '<div class="da-bar-track"><div class="da-bar-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"></div></div>'
+                        + '<div class="da-bar-label"><span>' + escapeHtml(item.label) + '</span></div>'
+                        + '<' + barTag + (isBarClickable ? ' type="button"' : '') + ' class="da-bar-track"' + barAttrs + '><div class="da-bar-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"><span class="da-bar-fill-value">' + escapeHtml(item.value) + '</span></div></' + barTag + '>'
                         + '<div class="da-bar-meta">' + escapeHtml(item.meta) + '</div>'
                         + '</div>';
                 }).join('') + '</div>';
@@ -1840,6 +1882,19 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var panelTab = event.target.closest('[data-action="panel-tab"]');
+            if (panelTab && root.contains(panelTab)) {
+                var panelKey = panelTab.getAttribute('data-panel') || '';
+                var tabKey = panelTab.getAttribute('data-tabkey') || '';
+                if (panelKey && tabKey) {
+                    var overrideKey = 'paneltab_' + panelKey;
+                    state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {});
+                    state.currentVisualOverrides[overrideKey] = tabKey;
+                    loadVisuals(root, state, state.currentTab || 'compliance', state.currentVisualOverrides);
+                }
+                return;
+            }
+
             var heatmapTab = event.target.closest('[data-action="heatmap-tab"]');
             if (heatmapTab && root.contains(heatmapTab)) {
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
@@ -1872,6 +1927,42 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     0,
                     state.currentDrilldownPerPage || 20
                 );
+                return;
+            }
+
+            var groupedDrilldown = event.target.closest('[data-action="grouped-drilldown"]');
+            if (groupedDrilldown && root.contains(groupedDrilldown)) {
+                var groupedOverrides = {};
+                var groupedCompanyId = groupedDrilldown.getAttribute('data-companyid') || '0';
+                var groupedCompanyName = groupedDrilldown.getAttribute('data-companyname') || '';
+                if (groupedCompanyId !== '0') {
+                    groupedOverrides.companyids = [groupedCompanyId];
+                } else if (groupedCompanyName !== '') {
+                    groupedOverrides.companies = [groupedCompanyName];
+                }
+                state.currentDrilldown = groupedDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                state.currentDrilldownPage = 0;
+                loadDrilldown(root, state, state.currentDrilldown, groupedOverrides, 0, state.currentDrilldownPerPage || 20);
+                return;
+            }
+
+            var barDrilldown = event.target.closest('[data-action="bar-drilldown"]');
+            if (barDrilldown && root.contains(barDrilldown)) {
+                var barOverrides = {};
+                var barCompanyId = barDrilldown.getAttribute('data-companyid') || '0';
+                var barCompanyName = barDrilldown.getAttribute('data-companyname') || '';
+                var barCourseId = barDrilldown.getAttribute('data-courseid') || '0';
+                if (barCompanyId !== '0') {
+                    barOverrides.companyids = [barCompanyId];
+                } else if (barCompanyName !== '') {
+                    barOverrides.companies = [barCompanyName];
+                }
+                if (barCourseId !== '0') {
+                    barOverrides.courseids = [barCourseId];
+                }
+                state.currentDrilldown = barDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                state.currentDrilldownPage = 0;
+                loadDrilldown(root, state, state.currentDrilldown, barOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
             }
 
