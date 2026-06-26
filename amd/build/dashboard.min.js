@@ -573,6 +573,101 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '</table></div>' + pagination;
     };
 
+    var renderReportsActPanel = function() {
+    return '<div class="da-reports-act" data-region="reports-act">'
+        + '<div class="da-reports-act-layout">'
+        + '<section class="da-reports-act-card">'
+        + '<div class="da-reports-act-card-head">'
+        + '<div>'
+        + '<h4>Act of Completed Works — Report Configuration</h4>'
+        + '<p>Select company & period → load from LMS → review & download Excel</p>'
+        + '</div>'
+        + '<div class="da-reports-act-head-actions">'
+        + '<span class="da-reports-chip">АВР / Excel</span>'
+        + '<span class="da-reports-chip">auto-populate</span>'
+        + '</div>'
+        + '</div>'
+
+        + '<div class="da-reports-act-status" data-region="reports-act-status" hidden></div>'
+
+        + '<div class="da-reports-act-form">'
+        + '<label><span>Client Company</span><select data-act-field="companyid"></select></label>'
+        + '<label><span>Month</span><select data-act-field="month"></select></label>'
+        + '<label><span>Year</span><select data-act-field="year"></select></label>'
+        + '<label><span>Act Number</span><input type="text" data-act-field="actnumber" value="1"></label>'
+        + '<label><span>Contract Number</span><input type="text" data-act-field="contractnumber" value=""></label>'
+        + '<label><span>Service Provider</span><input type="text" data-act-field="provider"></label>'
+        + '</div>'
+
+        + '<div class="da-reports-act-table-head">'
+        + '<h5>Volume of Services Rendered</h5>'
+        + '<button type="button" class="da-row-action" data-action="reports-act-load">Load from LMS</button>'
+        + '</div>'
+
+        + '<div class="da-table-wrap da-reports-act-table-wrap">'
+        + '<table class="da-table da-reports-act-table">'
+        + '<thead><tr>'
+        + '<th>№</th>'
+        + '<th>Service / Course Name</th>'
+        + '<th>Unit</th>'
+        + '<th>LMS Count</th>'
+        + '<th>Act Qty</th>'
+        + '</tr></thead>'
+        + '<tbody data-region="reports-act-rows">'
+        + '<tr><td colspan="5" class="da-muted-cell">Select company and period, then click Load from LMS.</td></tr>'
+        + '</tbody>'
+        + '<tfoot>'
+        + '<tr>'
+        + '<th colspan="3">TOTAL:</th>'
+        + '<th data-region="reports-act-lms-total">0</th>'
+        + '<th data-region="reports-act-act-total">0</th>'
+        + '</tr>'
+        + '</tfoot>'
+        + '</table>'
+        + '</div>'
+
+        + '<div class="da-reports-act-footer">'
+        + '<div>'
+        + '<button type="button" class="da-row-action" data-action="reports-act-reset">Reset to LMS</button> '
+        + '<button type="button" class="da-row-action" data-action="reports-act-clear">Clear all</button>'
+        + '</div>'
+        + '<div class="da-reports-act-diff da-reports-act-diff-ok" data-region="reports-act-difference">Difference: 0</div>'
+        + '<button type="button" class="da-row-action da-reports-act-download" data-action="reports-act-download">Download Excel (Act)</button>'
+        + '</div>'
+
+        + '</section>'
+
+        + '<section class="da-reports-act-card da-reports-act-preview">'
+        + '<div class="da-reports-act-card-head">'
+        + '<div>'
+        + '<h4>Act Preview</h4>'
+        + '<p>Live preview of the Excel document contents</p>'
+        + '</div>'
+        + '<span class="da-reports-chip">live preview</span>'
+        + '</div>'
+
+        + '<div class="da-reports-act-summary">'
+        + '<div><strong data-region="reports-act-preview-total">0</strong><span>Total services</span></div>'
+        + '<div><strong data-region="reports-act-preview-types">0</strong><span>Course types</span></div>'
+        + '<div><strong data-region="reports-act-preview-diff">+0</strong><span>Vs LMS count</span></div>'
+        + '</div>'
+
+        + '<div class="da-reports-act-document">'
+        + '<h3>АКТ ВЫПОЛНЕННЫХ РАБОТ<br><span>(ОКАЗАННЫХ УСЛУГ) № <span data-region="reports-act-preview-number">1</span></span></h3>'
+        + '<div class="da-reports-act-doc-line"></div>'
+        + '<p><strong>Period:</strong> <span data-region="reports-act-preview-period">—</span></p>'
+        + '<p><strong>Client:</strong> <span data-region="reports-act-preview-client">—</span></p>'
+        + '<p><strong>Provider:</strong> <span data-region="reports-act-preview-provider">—</span></p>'
+        + '<p><strong>Contract:</strong> <span data-region="reports-act-preview-contract">—</span></p>'
+        + '<h5>Services Rendered</h5>'
+        + '<ol data-region="reports-act-preview-rows"></ol>'
+        + '<div class="da-reports-act-doc-line"></div>'
+        + '<p class="da-reports-act-doc-total"><strong>TOTAL</strong> <strong data-region="reports-act-preview-total-bottom">0</strong></p>'
+        + '</div>'
+        + '</section>'
+        + '</div>'
+        + '</div>';
+    };
     var renderVisuals = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
@@ -593,7 +688,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1;
         };
         if (!panels.length) {
@@ -631,8 +726,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + escapeHtml(tab.label) + '</button>';
                 }).join('') + '</div>';
             }
-
-            if (!(panel.type === 'heatmap' ? items : visibleItems).length) {
+            if (panel.type === 'reportsact') {
+                body = renderReportsActPanel();
+            } else if (!(panel.type === 'heatmap' ? items : visibleItems).length) {
                 body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
             } else if (panel.type === 'overviewsummary') {
                 body = '<div class="da-overview-summary-grid">' + visibleItems.map(function(item) {
@@ -1462,6 +1558,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).join('') + '</div>';
 
         drawDoughnuts(root, panels);
+        if (panels.some(function(panel) { return panel.type === 'reportsact'; })) {
+            loadReportsActConfig(root, state);
+        }
     };
 
     var colorForStatus = function(status) {
@@ -1629,6 +1728,248 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
+    var fillSelect = function(select, options, selectedValue) {
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = (options || []).map(function(option) {
+            var selected = String(option.value) === String(selectedValue) ? ' selected' : '';
+            return '<option value="' + escapeHtml(option.value) + '"' + selected + '>'
+                + escapeHtml(option.label) + '</option>';
+        }).join('');
+    };
+
+    var reportsActRoot = function(root) {
+        return root.querySelector('[data-region="reports-act"]');
+    };
+
+    var reportsActField = function(root, name) {
+        var panel = reportsActRoot(root);
+        return panel ? panel.querySelector('[data-act-field="' + name + '"]') : null;
+    };
+
+    var readReportsActForm = function(root) {
+        var valueOf = function(name) {
+            var field = reportsActField(root, name);
+            return field ? field.value : '';
+        };
+
+        return {
+            companyid: Number(valueOf('companyid')) || 0,
+            month: Number(valueOf('month')) || 0,
+            year: Number(valueOf('year')) || 0,
+            actnumber: valueOf('actnumber'),
+            contractnumber: valueOf('contractnumber'),
+            provider: valueOf('provider')
+        };
+    };
+
+    var updateReportsActPreview = function(root) {
+        var panel = reportsActRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var form = readReportsActForm(root);
+        var companySelect = reportsActField(root, 'companyid');
+        var monthSelect = reportsActField(root, 'month');
+        var companyLabel = companySelect && companySelect.selectedOptions.length ? companySelect.selectedOptions[0].textContent : '—';
+        var monthLabel = monthSelect && monthSelect.selectedOptions.length ? monthSelect.selectedOptions[0].textContent : '—';
+
+        var lmsTotal = 0;
+        var actTotal = 0;
+        var rows = Array.prototype.slice.call(panel.querySelectorAll('[data-act-row]'));
+
+        rows.forEach(function(row) {
+            lmsTotal += Number(row.getAttribute('data-lms-count')) || 0;
+            var qty = row.querySelector('[data-act-qty]');
+            actTotal += Number(qty ? qty.value : 0) || 0;
+        });
+
+        var diff = actTotal - lmsTotal;
+        var diffNode = panel.querySelector('[data-region="reports-act-difference"]');
+        var lmsTotalNode = panel.querySelector('[data-region="reports-act-lms-total"]');
+        var actTotalNode = panel.querySelector('[data-region="reports-act-act-total"]');
+
+        if (lmsTotalNode) {
+            lmsTotalNode.textContent = String(lmsTotal);
+        }
+        if (actTotalNode) {
+            actTotalNode.textContent = String(actTotal);
+        }
+        if (diffNode) {
+            diffNode.textContent = 'Difference: ' + (diff > 0 ? '+' : '') + diff;
+            diffNode.classList.toggle('da-reports-act-diff-ok', diff === 0);
+            diffNode.classList.toggle('da-reports-act-diff-warning', diff !== 0);
+        }
+
+        var previewRows = panel.querySelector('[data-region="reports-act-preview-rows"]');
+        if (previewRows) {
+            previewRows.innerHTML = rows.map(function(row) {
+                var name = row.getAttribute('data-course-name') || '';
+                var unit = row.querySelector('[data-act-unit]');
+                var qty = row.querySelector('[data-act-qty]');
+                return '<li><span>' + escapeHtml(name) + '</span><em>'
+                    + escapeHtml(unit ? unit.value : '') + '</em><strong>'
+                    + escapeHtml(qty ? qty.value : '0') + '</strong></li>';
+            }).join('');
+        }
+
+        var setText = function(region, value) {
+            var node = panel.querySelector('[data-region="' + region + '"]');
+            if (node) {
+                node.textContent = value;
+            }
+        };
+
+        setText('reports-act-preview-total', String(actTotal));
+        setText('reports-act-preview-types', String(rows.length));
+        setText('reports-act-preview-diff', (diff >= 0 ? '+' : '') + diff);
+        setText('reports-act-preview-number', form.actnumber || '—');
+        setText('reports-act-preview-period', monthLabel + ' ' + (form.year || '—'));
+        setText('reports-act-preview-client', companyLabel || '—');
+        setText('reports-act-preview-provider', form.provider || '—');
+        setText('reports-act-preview-contract', form.contractnumber || '—');
+        setText('reports-act-preview-total-bottom', String(actTotal));
+    };
+
+    var renderReportsActRows = function(root, rows) {
+        var panel = reportsActRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var tbody = panel.querySelector('[data-region="reports-act-rows"]');
+        if (!tbody) {
+            return;
+        }
+
+        if (!rows || !rows.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="da-muted-cell">No visible enrolled courses found for this company and period.</td></tr>';
+            updateReportsActPreview(root);
+            return;
+        }
+
+        tbody.innerHTML = rows.map(function(row) {
+            return '<tr data-act-row data-courseid="' + escapeHtml(row.courseid) + '" data-lms-count="'
+                + escapeHtml(row.lmscount) + '" data-course-name="' + escapeHtml(row.coursename) + '">'
+                + '<td>' + escapeHtml(row.number) + '</td>'
+                + '<td>' + escapeHtml(row.coursename) + '</td>'
+                + '<td><input type="text" class="da-reports-act-unit" data-act-unit value="' + escapeHtml(row.unit) + '"></td>'
+                + '<td><span class="da-reports-lms-count">' + escapeHtml(row.lmscount) + '</span></td>'
+                + '<td><input type="number" min="0" step="1" class="da-reports-act-qty" data-act-qty value="' + escapeHtml(row.actqty) + '"></td>'
+                + '</tr>';
+        }).join('');
+
+        updateReportsActPreview(root);
+    };
+
+    var loadReportsActConfig = function(root, state) {
+        var panel = reportsActRoot(root);
+        if (!panel || panel.getAttribute('data-config-loaded') === '1') {
+            return;
+        }
+
+        panel.setAttribute('data-config-loaded', '1');
+
+        call('block_dashboardanalytics_get_act_config', {
+            contextid: state.contextid
+        }).then(function(response) {
+            fillSelect(reportsActField(root, 'companyid'), response.companies || [], '');
+            fillSelect(reportsActField(root, 'month'), response.months || [], response.defaultmonth);
+            fillSelect(reportsActField(root, 'year'), response.years || [], response.defaultyear);
+
+            var provider = reportsActField(root, 'provider');
+            if (provider) {
+                provider.value = response.defaultprovider || 'TOO "SENTAL"';
+            }
+
+            updateReportsActPreview(root);
+        }).catch(Notification.exception);
+    };
+
+    var loadReportsActServices = function(root, state) {
+        var panel = reportsActRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var form = readReportsActForm(root);
+        var status = panel.querySelector('[data-region="reports-act-status"]');
+
+        if (!form.companyid || !form.month || !form.year) {
+            if (status) {
+                status.hidden = false;
+                status.textContent = 'Select client company, month and year first.';
+                status.className = 'da-reports-act-status da-reports-act-status-warning';
+            }
+            return;
+        }
+
+        if (status) {
+            status.hidden = false;
+            status.textContent = 'Loading LMS data...';
+            status.className = 'da-reports-act-status';
+        }
+
+        call('block_dashboardanalytics_load_act_services', {
+            contextid: state.contextid,
+            companyid: form.companyid,
+            month: form.month,
+            year: form.year
+        }).then(function(response) {
+            if (status) {
+                status.hidden = false;
+                status.textContent = 'LMS data loaded · ' + response.companyname;
+                status.className = 'da-reports-act-status da-reports-act-status-ok';
+            }
+
+            /*
+            * Idempotent behaviour:
+            * This replaces the tbody every time. It does not append.
+            */
+            renderReportsActRows(root, response.rows || []);
+        }).catch(Notification.exception);
+    };
+
+    var resetReportsActToLms = function(root) {
+        var panel = reportsActRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        Array.prototype.slice.call(panel.querySelectorAll('[data-act-row]')).forEach(function(row) {
+            var qty = row.querySelector('[data-act-qty]');
+            if (qty) {
+                qty.value = row.getAttribute('data-lms-count') || '0';
+            }
+        });
+
+        updateReportsActPreview(root);
+    };
+
+    var clearReportsAct = function(root) {
+        var panel = reportsActRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        ['actnumber', 'contractnumber'].forEach(function(name) {
+            var field = reportsActField(root, name);
+            if (field) {
+                field.value = name === 'actnumber' ? '1' : '';
+            }
+        });
+
+        var tbody = panel.querySelector('[data-region="reports-act-rows"]');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="5" class="da-muted-cell">Select company and period, then click Load from LMS.</td></tr>';
+        }
+
+        updateReportsActPreview(root);
+    };    
+
     var loadFilters = function(root, state) {
         var container = root.querySelector('[data-region="filter-bar"]');
         setLoading(container);
@@ -1760,9 +2101,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     loadDrilldown(root, state, state.currentDrilldown, undefined, 0, state.currentDrilldownPerPage);
                 }
             }
+
+            if (event.target.matches('[data-act-field]')) {
+                updateReportsActPreview(root);
+                return;
+            }
         });
 
         root.addEventListener('input', function(event) {
+            if (event.target.matches('[data-act-field], [data-act-unit], [data-act-qty]')) {
+                updateReportsActPreview(root);
+                return;
+            }
             if (!event.target.matches('[data-filter="search"]')) {
                 return;
             }
@@ -1773,6 +2123,41 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
 
         root.addEventListener('click', function(event) {
+            var reportsActLoad = event.target.closest('[data-action="reports-act-load"]');
+            if (reportsActLoad && root.contains(reportsActLoad)) {
+                loadReportsActServices(root, state);
+                return;
+            }
+
+            var reportsActReset = event.target.closest('[data-action="reports-act-reset"]');
+            if (reportsActReset && root.contains(reportsActReset)) {
+                resetReportsActToLms(root);
+                return;
+            }
+
+            var reportsActClear = event.target.closest('[data-action="reports-act-clear"]');
+            if (reportsActClear && root.contains(reportsActClear)) {
+                clearReportsAct(root);
+                return;
+            }
+
+            var reportsActDownload = event.target.closest('[data-action="reports-act-download"]');
+            if (reportsActDownload && root.contains(reportsActDownload)) {
+                var panel = reportsActRoot(root);
+                var diffNode = panel ? panel.querySelector('[data-region="reports-act-difference"]') : null;
+                var hasWarning = diffNode && diffNode.classList.contains('da-reports-act-diff-warning');
+
+                if (hasWarning && !window.confirm('Act Qty differs from LMS Count. Continue download?')) {
+                    return;
+                }
+
+                Notification.addNotification({
+                    message: 'Excel download endpoint is the next backend step.',
+                    type: 'info'
+                });
+
+                return;
+            }
             var addFilterToggle = event.target.closest('[data-action="toggle-add-filter"]');
             if (addFilterToggle && root.contains(addFilterToggle)) {
                 toggleAddFilterMenu(root);

@@ -60,10 +60,7 @@ class visual_service {
         }
 
         if ($tabkey === 'reports') {
-            return $this->company_pending(
-                get_string('panel:reports:title', 'block_dashboardanalytics'),
-                get_string('panel:reports:pending', 'block_dashboardanalytics')
-            );
+            return $this->reports_act($filters);
         }
 
         if ($tabkey === 'turnover') {
@@ -273,6 +270,28 @@ class visual_service {
 
         return $this->client_overview($filters);
     }
+    
+    private function reports_act(array $filters): array {
+    return [
+        'title' => get_string('panel:reportsact:title', 'block_dashboardanalytics'),
+        'description' => get_string('panel:reportsact:description', 'block_dashboardanalytics'),
+        'panels' => [
+            $this->panel(
+                'reportsact',
+                get_string('panel:reportsact:formtitle', 'block_dashboardanalytics'),
+                'reportsact',
+                get_string('panel:reportsact:formdescription', 'block_dashboardanalytics'),
+                    [[
+                        'label' => get_string('panel:reportsact:formtitle', 'block_dashboardanalytics'),
+                        'value' => '1',
+                        'percent' => 0.0,
+                        'status' => 'info',
+                        'meta' => '',
+                    ]]
+                ),
+            ],
+        ];
+    }   
 
     private function client_overview(array $filters): array {
         $documents = new document_repository();

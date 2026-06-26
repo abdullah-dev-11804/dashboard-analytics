@@ -491,3 +491,10 @@ $string['js:qualitynpsheader'] = 'NPS';
 $string['js:qualityfeedbackheader'] = 'Последний отзыв';
 $string['js:qualityrelevanceheader'] = 'Релевантность';
 $string['js:qualitynofeedback'] = 'Текст отзыва недоступен';
+
+
+$string['panel:reportsact:title'] = 'Отчёты (АВР)';
+$string['panel:reportsact:description'] = 'Формирование акта выполненных работ на основании завершений обучения в LMS.';
+$string['panel:reportsact:formtitle'] = 'Акт выполненных работ — настройка отчёта';
+$string['panel:reportsact:formdescription'] = 'Выберите компанию и период, загрузите завершения из LMS, проверьте количество и скачайте Excel.';
+$string['reportsact:unitservice'] = 'усл';

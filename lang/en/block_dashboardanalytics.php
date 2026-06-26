@@ -491,3 +491,10 @@ $string['js:qualitynpsheader'] = 'NPS';
 $string['js:qualityfeedbackheader'] = 'Latest feedback';
 $string['js:qualityrelevanceheader'] = 'Relevance';
 $string['js:qualitynofeedback'] = 'No review text available';
+
+
+$string['panel:reportsact:title'] = 'Reports / Act';
+$string['panel:reportsact:description'] = 'Generate Act of Completed Works documents from LMS completions.';
+$string['panel:reportsact:formtitle'] = 'Act of Completed Works — Report Configuration';
+$string['panel:reportsact:formdescription'] = 'Select company and period, load LMS completions, review quantities, and download Excel.';
+$string['reportsact:unitservice'] = 'Service';

@@ -51,4 +51,22 @@ $functions = [
         'type' => 'read',
         'ajax' => true,
     ],
+
+    'block_dashboardanalytics_get_act_config' => 
+    [
+        'classname' => 'block_dashboardanalytics\external\get_act_config',
+        'methodname' => 'execute',
+        'description' => 'Return Act of Completed Works form configuration.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_load_act_services' => 
+    [
+        'classname' => 'block_dashboardanalytics\external\load_act_services',
+        'methodname' => 'execute',
+        'description' => 'Load AVR service rows from LMS completions.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
 ];
