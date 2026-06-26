@@ -597,18 +597,28 @@ class overview_repository {
         $rows = $this->enrolment_status_rows($filters, $reportdate);
         $companies = [];
         foreach ($rows as $row) {
-            $company = $row['company'] ?: 'Unassigned';
-            if (!isset($companies[$company])) {
-                $companies[$company] = [];
+            $companyname = trim((string)($row['company'] ?? ''));
+            if ($companyname === '') {
+                $companyname = get_string('label:unassigned', 'block_dashboardanalytics');
             }
-            $companies[$company][] = $row;
+
+            $companyid = (int)($row['companyid'] ?? 0);
+            $normalizedcompanyname = class_exists('\core_text') ? \core_text::strtolower($companyname) : strtolower($companyname);
+            $companykey = $companyid > 0 ? 'id:' . $companyid : 'name:' . $normalizedcompanyname;
+            if (!isset($companies[$companykey])) {
+                $companies[$companykey] = [
+                    'label' => $companyname,
+                    'rows' => [],
+                ];
+            }
+            $companies[$companykey]['rows'][] = $row;
         }
 
         $summaries = [];
-        foreach ($companies as $company => $companyrows) {
-            $summary = $this->compliance_rollup_from_rows($companyrows);
+        foreach ($companies as $company) {
+            $summary = $this->compliance_rollup_from_rows($company['rows']);
             $summaries[] = [
-                'label' => $company,
+                'label' => $company['label'],
                 'total' => $summary['total'],
                 'compliant' => $summary['compliant'],
                 'percent' => $summary['percent'],
@@ -735,6 +745,7 @@ class overview_repository {
                                 u.city,
                                 {$departmentselect},
                                 {$positionselect},
+                                COALESCE({$companysql['idexpr']}, 0) AS companyid,
                                 {$companysql['select']},
                                 d.id AS documentid,
                                 {$expiryselect}
@@ -769,6 +780,7 @@ class overview_repository {
                              u.city,
                              {$departmentselect},
                              {$positionselect},
+                             COALESCE({$companysql['idexpr']}, 0) AS companyid,
                              {$companysql['select']},
                              COALESCE(d.id, 0) AS documentid,
                              {$expiryselect}
@@ -810,6 +822,7 @@ class overview_repository {
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
                 'employee' => fullname($record),
+                'companyid' => (int)$record->companyid,
                 'company' => (string)$record->companyname,
                 'department' => (string)$record->departmentname,
                 'location' => (string)$record->city,
@@ -823,13 +836,14 @@ class overview_repository {
             if (count($samples) < 10) {
                 $samples[] = [
                     'userid' => (int)$record->userid,
-                    'courseid' => (int)$record->courseid,
-                    'course' => $this->truncate_text((string)$record->coursename, 120),
-                    'documentid' => (int)$record->documentid,
-                    'expirytime' => $expirytime,
-                    'status' => $status,
-                    'company' => $this->truncate_text((string)$record->companyname, 80),
-                ];
+                        'courseid' => (int)$record->courseid,
+                        'course' => $this->truncate_text((string)$record->coursename, 120),
+                        'documentid' => (int)$record->documentid,
+                        'expirytime' => $expirytime,
+                        'status' => $status,
+                        'companyid' => (int)$record->companyid,
+                        'company' => $this->truncate_text((string)$record->companyname, 80),
+                    ];
             }
         }
 
@@ -890,6 +904,7 @@ class overview_repository {
                 while ($cursor <= $end && $limit < 24) {
                     $windowend = $cursor->modify('last day of this month 23:59:59');
                     $months[] = [
+                        'key' => $cursor->format('Y-m'),
                         'label' => userdate($windowend->getTimestamp(), '%b %y'),
                         'end' => min($windowend->getTimestamp(), $end->getTimestamp()),
                     ];
@@ -908,6 +923,7 @@ class overview_repository {
             $start = $base->modify('-' . $offset . ' months');
             $end = $start->modify('last day of this month 23:59:59');
             $months[] = [
+                'key' => $start->format('Y-m'),
                 'label' => userdate($end->getTimestamp(), '%b %y'),
                 'end' => $end->getTimestamp(),
             ];

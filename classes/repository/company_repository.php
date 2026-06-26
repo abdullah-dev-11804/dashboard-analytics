@@ -108,15 +108,25 @@ class company_repository {
         if ($this->has_iomad_tables()) {
             $companyuseralias = 'cu' . preg_replace('/[^a-z0-9]/i', '', $prefix);
             $companyalias = 'co' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $profilecompanyalias = 'cop' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $fallbackjoin = '';
+            if ($profilejoin['dataalias'] !== '') {
+                $fallbackjoin = "LEFT JOIN {company} {$profilecompanyalias}
+                                      ON {$profilecompanyalias}.name = {$profilejoin['dataalias']}.data";
+            }
             $expr = $profilejoin['dataalias'] !== ''
-                ? "COALESCE(NULLIF({$companyalias}.name, ''), NULLIF({$profilejoin['dataalias']}.data, ''))"
+                ? "COALESCE(NULLIF({$companyalias}.name, ''), NULLIF({$profilecompanyalias}.name, ''), NULLIF({$profilejoin['dataalias']}.data, ''))"
                 : "NULLIF({$companyalias}.name, '')";
+            $idexpr = $profilejoin['dataalias'] !== ''
+                ? "COALESCE({$companyalias}.id, {$profilecompanyalias}.id)"
+                : "{$companyalias}.id";
             return [
                 'join' => "LEFT JOIN {company_users} {$companyuseralias} ON {$companyuseralias}.userid = {$useralias}.id
                            LEFT JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid
-                           {$profilejoin['join']}",
+                           {$profilejoin['join']}
+                           {$fallbackjoin}",
                 'expr' => $expr,
-                'idexpr' => "{$companyalias}.id",
+                'idexpr' => $idexpr,
                 'select' => "{$expr} AS companyname",
             ];
         }
