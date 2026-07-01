@@ -183,6 +183,101 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'}
     ];
 
+    var stringTargets = [
+        'loading',
+        'details',
+        'rows',
+        'noMatchingRows',
+        'noKpi',
+        'noVisualData',
+        'dashboardVisuals',
+        'noFilterOptions',
+        'allOption',
+        'allWithLabel',
+        'activeFiltersAll',
+        'activeFiltersPrefix',
+        'noData',
+        'total',
+        'addFilter',
+        'noAvailableFilters',
+        'removeFilter',
+        'customStart',
+        'customEnd',
+        'previous',
+        'next',
+        'perPage',
+        'page',
+        'goToServerTab',
+        'warningThreshold',
+        'criticalThreshold',
+        'clearState',
+        'monitorState',
+        'criticalState',
+        'okSummary',
+        'warningSummary',
+        'checkSummary',
+        'topActiveCourses',
+        'companyHeader',
+        'usersHeader',
+        'complianceHeader',
+        'turnoverHeader',
+        'trustScoreHeader',
+        'completionHeader',
+        'statusHeader',
+        'reportLabel',
+        'healthyLabel',
+        'atRiskLabel',
+        'onboardingLabel',
+        'period3Months',
+        'period1Year',
+        'period2Years',
+        'periodAllTime',
+        'barChartLabel',
+        'interactiveLabel',
+        'allcompanieslabel',
+        'allcourseslabel',
+        'allperiodslabel',
+        'alldepartmentslabel',
+        'alllocationslabel',
+        'allpositionslabel',
+        'allpersonnelcategorieslabel',
+        'allsiteslabel',
+        'alleducationslabel',
+        'comboBarLineLabel',
+        'chartJsBarLabel',
+        'turnoverFormula',
+        'turnoverGood',
+        'turnoverMonitor',
+        'turnoverHigh',
+        'heatmapAllCombined',
+        'heatmapCompliantLegend',
+        'heatmapRiskLegend',
+        'heatmapCriticalLegend',
+        'qualityCourseHeader',
+        'qualityRatingHeader',
+        'qualityReviewsHeader',
+        'qualityNpsHeader',
+        'qualityFeedbackHeader',
+        'qualityRelevanceHeader',
+        'qualityNoFeedback',
+        'courseAnalyticsSearch',
+        'courseAnalyticsIncluded',
+        'courseAnalyticsExcluded',
+        'courseAnalyticsVisible',
+        'courseAnalyticsHidden',
+        'courseAnalyticsToggleOn',
+        'courseAnalyticsToggleOff',
+        'courseAnalyticsNoResults',
+        'courseAnalyticsHelp',
+        'courseAnalyticsSaved',
+        'courseAnalyticsLoadError',
+        'courseAnalyticsSaveError',
+        'courseAnalyticsHeaderCourse',
+        'courseAnalyticsHeaderVisibility',
+        'courseAnalyticsHeaderAnalytics',
+        'courseAnalyticsHeaderToggle'
+    ];
+
     var call = function(methodname, args) {
         return Ajax.call([{
             methodname: methodname,
@@ -2645,96 +2740,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         setActiveTab(root, state.currentTab);
 
         Str.get_strings(stringList).then(function(values) {
-            strings.loading = values[0];
-            strings.details = values[1];
-            strings.rows = values[2];
-            strings.noMatchingRows = values[3];
-            strings.noKpi = values[4];
-            strings.noVisualData = values[5];
-            strings.dashboardVisuals = values[6];
-            strings.noFilterOptions = values[7];
-            strings.allOption = values[8];
-            strings.allWithLabel = values[9];
-            strings.activeFiltersAll = values[10];
-            strings.activeFiltersPrefix = values[11];
-            strings.noData = values[12];
-            strings.total = values[13];
-            strings.addFilter = values[14];
-            strings.noAvailableFilters = values[15];
-            strings.removeFilter = values[16];
-            strings.customStart = values[17];
-            strings.customEnd = values[18];
-            strings.previous = values[19];
-            strings.next = values[20];
-            strings.perPage = values[21];
-            strings.page = values[22];
-            strings.goToServerTab = values[23];
-            strings.warningThreshold = values[24];
-            strings.criticalThreshold = values[25];
-            strings.clearState = values[26];
-            strings.monitorState = values[27];
-            strings.criticalState = values[28];
-            strings.okSummary = values[29];
-            strings.warningSummary = values[30];
-            strings.checkSummary = values[31];
-            strings.topActiveCourses = values[32];
-            strings.companyHeader = values[33];
-            strings.usersHeader = values[34];
-            strings.complianceHeader = values[35];
-            strings.turnoverHeader = values[36];
-            strings.trustScoreHeader = values[37];
-            strings.completionHeader = values[38];
-            strings.statusHeader = values[39];
-            strings.reportLabel = values[40];
-            strings.healthyLabel = values[41];
-            strings.atRiskLabel = values[42];
-            strings.onboardingLabel = values[43];
-            strings.period3Months = values[44];
-            strings.period1Year = values[45];
-            strings.period2Years = values[46];
-            strings.periodAllTime = values[47];
-            strings.barChartLabel = values[48];
-            strings.interactiveLabel = values[49];
+            stringTargets.forEach(function(target, index) {
+                strings[target] = values[index];
+            });
             strings.allLabels = {
-                companies: values[50],
-                courses: values[51],
-                daterange: values[52],
-                departments: values[53],
-                locations: values[54],
-                positions: values[55],
-                personnelcategories: values[56],
-                sites: values[57],
-                educations: values[58]
+                companies: strings.allcompanieslabel,
+                courses: strings.allcourseslabel,
+                daterange: strings.allperiodslabel,
+                departments: strings.alldepartmentslabel,
+                locations: strings.alllocationslabel,
+                positions: strings.allpositionslabel,
+                personnelcategories: strings.allpersonnelcategorieslabel,
+                sites: strings.allsiteslabel,
+                educations: strings.alleducationslabel
             };
-            strings.comboBarLineLabel = values[59];
-            strings.chartJsBarLabel = values[60];
-            strings.turnoverFormula = values[61];
-            strings.turnoverGood = values[62];
-            strings.turnoverMonitor = values[63];
-            strings.turnoverHigh = values[64];
-            strings.qualityCourseHeader = values[65];
-            strings.qualityRatingHeader = values[66];
-            strings.qualityReviewsHeader = values[67];
-            strings.qualityNpsHeader = values[68];
-            strings.qualityFeedbackHeader = values[69];
-            strings.qualityRelevanceHeader = values[70];
-            strings.qualityNoFeedback = values[71];
-            strings.courseAnalyticsSearch = values[72];
-            strings.courseAnalyticsIncluded = values[73];
-            strings.courseAnalyticsExcluded = values[74];
-            strings.courseAnalyticsVisible = values[75];
-            strings.courseAnalyticsHidden = values[76];
-            strings.courseAnalyticsToggleOn = values[77];
-            strings.courseAnalyticsToggleOff = values[78];
-            strings.courseAnalyticsNoResults = values[79];
-            strings.courseAnalyticsHelp = values[80];
-            strings.courseAnalyticsSaved = values[81];
-            strings.courseAnalyticsLoadError = values[82];
-            strings.courseAnalyticsSaveError = values[83];
-            strings.courseAnalyticsHeaderCourse = values[84];
-            strings.courseAnalyticsHeaderVisibility = values[85];
-            strings.courseAnalyticsHeaderAnalytics = values[86];
-            strings.courseAnalyticsHeaderToggle = values[87];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {
