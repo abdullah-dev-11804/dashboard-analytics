@@ -11,8 +11,9 @@ class completion_repository {
         global $DB;
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $userfilter = $employee->user_filter_sql($filters, 'u', 'completion');
-        $where = [$userfilter['sql'], 'cc.timecompleted IS NOT NULL'];
+        $where = [$userfilter['sql'], 'cc.timecompleted IS NOT NULL', $analytics->eligibility_where_sql('c', 'cfcompletion', 'cdcompletion')];
         $params = $userfilter['params'];
 
         if (!empty($filters['courseids'])) {
@@ -23,10 +24,11 @@ class completion_repository {
 
         $sql = "SELECT COUNT(1)
                   FROM {course_completions} cc
+                  JOIN {course} c ON c.id = cc.course
+                  {$analytics->eligibility_join_sql('c', 'cfcompletion', 'cdcompletion')}
                   JOIN {user} u ON u.id = cc.userid
                  WHERE " . implode(' AND ', $where);
 
         return (int)$DB->count_records_sql($sql, $params);
     }
 }
-

@@ -36,6 +36,9 @@ class get_visuals extends \external_api {
 
         $context = context_resolver::require_context((int)$params['contextid']);
         $dashboardkey = permissions::require_dashboard_key($context, $params['dashboardkey'], (int)$USER->id);
+        if (!permissions::tab_is_allowed($dashboardkey, $params['tabkey'], $context, (int)$USER->id)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
         $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
 
         $service = new visual_service();

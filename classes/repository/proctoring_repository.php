@@ -132,10 +132,11 @@ class proctoring_repository {
         }
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $userfilter = $employee->user_filter_sql($filters, 'u', 'quilgo');
         $company = new company_repository();
         $companysql = $company->company_name_sql('u', 'quilgo');
-        $where = [$userfilter['sql'], 'qr.stat IS NOT NULL'];
+        $where = [$userfilter['sql'], 'qr.stat IS NOT NULL', $analytics->eligibility_where_sql('c', 'cfquilgo', 'cdquilgo')];
         $params = $userfilter['params'];
 
         if (!empty($filters['courseids'])) {
@@ -153,6 +154,8 @@ class proctoring_repository {
                   FROM {quizaccess_quilgo_reports} qr
                   JOIN {quiz_attempts} qa ON qa.id = qr.attemptid
                   JOIN {quiz} q ON q.id = qa.quiz
+                  JOIN {course} c ON c.id = q.course
+                  {$analytics->eligibility_join_sql('c', 'cfquilgo', 'cdquilgo')}
                   JOIN {user} u ON u.id = qa.userid
                        {$companysql['join']}
                  WHERE " . implode(' AND ', $where) . "
@@ -198,8 +201,9 @@ class proctoring_repository {
         }
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $userfilter = $employee->user_filter_sql($filters, 'u', 'quilgocount');
-        $where = [$userfilter['sql']];
+        $where = [$userfilter['sql'], $analytics->eligibility_where_sql('c', 'cfquilgocount', 'cdquilgocount')];
         $params = $userfilter['params'];
 
         if (!empty($filters['courseids'])) {
@@ -217,6 +221,8 @@ class proctoring_repository {
                   FROM {quizaccess_quilgo_reports} qr
                   JOIN {quiz_attempts} qa ON qa.id = qr.attemptid
                   JOIN {quiz} q ON q.id = qa.quiz
+                  JOIN {course} c ON c.id = q.course
+                  {$analytics->eligibility_join_sql('c', 'cfquilgocount', 'cdquilgocount')}
                   JOIN {user} u ON u.id = qa.userid
                  WHERE " . implode(' AND ', $where);
 

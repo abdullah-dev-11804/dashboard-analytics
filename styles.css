@@ -1639,6 +1639,83 @@
     text-decoration: underline;
 }
 
+.block-dashboardanalytics .da-course-analytics-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-course-analytics-toolbar-copy {
+    color: #5d6f8f;
+    font-size: 13px;
+    max-width: 760px;
+}
+
+.block-dashboardanalytics .da-course-analytics-search {
+    min-width: 260px;
+    max-width: 340px;
+    border: 1px solid #cfd9ea;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.block-dashboardanalytics .da-course-analytics-shortname {
+    color: #7a8ba8;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.block-dashboardanalytics .da-toggle {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    display: inline-flex;
+    gap: 10px;
+    padding: 0;
+}
+
+.block-dashboardanalytics .da-toggle-track {
+    background: #dbe4f0;
+    border-radius: 999px;
+    display: inline-block;
+    height: 24px;
+    position: relative;
+    transition: background-color 0.2s ease;
+    width: 44px;
+}
+
+.block-dashboardanalytics .da-toggle-track::after {
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+    content: '';
+    height: 18px;
+    left: 3px;
+    position: absolute;
+    top: 3px;
+    transition: transform 0.2s ease;
+    width: 18px;
+}
+
+.block-dashboardanalytics .da-toggle.is-on .da-toggle-track {
+    background: #2f7bdc;
+}
+
+.block-dashboardanalytics .da-toggle.is-on .da-toggle-track::after {
+    transform: translateX(20px);
+}
+
+.block-dashboardanalytics .da-toggle-label {
+    color: #355075;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .block-dashboardanalytics .da-company-health-number {
     font-weight: 700;
 }

@@ -139,9 +139,13 @@ class dimension_repository {
     private function courses(array $scopefilters): array {
         global $DB;
 
+        $analytics = new course_analytics_repository();
+        $join = $analytics->eligibility_join_sql('c', 'cfcoursefilter', 'cdcoursefilter');
         $sql = "SELECT c.id, c.fullname
                   FROM {course} c
+                  {$join}
                  WHERE c.id > 1
+                   AND " . $analytics->eligibility_where_sql('c', 'cfcoursefilter', 'cdcoursefilter') . "
               ORDER BY c.fullname ASC";
 
         $records = $DB->get_records_sql($sql);

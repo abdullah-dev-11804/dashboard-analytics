@@ -745,6 +745,7 @@ class overview_repository {
 
         $employee = new employee_repository();
         $documents = new document_repository();
+        $analytics = new course_analytics_repository();
         $companyrepo = new company_repository();
         $source = $documents->source();
         if ($source === null || $source['courseid'] === '') {
@@ -787,9 +788,11 @@ class overview_repository {
                             ELSE cc.timecompleted + ({$validitysql} * 86400)
                          END AS expirytime";
         $docjoin = $this->latest_document_join_sql($source, 'u', 'c', 'd');
+        $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfanalyticsoverview', 'cdanalyticsoverview');
         $basewhere = [
             $userfilter['sql'],
             'c.id <> :siteid',
+            $analytics->eligibility_where_sql('c', 'cfanalyticsoverview', 'cdanalyticsoverview'),
         ];
 
         if (!empty($filters['courseids'])) {
@@ -824,6 +827,7 @@ class overview_repository {
                       LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
                       LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
                       LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
+                                {$analyticsjoin}
                                 {$companysql['join']}
                                 {$departmentjoin}
                                 {$positionjoin}
@@ -860,6 +864,7 @@ class overview_repository {
                    LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
                    LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
                    LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
+                             {$analyticsjoin}
                              {$companysql['join']}
                              {$departmentjoin}
                              {$positionjoin}
@@ -1228,12 +1233,14 @@ class overview_repository {
         global $DB;
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $filter = $employee->user_filter_sql($filters, 'u', 'completionrate');
         $params = $filter['params'] + [
             'siteid' => SITEID,
             'startts' => $start,
             'endts' => $end,
         ];
+        $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfcompletionrate', 'cdcompletionrate');
 
         $sql = "SELECT COUNT(1) AS totalenrolments,
                        SUM(CASE WHEN cc.timecompleted IS NOT NULL
@@ -1243,11 +1250,12 @@ class overview_repository {
                   FROM {user_enrolments} ue
                   JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
                   JOIN {course} c ON c.id = e.courseid
+                  {$analyticsjoin}
                   JOIN {user} u ON u.id = ue.userid
              LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
                  WHERE ue.status = 0
                    AND c.id <> :siteid
-                   AND c.visible = 1
+                   AND " . $analytics->eligibility_where_sql('c', 'cfcompletionrate', 'cdcompletionrate') . "
                    AND {$filter['sql']}";
 
         if (!empty($filters['courseids'])) {
@@ -1312,12 +1320,14 @@ class overview_repository {
         }
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $filter = $employee->user_filter_sql($filters, 'u', 'topcourses');
         $params = $filter['params'] + [
             'siteid' => SITEID,
             'startts' => $start,
             'endts' => $end,
         ];
+        $analyticsjoin = $analytics->eligibility_join_sql('c', 'cftopcourses', 'cdtopcourses');
 
         $sql = "SELECT c.id,
                        c.fullname,
@@ -1325,9 +1335,10 @@ class overview_repository {
                   FROM {logstore_standard_log} l
                   JOIN {user} u ON u.id = l.userid
                   JOIN {course} c ON c.id = l.courseid
+                  {$analyticsjoin}
                  WHERE l.userid > 0
                    AND c.id <> :siteid
-                   AND c.visible = 1
+                   AND " . $analytics->eligibility_where_sql('c', 'cftopcourses', 'cdtopcourses') . "
                    AND {$filter['sql']}
                    AND l.timecreated >= :startts
                    AND l.timecreated <= :endts

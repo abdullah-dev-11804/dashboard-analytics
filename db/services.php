@@ -69,4 +69,20 @@ $functions = [
         'type' => 'read',
         'ajax' => true,
     ],
+
+    'block_dashboardanalytics_get_course_analytics_control' => [
+        'classname' => 'block_dashboardanalytics\external\get_course_analytics_control',
+        'methodname' => 'execute',
+        'description' => 'Return the admin course analytics inclusion control list.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_set_course_analytics_control' => [
+        'classname' => 'block_dashboardanalytics\external\set_course_analytics_control',
+        'methodname' => 'execute',
+        'description' => 'Update whether a course is included in analytics.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
 ];

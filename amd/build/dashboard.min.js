@@ -69,7 +69,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         qualityNpsHeader: 'NPS',
         qualityFeedbackHeader: 'Latest feedback',
         qualityRelevanceHeader: 'Relevance',
-        qualityNoFeedback: 'No review text available'
+        qualityNoFeedback: 'No review text available',
+        courseAnalyticsSearch: 'Search courses',
+        courseAnalyticsIncluded: 'Included',
+        courseAnalyticsExcluded: 'Excluded',
+        courseAnalyticsVisible: 'Visible',
+        courseAnalyticsHidden: 'Hidden',
+        courseAnalyticsToggleOn: 'On',
+        courseAnalyticsToggleOff: 'Off',
+        courseAnalyticsNoResults: 'No matching courses found.',
+        courseAnalyticsHelp: 'Hidden courses are excluded automatically. Turning analytics off here also excludes the course from dashboard calculations.',
+        courseAnalyticsSaved: 'Course analytics setting updated.',
+        courseAnalyticsLoadError: 'Unable to load course analytics controls.',
+        courseAnalyticsSaveError: 'Unable to update the course analytics setting.',
+        courseAnalyticsHeaderCourse: 'Course',
+        courseAnalyticsHeaderVisibility: 'Visibility',
+        courseAnalyticsHeaderAnalytics: 'Analytics',
+        courseAnalyticsHeaderToggle: 'Toggle'
     };
 
     var stringList = [
@@ -148,7 +164,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:qualitynpsheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityfeedbackheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityrelevanceheader', component: 'block_dashboardanalytics'},
-        {key: 'js:qualitynofeedback', component: 'block_dashboardanalytics'}
+        {key: 'js:qualitynofeedback', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticssearch', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsincluded', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsexcluded', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsvisible', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticshidden', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticstoggleon', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticstoggleoff', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsnoresults', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticshelp', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticssaved', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsloaderror', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticssaveerror', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsheadercourse', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsheadervisibility', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsheaderanalytics', component: 'block_dashboardanalytics'},
+        {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'}
     ];
 
     var call = function(methodname, args) {
@@ -673,6 +705,106 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         + '</div>'
         + '</div>';
     };
+
+    var renderCourseAnalyticsPanel = function() {
+        return '<div class="da-course-analytics-panel" data-region="course-analytics-panel">'
+            + '<div class="da-course-analytics-toolbar">'
+            + '<div class="da-course-analytics-toolbar-copy">' + escapeHtml(text('courseAnalyticsHelp',
+                'Hidden courses are excluded automatically. Turning analytics off here also excludes the course from dashboard calculations.')) + '</div>'
+            + '<input type="search" class="da-course-analytics-search" data-action="course-analytics-search" placeholder="'
+            + escapeHtml(text('courseAnalyticsSearch', 'Search courses')) + '">'
+            + '</div>'
+            + '<div class="da-course-analytics-results" data-region="course-analytics-results"></div>'
+            + '</div>';
+    };
+
+    var renderCourseAnalyticsResults = function(root, data, state) {
+        var panel = root.querySelector('[data-region="course-analytics-panel"]');
+        var results = panel ? panel.querySelector('[data-region="course-analytics-results"]') : null;
+        if (!panel || !results) {
+            return;
+        }
+
+        var searchInput = panel.querySelector('[data-action="course-analytics-search"]');
+        if (searchInput) {
+            searchInput.value = (((state || {}).currentVisualOverrides) || {}).courseanalytics_search || '';
+        }
+
+        var totalcount = Math.max(0, Number(data.totalcount) || 0);
+        var currentPage = Math.max(0, Number(data.page) || 0);
+        var perpage = Math.max(10, Number(data.perpage) || 20);
+        var totalpages = Math.max(1, Math.ceil(totalcount / perpage));
+        var rows = data.rows || [];
+
+        if (!rows.length) {
+            results.innerHTML = '<div class="da-empty">' + escapeHtml(text('courseAnalyticsNoResults', 'No matching courses found.')) + '</div>';
+            return;
+        }
+
+        var body = rows.map(function(row) {
+            var visibilityLabel = row.visible ? text('courseAnalyticsVisible', 'Visible') : text('courseAnalyticsHidden', 'Hidden');
+            var analyticsLabel = row.analyticsenabled ? text('courseAnalyticsIncluded', 'Included') : text('courseAnalyticsExcluded', 'Excluded');
+            var toggleLabel = row.analyticsenabled ? text('courseAnalyticsToggleOn', 'On') : text('courseAnalyticsToggleOff', 'Off');
+
+            return '<tr>'
+                + '<td><a class="da-table-link" href="/course/view.php?id=' + escapeHtml(String(row.courseid)) + '">'
+                    + escapeHtml(row.fullname) + '</a><div class="da-course-analytics-shortname">' + escapeHtml(row.shortname || '') + '</div></td>'
+                + '<td><span class="da-badge da-badge-' + (row.visible ? 'ok' : 'muted') + '">' + escapeHtml(visibilityLabel) + '</span></td>'
+                + '<td><span class="da-badge da-badge-' + (row.analyticsenabled ? 'ok' : 'muted') + '">' + escapeHtml(analyticsLabel) + '</span></td>'
+                + '<td><button type="button" class="da-toggle' + (row.analyticsenabled ? ' is-on' : '')
+                    + '" data-action="course-analytics-toggle" data-courseid="' + escapeHtml(String(row.courseid))
+                    + '" data-enabled="' + (row.analyticsenabled ? '1' : '0') + '"><span class="da-toggle-track"></span><span class="da-toggle-label">'
+                    + escapeHtml(toggleLabel) + '</span></button></td>'
+                + '</tr>';
+        }).join('');
+
+        var pagination = '<div class="da-table-pagination">'
+            + '<div class="da-table-pagination-status">' + escapeHtml(formatString(text('page', 'Page {$a}'), String((currentPage + 1) + ' / ' + totalpages))) + '</div>'
+            + '<div class="da-table-pagination-controls">'
+            + '<label class="da-table-perpage-label"><span>' + escapeHtml(text('perPage', 'Rows per page')) + '</span>'
+            + '<select class="da-table-perpage" data-action="course-analytics-perpage">'
+            + [20, 50, 100].map(function(size) {
+                return '<option value="' + size + '"' + (size === perpage ? ' selected' : '') + '>' + size + '</option>';
+            }).join('')
+            + '</select></label>'
+            + '<button type="button" class="da-pagination-button" data-action="course-analytics-page" data-page="' + Math.max(0, currentPage - 1) + '"'
+            + (currentPage <= 0 ? ' disabled' : '') + '>' + escapeHtml(text('previous', 'Previous')) + '</button>'
+            + '<button type="button" class="da-pagination-button" data-action="course-analytics-page" data-page="' + Math.min(totalpages - 1, currentPage + 1) + '"'
+            + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
+            + '</div></div>';
+
+        results.innerHTML = '<div class="da-table-wrap"><table class="da-table da-course-analytics-table">'
+            + '<thead><tr><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderCourse', 'Course')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('courseAnalyticsHeaderVisibility', 'Visibility')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('courseAnalyticsHeaderAnalytics', 'Analytics')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('courseAnalyticsHeaderToggle', 'Toggle')) + '</th></tr></thead>'
+            + '<tbody>' + body + '</tbody></table></div>' + pagination;
+    };
+
+    var loadCourseAnalyticsControl = function(root, state, overrides) {
+        var panel = root.querySelector('[data-region="course-analytics-panel"]');
+        var results = panel ? panel.querySelector('[data-region="course-analytics-results"]') : null;
+        if (!panel || !results) {
+            return Promise.resolve();
+        }
+
+        setLoading(results);
+        state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, overrides || {});
+
+        return call('block_dashboardanalytics_get_course_analytics_control', {
+            contextid: state.contextid,
+            search: state.currentVisualOverrides.courseanalytics_search || '',
+            page: Math.max(0, Number(state.currentVisualOverrides.courseanalytics_page) || 0),
+            perpage: Math.max(10, Number(state.currentVisualOverrides.courseanalytics_perpage) || 20)
+        }).then(function(response) {
+            renderCourseAnalyticsResults(root, response, state);
+            persistState(root, state);
+        }).catch(function(error) {
+            Notification.exception(error);
+            results.innerHTML = '<div class="da-empty">' + escapeHtml(text('courseAnalyticsLoadError',
+                'Unable to load course analytics controls.')) + '</div>';
+        });
+    };
     var renderVisuals = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
@@ -694,7 +826,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
         var isFullRowVisualPanel = function(panel) {
             return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact'].indexOf(panel.type) !== -1
-                || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1;
+                || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
+                || panel.type === 'analyticscourses';
         };
         if (!panels.length) {
             container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noVisualData', 'No visual data available.')) + '</div>';
@@ -733,6 +866,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
             if (panel.type === 'reportsact') {
                 body = renderReportsActPanel();
+            } else if (panel.type === 'analyticscourses') {
+                body = renderCourseAnalyticsPanel();
             } else if (!(panel.type === 'heatmap' ? items : visibleItems).length) {
                 body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
             } else if (panel.type === 'overviewsummary') {
@@ -1566,6 +1701,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         if (panels.some(function(panel) { return panel.type === 'reportsact'; })) {
             loadReportsActConfig(root, state);
         }
+        if (panels.some(function(panel) { return panel.type === 'analyticscourses'; })) {
+            loadCourseAnalyticsControl(root, state);
+        }
     };
 
     var colorForStatus = function(status) {
@@ -2105,6 +2243,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (state.currentDrilldown) {
                     loadDrilldown(root, state, state.currentDrilldown, undefined, 0, state.currentDrilldownPerPage);
                 }
+                return;
+            }
+
+            if (event.target.matches('[data-action="course-analytics-perpage"]')) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    courseanalytics_perpage: Number(event.target.value) || 20,
+                    courseanalytics_page: 0
+                });
+                loadCourseAnalyticsControl(root, state);
+                return;
             }
 
             if (event.target.matches('[data-act-field]')) {
@@ -2116,6 +2264,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         root.addEventListener('input', function(event) {
             if (event.target.matches('[data-act-field], [data-act-unit], [data-act-qty]')) {
                 updateReportsActPreview(root);
+                return;
+            }
+            if (event.target.matches('[data-action="course-analytics-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                        courseanalytics_search: event.target.value || '',
+                        courseanalytics_page: 0
+                    });
+                    loadCourseAnalyticsControl(root, state);
+                }, 250);
                 return;
             }
             if (!event.target.matches('[data-filter="search"]')) {
@@ -2166,6 +2325,33 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var addFilterToggle = event.target.closest('[data-action="toggle-add-filter"]');
             if (addFilterToggle && root.contains(addFilterToggle)) {
                 toggleAddFilterMenu(root);
+                return;
+            }
+
+            var courseAnalyticsToggle = event.target.closest('[data-action="course-analytics-toggle"]');
+            if (courseAnalyticsToggle && root.contains(courseAnalyticsToggle)) {
+                call('block_dashboardanalytics_set_course_analytics_control', {
+                    contextid: state.contextid,
+                    courseid: Number(courseAnalyticsToggle.getAttribute('data-courseid')) || 0,
+                    enabled: courseAnalyticsToggle.getAttribute('data-enabled') !== '1'
+                }).then(function() {
+                    Notification.addNotification({
+                        message: text('courseAnalyticsSaved', 'Course analytics setting updated.'),
+                        type: 'success'
+                    });
+                    refresh(root, state);
+                }).catch(function(error) {
+                    Notification.exception(error);
+                });
+                return;
+            }
+
+            var courseAnalyticsPage = event.target.closest('[data-action="course-analytics-page"]');
+            if (courseAnalyticsPage && root.contains(courseAnalyticsPage) && !courseAnalyticsPage.disabled) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    courseanalytics_page: Number(courseAnalyticsPage.getAttribute('data-page')) || 0
+                });
+                loadCourseAnalyticsControl(root, state);
                 return;
             }
 
@@ -2533,6 +2719,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.qualityFeedbackHeader = values[69];
             strings.qualityRelevanceHeader = values[70];
             strings.qualityNoFeedback = values[71];
+            strings.courseAnalyticsSearch = values[72];
+            strings.courseAnalyticsIncluded = values[73];
+            strings.courseAnalyticsExcluded = values[74];
+            strings.courseAnalyticsVisible = values[75];
+            strings.courseAnalyticsHidden = values[76];
+            strings.courseAnalyticsToggleOn = values[77];
+            strings.courseAnalyticsToggleOff = values[78];
+            strings.courseAnalyticsNoResults = values[79];
+            strings.courseAnalyticsHelp = values[80];
+            strings.courseAnalyticsSaved = values[81];
+            strings.courseAnalyticsLoadError = values[82];
+            strings.courseAnalyticsSaveError = values[83];
+            strings.courseAnalyticsHeaderCourse = values[84];
+            strings.courseAnalyticsHeaderVisibility = values[85];
+            strings.courseAnalyticsHeaderAnalytics = values[86];
+            strings.courseAnalyticsHeaderToggle = values[87];
 
             bindEvents(root, state);
             loadFilters(root, state).then(function() {

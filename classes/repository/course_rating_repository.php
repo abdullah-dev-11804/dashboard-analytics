@@ -15,11 +15,13 @@ class course_rating_repository {
         }
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $userfilter = $employee->user_filter_sql($filters, 'u', 'courserating');
         $where = [
             $userfilter['sql'],
             'r.rating >= 1',
             'r.rating <= 10',
+            $analytics->eligibility_where_sql('c', 'cfcourserating', 'cdcourserating'),
         ];
         $params = $userfilter['params'];
 
@@ -44,6 +46,7 @@ class course_rating_repository {
                        " . implode(",\n                       ", $ratingcase) . "
                   FROM {tool_courserating_rating} r
                   JOIN {course} c ON c.id = r.courseid
+                  {$analytics->eligibility_join_sql('c', 'cfcourserating', 'cdcourserating')}
                   JOIN {user} u ON u.id = r.userid
                  WHERE " . implode(' AND ', $where) . "
               GROUP BY c.id, c.fullname

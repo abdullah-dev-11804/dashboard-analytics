@@ -117,6 +117,7 @@ class permissions {
         if ($dashboardkey === self::DASHBOARD_COMPANY && $issuperadmin) {
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'server', 'label' => get_string('tab:server', 'block_dashboardanalytics')];
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'reports', 'label' => get_string('tab:reports', 'block_dashboardanalytics')];
+            $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'analyticscourses', 'label' => get_string('tab:analyticscourses', 'block_dashboardanalytics')];
         }
 
         $items = $tabs[$dashboardkey] ?? [];
@@ -125,6 +126,16 @@ class permissions {
         }
 
         return $items;
+    }
+
+    public static function tab_is_allowed(string $dashboardkey, string $tabkey, ?\context $context = null, ?int $userid = null): bool {
+        foreach (self::dashboard_tabs($dashboardkey, $context, $userid) as $tab) {
+            if (($tab['key'] ?? '') === $tabkey) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static function require_dashboard_key(\context $context, string $requestedkey, ?int $userid = null): string {

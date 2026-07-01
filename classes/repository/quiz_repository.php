@@ -11,6 +11,7 @@ class quiz_repository {
         global $DB;
 
         $employee = new employee_repository();
+        $analytics = new course_analytics_repository();
         $userfilter = $employee->user_filter_sql($filters, 'u', 'qfirstattempt');
         $where = [
             $userfilter['sql'],
@@ -19,6 +20,7 @@ class quiz_repository {
             'qa.attempt = 1',
             'qa.timefinish > 0',
             'gi.gradepass > 0',
+            $analytics->eligibility_where_sql('c', 'cfquizanalytics', 'cdquizanalytics'),
         ];
         $params = $userfilter['params'] + [
             'qfirstattemptfinished' => 'finished',
@@ -45,6 +47,7 @@ class quiz_repository {
                   FROM {quiz_attempts} qa
                   JOIN {quiz} qu ON qu.id = qa.quiz
                   JOIN {course} c ON c.id = qu.course
+                  {$analytics->eligibility_join_sql('c', 'cfquizanalytics', 'cdquizanalytics')}
                   JOIN {user} u ON u.id = qa.userid
                   JOIN {grade_items} gi ON gi.courseid = c.id
                        AND gi.itemtype = :qfirstattemptitemtype
