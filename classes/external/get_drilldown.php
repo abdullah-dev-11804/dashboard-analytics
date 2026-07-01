@@ -74,6 +74,7 @@ class get_drilldown extends \external_api {
                 'cells' => new \external_multiple_structure(new \external_single_structure([
                     'key' => new \external_value(PARAM_ALPHANUMEXT, 'Cell key'),
                     'value' => new \external_value(PARAM_TEXT, 'Cell value'),
+                    'profileurl' => new \external_value(PARAM_URL, 'Optional profile URL', VALUE_OPTIONAL),
                 ])),
             ])),
             'totalcount' => new \external_value(PARAM_INT, 'Total matching rows'),

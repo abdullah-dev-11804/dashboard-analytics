@@ -36,7 +36,11 @@ class employee_repository {
         foreach ($records as $record) {
             $rows[] = [
                 'cells' => [
-                    ['key' => 'employee', 'value' => $showidentity ? fullname($record) : get_string('hiddenuser')],
+                    [
+                        'key' => 'employee',
+                        'value' => $showidentity ? fullname($record) : get_string('hiddenuser'),
+                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false) : '',
+                    ],
                     ['key' => 'department', 'value' => (string)$record->departmentname],
                     ['key' => 'location', 'value' => (string)$record->locationname],
                     ['key' => 'status', 'value' => $record->suspended ? get_string('label:suspended', 'block_dashboardanalytics') : get_string('label:active', 'block_dashboardanalytics')],

@@ -41,7 +41,11 @@ class overview_repository {
             $days = $expirytime !== null ? (int)floor(($expirytime - time()) / DAYSECS) : null;
             $tablerows[] = [
                 'cells' => [
-                    ['key' => 'employee', 'value' => $showidentity ? (string)$row['employee'] : get_string('hiddenuser')],
+                    [
+                        'key' => 'employee',
+                        'value' => $showidentity ? (string)$row['employee'] : get_string('hiddenuser'),
+                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$row['userid']]))->out(false) : '',
+                    ],
                     ['key' => 'company', 'value' => (string)$row['company']],
                     ['key' => 'department', 'value' => (string)$row['department']],
                     ['key' => 'location', 'value' => (string)$row['location']],

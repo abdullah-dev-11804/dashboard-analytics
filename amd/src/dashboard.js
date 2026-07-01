@@ -528,8 +528,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         var body = data.rows.map(function(row) {
             var cellsByKey = {};
+            var cellsMetaByKey = {};
             (row.cells || []).forEach(function(cell) {
                 cellsByKey[cell.key] = cell.value;
+                cellsMetaByKey[cell.key] = cell;
             });
 
             return '<tr>' + columns.map(function(column) {
@@ -543,6 +545,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + ' data-company="' + escapeHtml(cellsByKey.company || '') + '"'
                         + ' data-companyid="' + escapeHtml(cellsByKey.companyid || '') + '">'
                         + value + '</button></td>';
+                }
+                if (key === 'employee' && cellsMetaByKey[key] && cellsMetaByKey[key].profileurl) {
+                    return '<td><a class="da-table-link" href="' + escapeHtml(cellsMetaByKey[key].profileurl) + '">' + value + '</a></td>';
                 }
                 return '<td>' + value + '</td>';
             }).join('') + '</tr>';

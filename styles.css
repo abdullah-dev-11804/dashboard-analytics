@@ -1628,6 +1628,17 @@
     font-weight: 700;
 }
 
+.block-dashboardanalytics .da-table-link {
+    color: #1e5da8;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.block-dashboardanalytics .da-table-link:hover,
+.block-dashboardanalytics .da-table-link:focus {
+    text-decoration: underline;
+}
+
 .block-dashboardanalytics .da-company-health-number {
     font-weight: 700;
 }

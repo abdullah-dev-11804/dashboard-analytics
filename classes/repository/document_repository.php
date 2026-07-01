@@ -598,6 +598,7 @@ class document_repository {
         $totalcount = (int)$DB->count_records_sql($countsql, $params);
 
         $sql = "SELECT d.id,
+                       u.id AS userid,
                        {$expiry} AS expirytime,
                        u.firstname,
                        u.lastname,
@@ -620,7 +621,11 @@ class document_repository {
             $days = $expiry !== null ? (int)floor(($expiry - time()) / DAYSECS) : null;
             $rows[] = [
                 'cells' => [
-                    ['key' => 'employee', 'value' => $showidentity ? fullname($record) : get_string('hiddenuser')],
+                    [
+                        'key' => 'employee',
+                        'value' => $showidentity ? fullname($record) : get_string('hiddenuser'),
+                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->userid]))->out(false) : '',
+                    ],
                     ['key' => 'company', 'value' => (string)$record->companyname],
                     ['key' => 'department', 'value' => (string)$record->department],
                     ['key' => 'location', 'value' => (string)$record->city],
