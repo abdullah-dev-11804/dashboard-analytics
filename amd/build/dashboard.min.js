@@ -876,6 +876,41 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '<tbody>' + body + '</tbody></table></div>' + pagination;
     };
 
+    var updateCourseAnalyticsToggleUi = function(toggle, enabled) {
+        var row = toggle ? toggle.closest('tr') : null;
+        if (!toggle || !row) {
+            return;
+        }
+
+        var visibilityCell = row.children[1];
+        var analyticsCell = row.children[2];
+        var analyticsBadge = analyticsCell ? analyticsCell.querySelector('.da-badge') : null;
+
+        toggle.setAttribute('data-enabled', enabled ? '1' : '0');
+        toggle.classList.toggle('is-on', !!enabled);
+
+        var toggleLabel = toggle.querySelector('.da-toggle-label');
+        if (toggleLabel) {
+            toggleLabel.textContent = enabled
+                ? text('courseAnalyticsToggleOn', 'On')
+                : text('courseAnalyticsToggleOff', 'Off');
+        }
+
+        if (analyticsBadge) {
+            analyticsBadge.textContent = enabled
+                ? text('courseAnalyticsIncluded', 'Included')
+                : text('courseAnalyticsExcluded', 'Excluded');
+            analyticsBadge.className = 'da-badge da-badge-' + (enabled ? 'ok' : 'muted');
+        }
+
+        if (visibilityCell) {
+            var visibilityBadge = visibilityCell.querySelector('.da-badge');
+            if (visibilityBadge && visibilityBadge.textContent === text('courseAnalyticsHidden', 'Hidden')) {
+                analyticsBadge.className = 'da-badge da-badge-muted';
+            }
+        }
+    };
+
     var loadCourseAnalyticsControl = function(root, state, overrides) {
         var panel = root.querySelector('[data-region="course-analytics-panel"]');
         var results = panel ? panel.querySelector('[data-region="course-analytics-results"]') : null;
@@ -2425,18 +2460,26 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var courseAnalyticsToggle = event.target.closest('[data-action="course-analytics-toggle"]');
             if (courseAnalyticsToggle && root.contains(courseAnalyticsToggle)) {
+                if (courseAnalyticsToggle.disabled) {
+                    return;
+                }
+
+                var nextEnabled = courseAnalyticsToggle.getAttribute('data-enabled') !== '1';
+                courseAnalyticsToggle.disabled = true;
                 call('block_dashboardanalytics_set_course_analytics_control', {
                     contextid: state.contextid,
                     courseid: Number(courseAnalyticsToggle.getAttribute('data-courseid')) || 0,
-                    enabled: courseAnalyticsToggle.getAttribute('data-enabled') !== '1'
+                    enabled: nextEnabled
                 }).then(function() {
+                    updateCourseAnalyticsToggleUi(courseAnalyticsToggle, nextEnabled);
                     Notification.addNotification({
                         message: text('courseAnalyticsSaved', 'Course analytics setting updated.'),
                         type: 'success'
                     });
-                    refresh(root, state);
                 }).catch(function(error) {
                     Notification.exception(error);
+                }).finally(function() {
+                    courseAnalyticsToggle.disabled = false;
                 });
                 return;
             }

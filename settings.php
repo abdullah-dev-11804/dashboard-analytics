@@ -79,6 +79,20 @@ if ($ADMIN->fulltree) {
     ));
 
     $settings->add(new admin_setting_heading(
+        'block_dashboardanalytics/monitoringheading',
+        get_string('settings:monitoringheading', 'block_dashboardanalytics'),
+        get_string('settings:monitoringheading_desc', 'block_dashboardanalytics')
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'block_dashboardanalytics/uptimeendpoint',
+        get_string('settings:uptimeendpoint', 'block_dashboardanalytics'),
+        get_string('settings:uptimeendpoint_desc', 'block_dashboardanalytics'),
+        'https://uptime.thefonerep.com/v1/site?token=a66ce24005d6024cd3c44a3da0eccae4e1032c1e39f01463984033a8485a32e4&id=1783023558638',
+        PARAM_URL
+    ));
+
+    $settings->add(new admin_setting_heading(
         'block_dashboardanalytics/qualityheading',
         get_string('settings:qualityheading', 'block_dashboardanalytics'),
         get_string('settings:qualityheading_desc', 'block_dashboardanalytics')

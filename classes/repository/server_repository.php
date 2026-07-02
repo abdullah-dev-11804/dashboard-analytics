@@ -6,6 +6,17 @@ namespace block_dashboardanalytics\repository;
 defined('MOODLE_INTERNAL') || die();
 
 class server_repository {
+    /**
+     * @var server_metric_repository|null
+     */
+    private $metrics = null;
+
+    private function metric_repository(): server_metric_repository {
+        if ($this->metrics === null) {
+            $this->metrics = new server_metric_repository();
+        }
+        return $this->metrics;
+    }
 
     public function admin_kpi_cards(): array {
         return [
@@ -159,6 +170,8 @@ class server_repository {
     public function capacity_gauge_items(): array {
         global $CFG;
 
+        $this->metric_repository()->capture_disk_snapshot();
+
         $path = !empty($CFG->dataroot) ? $CFG->dataroot : sys_get_temp_dir();
         $disktotal = @disk_total_space($path);
         $diskfree = @disk_free_space($path);
@@ -228,38 +241,44 @@ class server_repository {
     }
 
     public function disk_forecast_items(): array {
-        global $CFG;
-
-        $path = !empty($CFG->dataroot) ? $CFG->dataroot : sys_get_temp_dir();
-        $total = @disk_total_space($path);
-        $free = @disk_free_space($path);
-        $percent = ($total && $total > 0 && $free !== false) ? round((($total - $free) / $total) * 100, 1) : null;
+        $current = $this->metric_repository()->capture_disk_snapshot();
+        $history = $this->metric_repository()->disk_history(90);
+        $percent = $current['percent'] ?? null;
         $status = $percent !== null ? $this->status_for_percent($percent) : 'muted';
-
-        $meta = $percent === null
-            ? get_string('server:forecast:unavailable', 'block_dashboardanalytics')
-            : ($percent >= 90
-                ? get_string('server:forecast:criticalnow', 'block_dashboardanalytics')
-                : get_string('server:forecast:nohistory', 'block_dashboardanalytics'));
-
-        $base = $percent ?? 0.0;
         $segments = [];
-        foreach ([
-            ['label' => '-30d', 'status' => 'historical'],
-            ['label' => '-20d', 'status' => 'historical'],
-            ['label' => '-10d', 'status' => 'historical'],
-            ['label' => 'Now', 'status' => 'historical'],
-            ['label' => '+30d', 'status' => 'projected'],
-            ['label' => '+60d', 'status' => 'projected'],
-            ['label' => '+90d', 'status' => 'projected'],
-        ] as $point) {
-            $segments[] = [
-                'label' => $point['label'],
-                'value' => (string)$base,
-                'percent' => $base,
-                'status' => $point['status'],
+
+        if ($percent !== null && $history) {
+            $anchors = [
+                ['label' => '-30d', 'time' => time() - (30 * DAYSECS), 'status' => 'historical'],
+                ['label' => '-20d', 'time' => time() - (20 * DAYSECS), 'status' => 'historical'],
+                ['label' => '-10d', 'time' => time() - (10 * DAYSECS), 'status' => 'historical'],
+                ['label' => 'Now', 'time' => time(), 'status' => 'historical'],
             ];
+            foreach ($anchors as $anchor) {
+                $point = $this->closest_history_point($history, $anchor['time']) ?: end($history);
+                $segments[] = [
+                    'label' => $anchor['label'],
+                    'value' => round((float)$point['percent'], 1) . '%',
+                    'percent' => (float)$point['percent'],
+                    'status' => $anchor['status'],
+                ];
+            }
+
+            $slope = $this->history_slope_per_day($history);
+            foreach ([30, 60, 90] as $days) {
+                $projected = $percent + ($slope * $days);
+                $projected = max(0, min(100, round($projected, 1)));
+                $segments[] = [
+                    'label' => '+' . $days . 'd',
+                    'value' => $projected . '%',
+                    'percent' => $projected,
+                    'status' => 'projected',
+                ];
+            }
         }
+
+        $meta = $this->forecast_meta($percent, $history);
+        $base = $percent ?? 0.0;
 
         return [[
             'label' => get_string('metric:disk', 'block_dashboardanalytics'),
@@ -269,6 +288,83 @@ class server_repository {
             'meta' => $meta,
             'segments' => $segments,
         ]];
+    }
+
+    private function closest_history_point(array $history, int $timestamp): ?array {
+        $closest = null;
+        foreach ($history as $point) {
+            if ((int)$point['collectedat'] <= $timestamp) {
+                $closest = $point;
+            } else {
+                break;
+            }
+        }
+
+        return $closest ?: ($history[0] ?? null);
+    }
+
+    private function history_slope_per_day(array $history): float {
+        if (count($history) < 2) {
+            return 0.0;
+        }
+
+        $first = (int)$history[0]['collectedat'];
+        $sumx = 0.0;
+        $sumy = 0.0;
+        $sumxy = 0.0;
+        $sumxx = 0.0;
+        $n = 0;
+
+        foreach ($history as $point) {
+            $x = ((int)$point['collectedat'] - $first) / DAYSECS;
+            $y = (float)$point['percent'];
+            $sumx += $x;
+            $sumy += $y;
+            $sumxy += ($x * $y);
+            $sumxx += ($x * $x);
+            $n++;
+        }
+
+        $denominator = ($n * $sumxx) - ($sumx * $sumx);
+        if ($denominator == 0.0) {
+            return 0.0;
+        }
+
+        return (($n * $sumxy) - ($sumx * $sumy)) / $denominator;
+    }
+
+    private function forecast_meta(?float $percent, array $history): string {
+        if ($percent === null) {
+            return get_string('server:forecast:unavailable', 'block_dashboardanalytics');
+        }
+        if ($percent >= 90) {
+            return get_string('server:forecast:criticalnow', 'block_dashboardanalytics');
+        }
+        if (count($history) < 2) {
+            return get_string('server:forecast:collecting', 'block_dashboardanalytics', userdate(time(), get_string('strftimedate', 'langconfig')));
+        }
+
+        $slope = $this->history_slope_per_day($history);
+        $latest = end($history);
+        $latestlabel = $latest
+            ? userdate((int)$latest['collectedat'], get_string('strftimedatetime', 'langconfig'))
+            : '';
+
+        if ($slope <= 0) {
+            return get_string('server:forecast:stable', 'block_dashboardanalytics', $latestlabel);
+        }
+
+        $dayscritical = (90 - $percent) / $slope;
+        if ($dayscritical <= 0) {
+            return get_string('server:forecast:criticalnow', 'block_dashboardanalytics');
+        }
+
+        $weekscritical = max(1, (int)round($dayscritical / 7));
+        return get_string('server:forecast:projectedcritical', 'block_dashboardanalytics', (object)[
+            'weeks' => $weekscritical,
+            'rate' => round($slope, 2),
+            'latest' => $latestlabel,
+        ]);
     }
 
     public function error_summary_items(): array {

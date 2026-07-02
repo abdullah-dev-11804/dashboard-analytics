@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="blocks/dashboardanalytics/db" VERSION="2026070300" COMMENT="XMLDB file for block_dashboardanalytics"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+    <TABLES>
+        <TABLE NAME="block_da_srvmetric" COMMENT="Historical server metric snapshots for dashboard analytics">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="metricname" TYPE="char" LENGTH="32" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="percentvalue" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="usedbytes" TYPE="int" LENGTH="19" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="totalbytes" TYPE="int" LENGTH="19" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="collectedat" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="metric_collected_ix" UNIQUE="false" FIELDS="metricname, collectedat"/>
+            </INDEXES>
+        </TABLE>
+    </TABLES>
+</XMLDB>

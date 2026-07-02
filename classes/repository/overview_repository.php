@@ -1084,12 +1084,7 @@ class overview_repository {
     }
 
     private function uptime_summary(): array {
-        return [
-            'value' => 'N/A',
-            'percent' => 0.0,
-            'status' => 'muted',
-            'meta' => get_string('overview:uptimepending', 'block_dashboardanalytics'),
-        ];
+        return (new uptime_repository())->summary();
     }
 
     private function average_company_compliance_summary(array $filters): array {

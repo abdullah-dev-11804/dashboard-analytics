@@ -16,4 +16,10 @@ $definitions = [
         'simpledata' => true,
         'ttl' => 120,
     ],
+    'uptime_api' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'ttl' => 180,
+    ],
 ];
