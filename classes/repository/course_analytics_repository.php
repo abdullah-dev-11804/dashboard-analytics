@@ -8,6 +8,62 @@ defined('MOODLE_INTERNAL') || die();
 class course_analytics_repository {
     public const FIELD_SHORTNAME = 'include_analytics';
 
+    /**
+     * Build a safe customfield_data payload for a checkbox-style course field.
+     *
+     * Different Moodle installs can have slightly different nullable/default
+     * expectations on customfield_data columns, so we populate the common ones
+     * explicitly and only set optional fields when they exist in this schema.
+     *
+     * @param int $fieldid
+     * @param int $courseid
+     * @param bool $enabled
+     * @param int $now
+     * @param object|null $existing
+     * @return \stdClass
+     */
+    protected function build_customfield_record(
+        int $fieldid,
+        int $courseid,
+        bool $enabled,
+        int $now,
+        ?\stdClass $existing = null
+    ): \stdClass {
+        global $DB;
+
+        $record = (object)[
+            'fieldid' => $fieldid,
+            'instanceid' => $courseid,
+            'intvalue' => $enabled ? 1 : 0,
+            'value' => $enabled ? '1' : '0',
+            'valueformat' => 0,
+            'timemodified' => $now,
+        ];
+
+        if ($existing && property_exists($existing, 'id')) {
+            $record->id = (int)$existing->id;
+        }
+
+        if (!$existing) {
+            $record->timecreated = $now;
+        }
+
+        $table = new \xmldb_table('customfield_data');
+        $optionalvalues = [
+            'decvalue' => $enabled ? 1 : 0,
+            'charvalue' => $enabled ? '1' : '0',
+            'shortcharvalue' => $enabled ? '1' : '0',
+        ];
+
+        foreach ($optionalvalues as $fieldname => $value) {
+            if ($DB->get_manager()->field_exists($table, new \xmldb_field($fieldname))) {
+                $record->{$fieldname} = $value;
+            }
+        }
+
+        return $record;
+    }
+
     public function eligibility_join_sql(
         string $coursealias = 'c',
         string $fieldalias = 'cfanalytics',
@@ -111,27 +167,13 @@ class course_analytics_repository {
 
         $now = time();
         $data = $DB->get_record('customfield_data', ['fieldid' => (int)$field->id, 'instanceid' => $courseid], '*', IGNORE_MISSING);
-        $record = (object)[
-            'fieldid' => (int)$field->id,
-            'instanceid' => $courseid,
-            'intvalue' => $enabled ? 1 : 0,
-            'value' => $enabled ? '1' : '0',
-            'timemodified' => $now,
-        ];
+        $record = $this->build_customfield_record((int)$field->id, $courseid, $enabled, $now, $data ?: null);
 
         if ($data) {
-            $record->id = (int)$data->id;
-            if (property_exists($data, 'decvalue')) {
-                $record->decvalue = $enabled ? 1 : 0;
-            }
             $DB->update_record('customfield_data', $record);
             return;
         }
 
-        $record->timecreated = $now;
-        if ($DB->get_manager()->field_exists(new \xmldb_table('customfield_data'), new \xmldb_field('decvalue'))) {
-            $record->decvalue = $enabled ? 1 : 0;
-        }
         $DB->insert_record('customfield_data', $record);
     }
 }
