@@ -596,11 +596,16 @@ class document_repository {
         $expiryjoin = $this->expiry_join_sql('d', $source);
         $coursejoin = '';
         $courseselect = "'' AS coursename";
+        $analyticsjoin = '';
         $company = new company_repository();
         $companysql = $company->company_name_sql('u', 'docrowscompany');
         if ($source['courseid'] !== '') {
             $coursejoin = "LEFT JOIN {course} c ON c.id = d.{$source['courseid']}";
+            $analytics = new course_analytics_repository();
+            $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfdocrowsanalytics', 'cddocrowsanalytics');
             $courseselect = 'c.fullname AS coursename';
+            $where[] = 'c.id IS NOT NULL';
+            $where[] = $analytics->eligibility_where_sql('c', 'cfdocrowsanalytics', 'cddocrowsanalytics');
         }
 
         $wheresql = implode(' AND ', $where);
@@ -608,6 +613,7 @@ class document_repository {
                        FROM {{$table}} d
                        JOIN {user} u ON u.id = d.{$useridcolumn}
                             {$coursejoin}
+                            {$analyticsjoin}
                             {$expiryjoin}
                       WHERE {$wheresql}";
         $totalcount = (int)$DB->count_records_sql($countsql, $params);
@@ -624,6 +630,7 @@ class document_repository {
                   FROM {{$table}} d
                   JOIN {user} u ON u.id = d.{$useridcolumn}
                        {$coursejoin}
+                       {$analyticsjoin}
                        {$companysql['join']}
                        {$expiryjoin}
                  WHERE {$wheresql}
