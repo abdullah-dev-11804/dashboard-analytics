@@ -249,7 +249,7 @@ $string['panel:companycompliancesnapshot:title'] = 'Compliance % by company - sn
 $string['panel:companycompliancesnapshot:description'] = 'Sorted ascending (worst first). 80% reference line.';
 $string['panel:documentstatus:title'] = 'Document Status Distribution';
 $string['panel:documentstatus:description'] = 'Active, expiring, expired and missing certification checks across enrolled courses.';
-$string['panel:complianceheatmap:title'] = 'Compliance heatmap - department x location x company';
+$string['panel:complianceheatmap:title'] = 'Compliance heatmap - personnel category x site / facility x company';
 $string['panel:complianceheatmap:description'] = 'Each cell = compliance %. Select a company tab. Click a cell for the employee list.';
 $string['panel:riskcompany:title'] = 'Expired vs Expiring by Company';
 $string['panel:riskcompany:description'] = 'Grouped bars per company. Click any bar to see the employee list.';

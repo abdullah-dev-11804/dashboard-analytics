@@ -399,13 +399,17 @@ class document_repository {
     }
 
     public function compliance_heatmap_tabs(array $filters, int $limit = 8): array {
-        $tabs = [[
-            'key' => 'all',
-            'label' => get_string('filter:allcompanieslabel', 'block_dashboardanalytics'),
-            'active' => true,
-            'companyid' => 0,
-            'companyname' => '',
-        ]];
+        $employee = new employee_repository();
+        $tabs = [];
+        if ($employee->count_active_users($filters) > 0) {
+            $tabs[] = [
+                'key' => 'all',
+                'label' => get_string('filter:allcompanieslabel', 'block_dashboardanalytics'),
+                'active' => true,
+                'companyid' => 0,
+                'companyname' => '',
+            ];
+        }
 
         $companyrepo = new company_repository();
         $options = array_slice($companyrepo->get_company_options($filters), 0, $limit);
@@ -413,6 +417,17 @@ class document_repository {
             $value = (string)($option['value'] ?? '');
             $label = (string)($option['label'] ?? $value);
             $companyid = ctype_digit($value) ? (int)$value : 0;
+            $scopefilters = $filters;
+            if ($companyid > 0) {
+                $scopefilters['companyids'] = [$companyid];
+                unset($scopefilters['companies']);
+            } else if ($label !== '') {
+                $scopefilters['companies'] = [$label];
+                unset($scopefilters['companyids']);
+            }
+            if ($employee->count_active_users($scopefilters) <= 0) {
+                continue;
+            }
             $tabs[] = [
                 'key' => $companyid > 0 ? 'companyid_' . $companyid : 'company_' . md5($label),
                 'label' => $label,
@@ -876,26 +891,26 @@ class document_repository {
 
     private function compliance_heatmap_group_items(array $filters, array $tab, int $limit): array {
         $employee = new employee_repository();
-        $departments = array_slice($employee->active_users_by_dimension_items($filters, 'department', $limit), 0, $limit);
-        $locations = array_slice($employee->active_users_by_dimension_items($filters, 'location', $limit), 0, $limit);
+        $personnelcategories = array_slice($employee->active_users_by_dimension_items($filters, 'personnelcategory', $limit), 0, $limit);
+        $sites = array_slice($employee->active_users_by_dimension_items($filters, 'site', $limit), 0, $limit);
 
-        if (!$departments || !$locations) {
+        if (!$personnelcategories || !$sites) {
             return [];
         }
 
         $items = [];
-        foreach ($departments as $rowindex => $departmentitem) {
-            $department = (string)$departmentitem['label'];
-            foreach ($locations as $columnindex => $locationitem) {
-                $location = (string)$locationitem['label'];
+        foreach ($personnelcategories as $rowindex => $personnelcategoryitem) {
+            $personnelcategory = (string)$personnelcategoryitem['label'];
+            foreach ($sites as $columnindex => $siteitem) {
+                $site = (string)$siteitem['label'];
                 $cellfilters = $filters;
-                $cellfilters['departments'] = [$department];
-                $cellfilters['locations'] = [$location];
+                $cellfilters['personnelcategories'] = [$personnelcategory];
+                $cellfilters['sites'] = [$site];
                 $summary = $this->compliance_summary($cellfilters);
                 $hasstaff = (int)$summary['totalactiveusers'] > 0;
                 $compliance = $hasstaff ? round((float)$summary['compliance'], 1) : 0.0;
                 $items[] = [
-                    'label' => $department . ' / ' . $location,
+                    'label' => $personnelcategory . ' / ' . $site,
                     'value' => $hasstaff ? $compliance . '%' : '—',
                     'percent' => $compliance,
                     'status' => $this->visual_status_for_percent($compliance, $hasstaff),
@@ -906,8 +921,8 @@ class document_repository {
                         ])
                         : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
                     'groupkey' => (string)$tab['key'],
-                    'rowlabel' => $department,
-                    'columnlabel' => $location,
+                    'rowlabel' => $personnelcategory,
+                    'columnlabel' => $site,
                     'drilldownkey' => 'company_compliance',
                     'companyid' => (int)($tab['companyid'] ?? 0),
                     'companyname' => (string)($tab['companyname'] ?? ''),

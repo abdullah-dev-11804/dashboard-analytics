@@ -109,6 +109,8 @@ class employee_repository {
         $allowed = [
             'department' => $this->dimension_expr('departments', 'u', 'userdimdept'),
             'location' => $this->dimension_expr('locations', 'u', 'userdimloc'),
+            'personnelcategory' => $this->dimension_expr('personnelcategories', 'u', 'userdimpcat'),
+            'site' => $this->dimension_expr('sites', 'u', 'userdimsite'),
         ];
 
         $expr = $allowed[$dimension] ?? $allowed['department'];

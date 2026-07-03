@@ -249,7 +249,7 @@ $string['panel:companycompliancesnapshot:title'] = 'Соответствие % �
 $string['panel:companycompliancesnapshot:description'] = 'Сортировка по возрастанию, сначала худшие. Контрольная линия 80%.';
 $string['panel:documentstatus:title'] = 'Распределение статусов документов';
 $string['panel:documentstatus:description'] = 'Активные, истекающие, просроченные и отсутствующие проверки сертификатов по зачисленным курсам.';
-$string['panel:complianceheatmap:title'] = 'Тепловая карта соответствия - подразделение x локация x компания';
+$string['panel:complianceheatmap:title'] = 'Тепловая карта соответствия - категория персонала x объект / площадка x компания';
 $string['panel:complianceheatmap:description'] = 'Каждая ячейка = % соответствия. Выберите вкладку компании. Нажмите ячейку для списка сотрудников.';
 $string['panel:riskcompany:title'] = 'Просроченные и истекающие по компаниям';
 $string['panel:riskcompany:description'] = 'Сгруппированные столбцы по компаниям. Нажмите любой столбец для списка сотрудников.';

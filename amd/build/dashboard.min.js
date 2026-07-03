@@ -1462,8 +1462,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 return '<td class="da-heatmap-cell-slot"><button type="button" class="da-heatmap-cell da-heatmap-cell-'
                                     + escapeHtml(cell.status || 'muted') + '" data-action="heatmap-cell"'
                                     + ' data-drilldown="' + escapeHtml(cell.drilldownkey || 'company_compliance') + '"'
-                                    + ' data-department="' + escapeHtml(cell.rowlabel || '') + '"'
-                                    + ' data-location="' + escapeHtml(cell.columnlabel || '') + '"'
+                                    + ' data-personnelcategory="' + escapeHtml(cell.rowlabel || '') + '"'
+                                    + ' data-site="' + escapeHtml(cell.columnlabel || '') + '"'
                                     + ' data-companyid="' + escapeHtml(String(cell.companyid || 0)) + '"'
                                     + ' data-companyname="' + escapeHtml(cell.companyname || '') + '"'
                                     + ' title="' + escapeHtml(cell.meta || '') + '">'
@@ -2621,8 +2621,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var heatmapCell = event.target.closest('[data-action="heatmap-cell"]');
             if (heatmapCell && root.contains(heatmapCell)) {
                 var heatmapOverrides = {
-                    departments: [heatmapCell.getAttribute('data-department') || ''],
-                    locations: [heatmapCell.getAttribute('data-location') || '']
+                    personnelcategories: [heatmapCell.getAttribute('data-personnelcategory') || ''],
+                    sites: [heatmapCell.getAttribute('data-site') || '']
                 };
                 var heatmapCompanyId = heatmapCell.getAttribute('data-companyid') || '0';
                 var heatmapCompanyName = heatmapCell.getAttribute('data-companyname') || '';
