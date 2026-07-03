@@ -1422,8 +1422,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var matrix = {};
 
                 visibleHeatmapItems.forEach(function(item) {
-                    var rowLabel = item.rowlabel || '';
-                    var columnLabel = item.columnlabel || '';
+                    var rowLabel = String(item.rowlabel || '').trim();
+                    var columnLabel = String(item.columnlabel || '').trim();
+                    if (!rowLabel || !columnLabel) {
+                        return;
+                    }
                     if (rowLabels.indexOf(rowLabel) === -1) {
                         rowLabels.push(rowLabel);
                     }

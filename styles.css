@@ -1407,6 +1407,10 @@
     font-weight: 700;
     text-align: left;
     padding: .82rem .7rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 260px;
 }
 
 .block-dashboardanalytics .da-heatmap-cell-slot {

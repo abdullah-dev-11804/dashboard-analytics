@@ -891,8 +891,18 @@ class document_repository {
 
     private function compliance_heatmap_group_items(array $filters, array $tab, int $limit): array {
         $employee = new employee_repository();
-        $personnelcategories = array_slice($employee->active_users_by_dimension_items($filters, 'personnelcategory', $limit), 0, $limit);
-        $sites = array_slice($employee->active_users_by_dimension_items($filters, 'site', $limit), 0, $limit);
+        $personnelcategories = array_values(array_filter(
+            array_slice($employee->active_users_by_dimension_items($filters, 'personnelcategory', $limit), 0, $limit),
+            static function(array $item): bool {
+                return trim((string)($item['label'] ?? '')) !== '';
+            }
+        ));
+        $sites = array_values(array_filter(
+            array_slice($employee->active_users_by_dimension_items($filters, 'site', $limit), 0, $limit),
+            static function(array $item): bool {
+                return trim((string)($item['label'] ?? '')) !== '';
+            }
+        ));
 
         if (!$personnelcategories || !$sites) {
             return [];
