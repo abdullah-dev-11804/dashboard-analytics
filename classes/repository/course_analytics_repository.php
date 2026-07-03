@@ -137,7 +137,7 @@ class course_analytics_repository {
         foreach ($records as $record) {
             $rows[] = [
                 'courseid' => (int)$record->id,
-                'fullname' => format_string((string)$record->fullname),
+                'fullname' => html_entity_decode(format_string((string)$record->fullname), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
                 'shortname' => (string)$record->shortname,
                 'visible' => (int)$record->visible === 1,
                 'analyticsenabled' => (int)$record->analyticsenabled === 1,

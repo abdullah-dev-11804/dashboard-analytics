@@ -77,7 +77,7 @@ class quiz_repository {
 
             $rate = round(($passed / $total) * 100, 1);
             $items[] = [
-                'label' => format_string((string)$record->coursename),
+                'label' => $this->display_course_name((string)$record->coursename),
                 'url' => (new \moodle_url('/course/view.php', ['id' => (int)$record->courseid]))->out(false),
                 'value' => $this->format_percent($rate),
                 'percent' => $rate,
@@ -91,6 +91,10 @@ class quiz_repository {
         }
 
         return $items;
+    }
+
+    private function display_course_name(string $name): string {
+        return html_entity_decode(format_string($name), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     private function pass_rate_status(float $rate, float $threshold): string {

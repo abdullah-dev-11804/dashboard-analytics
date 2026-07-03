@@ -75,7 +75,7 @@ class course_rating_repository {
             $review = $latestreviews[(int)$record->courseid] ?? '';
 
             $items[] = [
-                'label' => format_string((string)$record->coursename),
+                'label' => $this->display_course_name((string)$record->coursename),
                 'url' => (new \moodle_url('/course/view.php', ['id' => (int)$record->courseid]))->out(false),
                 'value' => $this->format_rating($rating5),
                 'percent' => $relevance,
@@ -102,6 +102,10 @@ class course_rating_repository {
         }
 
         return $items;
+    }
+
+    private function display_course_name(string $name): string {
+        return html_entity_decode(format_string($name), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     public function average_rating_by_course_items(array $filters, float $threshold = 3.0, int $limit = 12): array {
