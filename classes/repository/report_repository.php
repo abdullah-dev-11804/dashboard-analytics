@@ -50,6 +50,18 @@ class report_repository {
 
         $start = make_timestamp($year, $month, 1, 0, 0, 0);
         $end = strtotime('+1 month', $start) - 1;
+        $employee = new employee_repository();
+        $where = [
+            'c.visible = 1',
+            'c.id <> :siteid',
+        ];
+        $params = [
+            'companyid' => $companyid,
+            'starttime' => $start,
+            'endtime' => $end,
+            'siteid' => SITEID,
+        ];
+        $employee->append_sental_student_only_filter($where, $params, 'u', 'reportsact');
 
         $sql = "SELECT c.id AS courseid,
                     c.fullname AS coursename,
@@ -61,6 +73,8 @@ class report_repository {
                 JOIN {user_enrolments} ue
                     ON ue.enrolid = e.id
                 AND ue.status = 0
+                JOIN {user} u
+                    ON u.id = ue.userid
                 JOIN {company_users} cu
                     ON cu.userid = ue.userid
                 AND cu.companyid = :companyid
@@ -69,17 +83,9 @@ class report_repository {
                 AND cc.course = c.id
                 AND cc.timecompleted IS NOT NULL
                 AND cc.timecompleted BETWEEN :starttime AND :endtime
-                WHERE c.visible = 1
-                AND c.id <> :siteid
+                WHERE " . implode(' AND ', $where) . "
             GROUP BY c.id, c.fullname
             ORDER BY c.fullname ASC";
-
-        $params = [
-            'companyid' => $companyid,
-            'starttime' => $start,
-            'endtime' => $end,
-            'siteid' => SITEID,
-        ];
 
         $records = $DB->get_records_sql($sql, $params);
         $rows = [];

@@ -6,6 +6,10 @@ namespace block_dashboardanalytics\repository;
 defined('MOODLE_INTERNAL') || die();
 
 class employee_repository {
+    /** @var int */
+    private const SENTAL_COMPANY_ID = 1;
+    /** @var string */
+    private const SENTAL_ALLOWED_ROLE = 'student';
 
     public function count_active_users(array $filters): int {
         global $DB;
@@ -301,10 +305,56 @@ class employee_repository {
             $params[$searchkey] = '%' . $DB->sql_like_escape($filters['search']) . '%';
         }
 
+        $this->append_sental_student_only_filter($where, $params, $alias, $prefix);
+
         return [
             'sql' => implode(' AND ', $where),
             'params' => $params,
         ];
+    }
+
+    public function append_sental_student_only_filter(
+        array &$where,
+        array &$params,
+        string $alias = 'u',
+        string $prefix = 'flt'
+    ): void {
+        $companyrepo = new company_repository();
+        if (!$companyrepo->has_iomad_tables()) {
+            return;
+        }
+
+        $sentalcompanykey = $prefix . 'sentalcompanyid';
+        $sentalcompanykeyallow = $prefix . 'sentalcompanyidallow';
+        $sentalrolekey = $prefix . 'sentalroleshortname';
+        $sentalcompanyalias = 'cus' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+        $sentalallowalias = 'cua' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+        $roleassignalias = 'ras' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+        $rolealias = 'rol' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+
+        $where[] = "(NOT EXISTS (
+                            SELECT 1
+                              FROM {company_users} {$sentalcompanyalias}
+                             WHERE {$sentalcompanyalias}.userid = {$alias}.id
+                               AND {$sentalcompanyalias}.companyid = :{$sentalcompanykey}
+                         )
+                         OR EXISTS (
+                            SELECT 1
+                              FROM {company_users} {$sentalallowalias}
+                              JOIN {role_assignments} {$roleassignalias}
+                                ON {$roleassignalias}.userid = {$alias}.id
+                              JOIN {role} {$rolealias}
+                                ON {$rolealias}.id = {$roleassignalias}.roleid
+                             WHERE {$sentalallowalias}.userid = {$alias}.id
+                               AND {$sentalallowalias}.companyid = :{$sentalcompanykeyallow}
+                          GROUP BY {$sentalallowalias}.userid
+                            HAVING COUNT(DISTINCT {$rolealias}.shortname) = 1
+                               AND MAX({$rolealias}.shortname) = :{$sentalrolekey}
+                         ))";
+
+        $params[$sentalcompanykey] = self::SENTAL_COMPANY_ID;
+        $params[$sentalcompanykeyallow] = self::SENTAL_COMPANY_ID;
+        $params[$sentalrolekey] = self::SENTAL_ALLOWED_ROLE;
     }
 
     private function profile_field_exists(string $shortname): bool {

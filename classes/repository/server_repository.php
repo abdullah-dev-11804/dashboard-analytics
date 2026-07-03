@@ -755,14 +755,8 @@ class server_repository {
     }
 
     private function active_user_count(): int {
-        global $DB;
-
-        if (!$this->table_exists('user')) {
-            return 0;
-        }
-
         try {
-            return (int)$DB->count_records_select('user', 'deleted = 0 AND suspended = 0 AND confirmed = 1');
+            return (new employee_repository())->count_active_users([]);
         } catch (\Throwable $e) {
             return 0;
         }
