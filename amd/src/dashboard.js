@@ -1769,11 +1769,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 + ' data-drilldown="' + escapeHtml(segment.drilldownkey) + '"'
                                 + ' data-companyid="' + escapeHtml(String(segment.companyid || 0)) + '"'
                                 + ' data-companyname="' + escapeHtml(segment.companyname || '') + '"' : '';
+                            var segmentLabel = String(segment.label || '').toLowerCase();
+                            var valueLabel = String(segment.value || '0') + (segmentLabel ? ' ' + segmentLabel : '');
                             return '<div class="da-grouped-segment">'
                                 + '<' + groupedTag + (isGroupedClickable ? ' type="button"' : '') + ' class="da-grouped-track"' + buttonAttrs + '>'
-                                + '<span class="da-grouped-fill da-bar-fill-' + escapeHtml(segment.status) + '" style="width:' + width + '%">'
-                                + '<span class="da-grouped-fill-value">' + escapeHtml(segment.value + ' ' + segment.label.toLowerCase()) + '</span>'
-                                + '</span></' + groupedTag + '>'
+                                + '<span class="da-grouped-track-visual"><span class="da-grouped-fill da-bar-fill-' + escapeHtml(segment.status) + '" style="width:' + width + '%"></span></span>'
+                                + '<span class="da-grouped-track-value da-text-' + escapeHtml(segment.status) + '">' + escapeHtml(valueLabel) + '</span>'
+                                + '</' + groupedTag + '>'
                                 + '</div>';
                         }).join('') + '</div>'
                         + '</div>';
