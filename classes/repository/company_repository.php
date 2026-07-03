@@ -14,7 +14,7 @@ class company_repository {
     public function get_company_options(array $filters = []): array {
         global $DB;
 
-        if ($this->has_iomad_tables() && empty($filters['companies'])) {
+        if ($this->has_iomad_tables()) {
             $where = '';
             $params = [];
             if (!empty($filters['companyids'])) {
@@ -61,10 +61,6 @@ class company_repository {
     }
 
     public function company_filter_key(array $filters = []): string {
-        if (!empty($filters['companies'])) {
-            return 'companies';
-        }
-
         return $this->has_iomad_tables() ? 'companyids' : 'companies';
     }
 
@@ -85,6 +81,8 @@ class company_repository {
             if ($companyids) {
                 return ['companyids' => $companyids];
             }
+
+            return [];
         }
 
         $companyname = $this->profile_company_for_user($userid);
@@ -103,34 +101,21 @@ class company_repository {
     }
 
     public function company_name_sql(string $useralias, string $prefix): array {
-        $profilejoin = $this->company_profile_join_sql($useralias, $prefix);
-
         if ($this->has_iomad_tables()) {
             $companyuseralias = 'cu' . preg_replace('/[^a-z0-9]/i', '', $prefix);
             $companyalias = 'co' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-            $profilecompanyalias = 'cop' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-            $fallbackjoin = '';
-            if ($profilejoin['dataalias'] !== '') {
-                $fallbackjoin = "LEFT JOIN {company} {$profilecompanyalias}
-                                      ON {$profilecompanyalias}.name = {$profilejoin['dataalias']}.data";
-            }
-            $expr = $profilejoin['dataalias'] !== ''
-                ? "COALESCE(NULLIF({$companyalias}.name, ''), NULLIF({$profilecompanyalias}.name, ''), NULLIF({$profilejoin['dataalias']}.data, ''))"
-                : "NULLIF({$companyalias}.name, '')";
-            $idexpr = $profilejoin['dataalias'] !== ''
-                ? "COALESCE({$companyalias}.id, {$profilecompanyalias}.id)"
-                : "{$companyalias}.id";
+            $expr = "NULLIF({$companyalias}.name, '')";
+            $idexpr = "{$companyalias}.id";
             return [
                 'join' => "LEFT JOIN {company_users} {$companyuseralias} ON {$companyuseralias}.userid = {$useralias}.id
-                           LEFT JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid
-                           {$profilejoin['join']}
-                           {$fallbackjoin}",
+                           LEFT JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid",
                 'expr' => $expr,
                 'idexpr' => $idexpr,
                 'select' => "{$expr} AS companyname",
             ];
         }
 
+        $profilejoin = $this->company_profile_join_sql($useralias, $prefix);
         $expr = $profilejoin['dataalias'] !== '' ? "NULLIF({$profilejoin['dataalias']}.data, '')" : "NULL";
         return [
             'join' => $profilejoin['join'],
@@ -154,25 +139,6 @@ class company_repository {
                          )"];
             $params += $inparams;
 
-            $companynames = $this->company_names_by_ids($filters['companyids']);
-            $profilefield = $this->company_profile_shortname();
-            if ($profilefield !== '' && $companynames) {
-                [$nameinsql, $nameparams] = $DB->get_in_or_equal($companynames, SQL_PARAMS_NAMED, $prefix . 'companyfallback');
-                $dataalias = 'uidcf' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldalias = 'uifcf' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldkey = $prefix . 'companyfallbackfield';
-                $clauses[] = "EXISTS (
-                                  SELECT 1
-                                    FROM {user_info_data} {$dataalias}
-                                    JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
-                                   WHERE {$dataalias}.userid = {$useralias}.id
-                                     AND {$fieldalias}.shortname = :{$fieldkey}
-                                     AND {$dataalias}.data {$nameinsql}
-                               )";
-                $params[$fieldkey] = $profilefield;
-                $params += $nameparams;
-            }
-
             $where[] = '(' . implode(' OR ', $clauses) . ')';
             return;
         }
@@ -191,24 +157,6 @@ class company_repository {
                                    AND {$companyalias}.name {$tableinsql}
                              )";
                 $params += $tableparams;
-            }
-
-            $profilefield = $this->company_profile_shortname();
-            if ($profilefield !== '') {
-                [$profileinsql, $profileparams] = $DB->get_in_or_equal($filters['companies'], SQL_PARAMS_NAMED, $prefix . 'companynameprofile');
-                $dataalias = 'uidct' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldalias = 'uifct' . preg_replace('/[^a-z0-9]/i', '', $prefix);
-                $fieldkey = $prefix . 'companytextfield';
-                $clauses[] = "EXISTS (
-                                SELECT 1
-                                  FROM {user_info_data} {$dataalias}
-                                  JOIN {user_info_field} {$fieldalias} ON {$fieldalias}.id = {$dataalias}.fieldid
-                                 WHERE {$dataalias}.userid = {$useralias}.id
-                                   AND {$fieldalias}.shortname = :{$fieldkey}
-                                   AND {$dataalias}.data {$profileinsql}
-                             )";
-                $params[$fieldkey] = $profilefield;
-                $params += $profileparams;
             }
 
             if ($clauses) {
