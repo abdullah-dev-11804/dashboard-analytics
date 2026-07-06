@@ -31,9 +31,11 @@ class course_analytics_repository {
     ): \stdClass {
         global $DB;
 
+        $coursecontext = \context_course::instance($courseid);
         $record = (object)[
             'fieldid' => $fieldid,
             'instanceid' => $courseid,
+            'contextid' => (int)$coursecontext->id,
             'intvalue' => $enabled ? 1 : 0,
             'value' => $enabled ? '1' : '0',
             'valueformat' => 0,
@@ -62,6 +64,29 @@ class course_analytics_repository {
         }
 
         return $record;
+    }
+
+    /**
+     * Repair broken include_analytics custom field rows that were created without contextid.
+     *
+     * @param int $fieldid
+     * @return void
+     */
+    protected function repair_missing_contextids(int $fieldid): void {
+        global $DB;
+
+        $sql = "UPDATE {customfield_data} d
+                   JOIN {context} ctx
+                     ON ctx.contextlevel = :contextlevel
+                    AND ctx.instanceid = d.instanceid
+                    SET d.contextid = ctx.id
+                 WHERE d.fieldid = :fieldid
+                   AND d.contextid IS NULL";
+
+        $DB->execute($sql, [
+            'contextlevel' => CONTEXT_COURSE,
+            'fieldid' => $fieldid,
+        ]);
     }
 
     public function eligibility_join_sql(
@@ -164,6 +189,8 @@ class course_analytics_repository {
         if (!$field) {
             throw new \moodle_exception('error:analyticsfieldmissing', 'block_dashboardanalytics');
         }
+
+        $this->repair_missing_contextids((int)$field->id);
 
         $now = time();
         $data = $DB->get_record('customfield_data', ['fieldid' => (int)$field->id, 'instanceid' => $courseid], '*', IGNORE_MISSING);
