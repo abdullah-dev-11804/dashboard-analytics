@@ -4,8 +4,6 @@
 namespace block_dashboardanalytics\repository;
 
 defined('MOODLE_INTERNAL') || die();
-ini_set('log_errors', '1');
-ini_set('error_log', '/tmp/ncasign-debug.log');
 class overview_repository {
 
     public function enrolment_status_snapshot_rows(array $filters, ?int $reportdate = null): array {
@@ -192,12 +190,6 @@ class overview_repository {
         foreach ($rows as $row) {
             $counts[$row['status']]++;
         }
-
-        $this->debug_log('status_distribution_items counts', [
-            'filters' => $filters,
-            'rowcount' => count($rows),
-            'counts' => $counts,
-        ]);
 
         $total = max(1, array_sum($counts));
         return [
@@ -749,10 +741,6 @@ class overview_repository {
         $companyrepo = new company_repository();
         $source = $documents->source();
         if ($source === null || $source['courseid'] === '') {
-            $this->debug_log('enrolment_status_rows source unavailable', [
-                'source' => $source,
-                'filters' => $filters,
-            ]);
             return [];
         }
 
@@ -800,13 +788,6 @@ class overview_repository {
             $basewhere[] = "c.id {$insql}";
             $params += $inparams;
         }
-
-        $this->debug_log('enrolment_status_rows starting', [
-            'source' => $source,
-            'filters' => $filters,
-            'basewhere' => $basewhere,
-            'params' => $params,
-        ]);
 
         $documentssql = "SELECT " . $DB->sql_concat("'doc-'", 'd.id') . " AS rowid,
                                 u.id AS userid,
@@ -879,23 +860,14 @@ class overview_repository {
         $nodocumentrecords = $DB->get_records_sql($nodocssql, $params, 0, 5000);
         $records = $documentrecords + $nodocumentrecords;
 
-        $this->debug_log('enrolment_status_rows query results', [
-            'documentrowcount' => count($documentrecords),
-            'nodocumentrowcount' => count($nodocumentrecords),
-            'mergedrowcount' => count($records),
-            'documentssql' => $documentssql,
-            'nodocssql' => $nodocssql,
-        ]);
-
         $rows = [];
-        $samples = [];
         foreach ($records as $record) {
             $expirytime = $record->expirytime !== null ? (int)$record->expirytime : null;
             $status = $this->status_for_row((int)$record->documentid, $expirytime, $reportdate);
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
-                'employee' => fullname($record),
+                'employee' => $this->format_person_name((string)$record->firstname, (string)$record->lastname),
                 'companyid' => (int)$record->companyid,
                 'company' => (string)$record->companyname,
                 'department' => (string)$record->departmentname,
@@ -906,26 +878,7 @@ class overview_repository {
                 'expirytime' => $expirytime ?? 0,
                 'status' => $status,
             ];
-
-            if (count($samples) < 10) {
-                $samples[] = [
-                    'userid' => (int)$record->userid,
-                        'courseid' => (int)$record->courseid,
-                        'course' => $this->truncate_text((string)$record->coursename, 120),
-                        'documentid' => (int)$record->documentid,
-                        'expirytime' => $expirytime,
-                        'status' => $status,
-                        'companyid' => (int)$record->companyid,
-                        'company' => $this->truncate_text((string)$record->companyname, 80),
-                    ];
-            }
         }
-
-        $this->debug_log('enrolment_status_rows samples', [
-            'reportdate' => $reportdate,
-            'samplecount' => count($samples),
-            'samples' => $samples,
-        ]);
 
         return $rows;
     }
@@ -1515,14 +1468,9 @@ class overview_repository {
         return '';
     }
 
-    private function debug_log(string $label, array $context = []): void {
-        $encoded = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if ($encoded === false) {
-            $encoded = 'context_encoding_failed';
-        }
-
-        $line = '[' . date('Y-m-d H:i:s') . '] [block_dashboardanalytics][overview_repository] ' . $label . ' ' . $encoded . PHP_EOL;
-        @file_put_contents('/tmp/dashboardanalytics-overview-debug.log', $line, FILE_APPEND);
+    private function format_person_name(string $firstname, string $lastname): string {
+        $fullname = trim($firstname . ' ' . $lastname);
+        return $fullname !== '' ? $fullname : get_string('hiddenuser');
     }
 
     private function truncate_text(string $value, int $limit): string {
