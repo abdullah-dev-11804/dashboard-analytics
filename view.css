@@ -1,8 +1,8 @@
-.path-block-dashboardanalytics-view .main-inner,
+/* .path-block-dashboardanalytics-view .main-inner,
 .path-block-dashboardanalytics-view #page.drawers .main-inner {
-    max-width: 1680px !important;
+    max-width: 1680px !important; 
     padding: 2rem 2rem 3rem;
-}
+} */
 
 .path-block-dashboardanalytics-view #page-content,
 .path-block-dashboardanalytics-view #region-main {
@@ -14,7 +14,8 @@
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page {
-    max-width: 1640px;
+    /* max-width: 1640px; */
+    max-width: 100%;
     margin: 0 auto;
 }
 
@@ -333,4 +334,22 @@
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-prototype-panel p {
         max-width: 100%;
     }
+}
+
+.path-block-dashboardanalytics-view .sental-sidebar {
+    display: none;
+}
+
+.path-block-dashboardanalytics-view .sental-main-panel {
+    margin: 0 auto !important;
+    width: 100% !important;
+}
+
+.path-block-dashboardanalytics-view  .sental-topbar{
+    left: 0 !important;
+}
+
+.path-block-dashboardanalytics-view .sental-main-inner{
+    max-width: 100% !important;
+    background: transparent !important;
 }
