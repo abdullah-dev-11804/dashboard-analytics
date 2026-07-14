@@ -739,8 +739,8 @@ class overview_repository {
         $documents = new document_repository();
         $analytics = new course_analytics_repository();
         $companyrepo = new company_repository();
-        $source = $documents->source();
-        if ($source === null || $source['courseid'] === '') {
+        $sources = $documents->sources();
+        if (!$sources) {
             return [];
         }
 
@@ -770,12 +770,6 @@ class overview_repository {
             $departmentselect = 'COALESCE(NULLIF(uiddep.data, \'\'), u.department) AS departmentname';
         }
 
-        $validitysql = $this->validity_days_sql('cfd');
-        $expiryselect = "CASE
-                            WHEN cc.timecompleted IS NULL OR cc.timecompleted <= 0 THEN NULL
-                            ELSE cc.timecompleted + ({$validitysql} * 86400)
-                         END AS expirytime";
-        $docjoin = $this->latest_document_join_sql($source, 'u', 'c', 'd');
         $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfanalyticsoverview', 'cdanalyticsoverview');
         $basewhere = [
             $userfilter['sql'],
@@ -789,7 +783,7 @@ class overview_repository {
             $params += $inparams;
         }
 
-        $documentssql = "SELECT " . $DB->sql_concat("'doc-'", 'd.id') . " AS rowid,
+        $enrolmentsql = "SELECT " . $DB->sql_concat('u.id', "':'", 'c.id') . " AS rowid,
                                 u.id AS userid,
                                 c.id AS courseid,
                                 c.fullname AS coursename,
@@ -799,71 +793,52 @@ class overview_repository {
                                 {$departmentselect},
                                 {$positionselect},
                                 COALESCE({$companysql['idexpr']}, 0) AS companyid,
-                                {$companysql['select']},
-                                d.id AS documentid,
-                                {$expiryselect}
-                           FROM {{$source['table']}} d
-                           JOIN {user} u ON u.id = d.{$source['userid']}
-                           JOIN {course} c ON c.id = d.{$source['courseid']}
-                      LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
-                      LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
-                      LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
+                                {$companysql['select']}
+                           FROM {user} u
+                           JOIN {user_enrolments} ue ON ue.userid = u.id AND ue.status = 0
+                           JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
+                           JOIN {course} c ON c.id = e.courseid
                                 {$analyticsjoin}
                                 {$companysql['join']}
                                 {$departmentjoin}
                                 {$positionjoin}
                           WHERE " . implode(' AND ', array_merge($basewhere, [
-                              "d.id = (
-                                  SELECT MAX(d2.id)
-                                    FROM {{$source['table']}} d2
-                                   WHERE d2.{$source['userid']} = d.{$source['userid']}
-                                     AND d2.{$source['courseid']} = d.{$source['courseid']}
-                                     AND (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)
-                                     AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')
-                              )",
-                              "(d.{$source['origin']} <> 'demo_job' OR d.{$source['origin']} IS NULL)",
-                              "d.{$source['status']} IN ('completed_manual', 'completed_auto')",
+                              'ue.status = 0',
+                              'e.status = 0',
                           ]));
 
-        $nodocssql = "SELECT " . $DB->sql_concat("'nodoc-'", 'ue.id') . " AS rowid,
-                             u.id AS userid,
-                             c.id AS courseid,
-                             c.fullname AS coursename,
-                             u.firstname,
-                             u.lastname,
-                             u.city,
-                             {$departmentselect},
-                             {$positionselect},
-                             COALESCE({$companysql['idexpr']}, 0) AS companyid,
-                             {$companysql['select']},
-                             COALESCE(d.id, 0) AS documentid,
-                             {$expiryselect}
-                        FROM {user} u
-                        JOIN {user_enrolments} ue ON ue.userid = u.id AND ue.status = 0
-                        JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
-                        JOIN {course} c ON c.id = e.courseid
-                   LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
-                   LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
-                   LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
-                             {$analyticsjoin}
-                             {$companysql['join']}
-                             {$departmentjoin}
-                             {$positionjoin}
-                             {$docjoin}
-                       WHERE " . implode(' AND ', array_merge($basewhere, [
-                           'ue.status = 0',
-                           'e.status = 0',
-                           'd.id IS NULL',
-                       ]));
-
-        $documentrecords = $DB->get_records_sql($documentssql, $params, 0, 5000);
-        $nodocumentrecords = $DB->get_records_sql($nodocssql, $params, 0, 5000);
-        $records = $documentrecords + $nodocumentrecords;
+        $records = $DB->get_records_sql($enrolmentsql, $params, 0, 5000);
+        $documentmap = [];
+        foreach ($sources as $source) {
+            if (($source['kind'] ?? '') === 'ncasign') {
+                $this->merge_document_candidates(
+                    $documentmap,
+                    $this->ncasign_document_candidates($source, $basewhere, $params, $analyticsjoin),
+                    $reportdate,
+                    false
+                );
+            } else if (($source['kind'] ?? '') === 'legacy_type1') {
+                $this->merge_document_candidates(
+                    $documentmap,
+                    $this->legacy_document_candidates($source, $basewhere, $params, $analyticsjoin),
+                    $reportdate,
+                    true
+                );
+            }
+        }
 
         $rows = [];
         foreach ($records as $record) {
-            $expirytime = $record->expirytime !== null ? (int)$record->expirytime : null;
-            $status = $this->status_for_row((int)$record->documentid, $expirytime, $reportdate);
+            $mapkey = $this->document_map_key((int)$record->userid, (int)$record->courseid);
+            $document = $documentmap[$mapkey] ?? null;
+            $expirytime = $document['expirytime'] ?? null;
+            $documentid = (int)($document['documentid'] ?? 0);
+            $status = $this->status_for_row(
+                $documentid,
+                $expirytime,
+                $reportdate,
+                (bool)($document['null_expiry_means_active'] ?? false)
+            );
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
@@ -874,7 +849,7 @@ class overview_repository {
                 'location' => (string)$record->city,
                 'position' => (string)$record->positionname,
                 'course' => format_string((string)$record->coursename),
-                'documentid' => (int)$record->documentid,
+                'documentid' => $documentid,
                 'expirytime' => $expirytime ?? 0,
                 'status' => $status,
             ];
@@ -883,9 +858,13 @@ class overview_repository {
         return $rows;
     }
 
-    private function status_for_row(int $documentid, ?int $expirytime, int $reportdate): string {
-        if ($documentid <= 0 || $expirytime === null || $expirytime <= 0) {
+    private function status_for_row(int $documentid, ?int $expirytime, int $reportdate, bool $nullExpiryMeansActive = false): string {
+        if ($documentid <= 0) {
             return 'No document';
+        }
+
+        if ($expirytime === null || $expirytime <= 0) {
+            return $nullExpiryMeansActive ? 'Active' : 'No document';
         }
 
         if ($expirytime <= $reportdate) {
@@ -896,6 +875,140 @@ class overview_repository {
             return 'Expiring';
         }
         return 'Active';
+    }
+
+    private function ncasign_document_candidates(array $source, array $basewhere, array $params, string $analyticsjoin): array {
+        global $DB;
+
+        $validitysql = $this->validity_days_sql('cfd');
+        $expiryselect = "CASE
+                            WHEN cc.timecompleted IS NULL OR cc.timecompleted <= 0 THEN NULL
+                            ELSE cc.timecompleted + ({$validitysql} * 86400)
+                         END AS expirytime";
+
+        $sql = "SELECT d.id AS documentid,
+                       u.id AS userid,
+                       c.id AS courseid,
+                       {$expiryselect}
+                  FROM {{$source['table']}} d
+                  JOIN {user} u ON u.id = d.{$source['userid']}
+                  JOIN {course} c ON c.id = d.{$source['courseid']}
+             LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
+             LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
+             LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
+                       {$analyticsjoin}
+                 WHERE " . implode(' AND ', array_merge($basewhere, [
+                     "d.id = (
+                         SELECT MAX(d2.id)
+                           FROM {{$source['table']}} d2
+                          WHERE d2.{$source['userid']} = d.{$source['userid']}
+                            AND d2.{$source['courseid']} = d.{$source['courseid']}
+                            AND (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)
+                            AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')
+                     )",
+                     "(d.{$source['origin']} <> 'demo_job' OR d.{$source['origin']} IS NULL)",
+                     "d.{$source['status']} IN ('completed_manual', 'completed_auto')",
+                 ]));
+
+        return array_values($DB->get_records_sql($sql, $params, 0, 5000));
+    }
+
+    private function legacy_document_candidates(array $source, array $basewhere, array $params, string $analyticsjoin): array {
+        global $DB;
+
+        $versionjoin = '';
+        $expiryexpr = "d.expirydate";
+        if (!empty($source['versiontable'])) {
+            $versionjoin = "LEFT JOIN {{$source['versiontable']}} v
+                                   ON v.documentid = d.{$source['documentid']}
+                                  AND v.versionno = d.{$source['currentversion']}";
+            $expiryexpr = "COALESCE(v.expirydate, d.expirydate)";
+        }
+
+        $sql = "SELECT d.{$source['documentid']} AS documentid,
+                       du.{$source['userid']} AS userid,
+                       c.id AS courseid,
+                       CASE
+                           WHEN {$expiryexpr} IS NULL THEN NULL
+                           WHEN {$expiryexpr} = 0 THEN NULL
+                           ELSE {$expiryexpr}
+                       END AS expirytime
+                  FROM {{$source['table']}} d
+                  JOIN {{$source['usertable']}} du
+                    ON du.documentid = d.{$source['documentid']}
+                  JOIN {user} u ON u.id = du.{$source['userid']}
+                  JOIN {course} c ON c.id = d.{$source['courseid']}
+                       {$versionjoin}
+                       {$analyticsjoin}
+                 WHERE " . implode(' AND ', array_merge($basewhere, [
+                     "d.{$source['documenttype']} = 'type1'",
+                 ]));
+
+        return array_values($DB->get_records_sql($sql, $params, 0, 5000));
+    }
+
+    private function merge_document_candidates(array &$documentmap, array $records, int $reportdate, bool $nullExpiryMeansActive): void {
+        foreach ($records as $record) {
+            $candidate = [
+                'documentid' => (int)$record->documentid,
+                'expirytime' => $record->expirytime !== null ? (int)$record->expirytime : null,
+                'null_expiry_means_active' => $nullExpiryMeansActive,
+            ];
+            $candidate['status'] = $this->status_for_row(
+                $candidate['documentid'],
+                $candidate['expirytime'],
+                $reportdate,
+                $nullExpiryMeansActive
+            );
+
+            $key = $this->document_map_key((int)$record->userid, (int)$record->courseid);
+            if (!isset($documentmap[$key]) || $this->document_candidate_is_better($candidate, $documentmap[$key])) {
+                $documentmap[$key] = $candidate;
+            }
+        }
+    }
+
+    private function document_map_key(int $userid, int $courseid): string {
+        return $userid . ':' . $courseid;
+    }
+
+    private function document_candidate_is_better(array $candidate, array $current): bool {
+        $candidaterank = $this->status_rank((string)$candidate['status']);
+        $currentrank = $this->status_rank((string)$current['status']);
+        if ($candidaterank !== $currentrank) {
+            return $candidaterank > $currentrank;
+        }
+
+        $candidateexpiry = $this->document_sort_expiry($candidate);
+        $currentexpiry = $this->document_sort_expiry($current);
+        if ($candidateexpiry !== $currentexpiry) {
+            return $candidateexpiry > $currentexpiry;
+        }
+
+        return (int)$candidate['documentid'] > (int)$current['documentid'];
+    }
+
+    private function status_rank(string $status): int {
+        if ($status === 'Active') {
+            return 4;
+        }
+        if ($status === 'Expiring') {
+            return 3;
+        }
+        if ($status === 'Expired') {
+            return 2;
+        }
+        return 1;
+    }
+
+    private function document_sort_expiry(array $document): int {
+        if (!empty($document['expirytime'])) {
+            return (int)$document['expirytime'];
+        }
+        if (!empty($document['null_expiry_means_active'])) {
+            return PHP_INT_MAX;
+        }
+        return 0;
     }
 
     private function company_summary_by_label(array $filters, string $company, int $reportdate): array {

@@ -8,14 +8,28 @@ defined('MOODLE_INTERNAL') || die();
 class document_repository {
 
     public function is_configured(): bool {
-        return $this->source() !== null;
+        return !empty($this->sources());
+    }
+
+    public function sources(): array {
+        $sources = [];
+        $primary = $this->source();
+        if ($primary !== null) {
+            $primary['kind'] = 'ncasign';
+            $primary['null_expiry_means_active'] = false;
+            $sources[] = $primary;
+        }
+
+        $legacy = $this->legacy_source();
+        if ($legacy !== null) {
+            $sources[] = $legacy;
+        }
+
+        return $sources;
     }
 
     public function status_counts(array $filters): array {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return [
                 'configured' => false,
                 'total' => 0,
@@ -26,58 +40,38 @@ class document_repository {
             ];
         }
 
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'doccount');
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, 'doccountorigin');
-        $this->append_course_filter($where, $params, $filters, $source, 'doccountcourse');
-
-        $now = time();
-        $soon = $now + (30 * DAYSECS);
-        $table = $source['table'];
-        $useridcolumn = $source['userid'];
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $hascompletion = $this->has_completion_sql('ccdash');
-        $params += [
-            'expirednow' => $now,
-            'expiringnow' => $now,
-            'expiringsoon' => $soon,
-            'activesoon' => $soon,
+        $counts = [
+            'active' => 0,
+            'expiring' => 0,
+            'expired' => 0,
+            'nodocument' => 0,
         ];
-
-        $sql = "SELECT SUM(CASE WHEN {$hascompletion} THEN 1 ELSE 0 END) AS total,
-                       SUM(CASE WHEN {$hascompletion}
-                                  AND {$expiry} < :expirednow THEN 1 ELSE 0 END) AS expired,
-                       SUM(CASE WHEN {$hascompletion}
-                                  AND {$expiry} >= :expiringnow
-                                  AND {$expiry} <= :expiringsoon THEN 1 ELSE 0 END) AS expiring,
-                       SUM(CASE WHEN {$hascompletion}
-                                  AND {$expiry} > :activesoon THEN 1 ELSE 0 END) AS active,
-                       COUNT(DISTINCT CASE WHEN {$hascompletion} THEN d.{$useridcolumn} ELSE NULL END) AS userswithdocuments
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$useridcolumn}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where);
-
-        $record = $DB->get_record_sql($sql, $params);
-        $totalstaff = $employee->count_active_users($filters);
+        foreach ($this->overview_rows($filters) as $row) {
+            if ($row['status'] === 'Active') {
+                $counts['active']++;
+            } else if ($row['status'] === 'Expiring') {
+                $counts['expiring']++;
+            } else if ($row['status'] === 'Expired') {
+                $counts['expired']++;
+            } else {
+                $counts['nodocument']++;
+            }
+        }
 
         return [
             'configured' => true,
-            'total' => (int)($record->total ?? 0),
-            'active' => (int)($record->active ?? 0),
-            'expiring' => (int)($record->expiring ?? 0),
-            'expired' => (int)($record->expired ?? 0),
-            'nodocument' => max(0, $totalstaff - (int)($record->userswithdocuments ?? 0)),
+            'total' => (int)$counts['active'] + (int)$counts['expiring'] + (int)$counts['expired'],
+            'active' => (int)$counts['active'],
+            'expiring' => (int)$counts['expiring'],
+            'expired' => (int)$counts['expired'],
+            'nodocument' => (int)$counts['nodocument'],
         ];
     }
 
     public function compliance_summary(array $filters): array {
         $employee = new employee_repository();
         $totalactiveusers = $employee->count_active_users($filters);
-        if ($this->source() === null) {
+        if (!$this->is_configured()) {
             return [
                 'configured' => false,
                 'totalactiveusers' => $totalactiveusers,
@@ -101,45 +95,17 @@ class document_repository {
     }
 
     public function count_valid_signed_users(array $filters): int {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return 0;
         }
 
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'validdocs');
-        $where = [
-            $userfilter['sql'],
-            "d.status IN (:validstatusmanual, :validstatusauto)",
-        ];
-        $params = $userfilter['params'] + [
-            'validstatusmanual' => 'completed_manual',
-            'validstatusauto' => 'completed_auto',
-            'validnow' => time(),
-        ];
-
-        if (!empty($source['origin'])) {
-            $where[] = "d.{$source['origin']} = :validorigin";
-            $params['validorigin'] = 'course_completion';
+        $userids = [];
+        foreach ($this->overview_rows($filters) as $row) {
+            if ($row['status'] === 'Active' || $row['status'] === 'Expiring') {
+                $userids[(int)$row['userid']] = true;
+            }
         }
-
-        $this->append_course_filter($where, $params, $filters, $source, 'validdoccourse');
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $where[] = $this->has_completion_sql('ccdash');
-        $where[] = "{$expiry} >= :validnow";
-
-        $table = $source['table'];
-        $useridcolumn = $source['userid'];
-        $sql = "SELECT COUNT(DISTINCT d.{$useridcolumn})
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$useridcolumn}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where);
-
-        return (int)$DB->count_records_sql($sql, $params);
+        return count($userids);
     }
 
     public function status_items(array $filters): array {
@@ -155,57 +121,42 @@ class document_repository {
     }
 
     public function risk_by_company_items(array $filters, int $limit = 10): array {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return [];
         }
 
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'riskcompany');
-        $company = new company_repository();
-        $companysql = $company->company_name_sql('u', 'riskcompany');
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, 'riskcompanyorigin');
+        $companies = [];
+        foreach ($this->overview_rows($filters) as $row) {
+            $companyname = trim((string)($row['company'] ?? '')) !== '' ? (string)$row['company'] : 'Unassigned';
+            if (!isset($companies[$companyname])) {
+                $companies[$companyname] = [
+                    'companyid' => (int)($row['companyid'] ?? 0),
+                    'companyname' => $companyname,
+                    'expired' => 0,
+                    'expiring' => 0,
+                ];
+            }
 
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $now = time();
-        $soon = $now + (30 * DAYSECS);
-        $params += [
-            'riskexpirednow' => $now,
-            'riskexpiringnow' => $now,
-            'risksoon' => $soon,
-        ];
+            if ($row['status'] === 'Expired') {
+                $companies[$companyname]['expired']++;
+            } else if ($row['status'] === 'Expiring') {
+                $companies[$companyname]['expiring']++;
+            }
+        }
 
-        $table = $source['table'];
-        $sql = "SELECT COALESCE({$companysql['idexpr']}, 0) AS companyid,
-                       COALESCE({$companysql['expr']}, 'Unassigned') AS companyname,
-                       SUM(CASE WHEN {$expiry} < :riskexpirednow THEN 1 ELSE 0 END) AS expired,
-                       SUM(CASE WHEN {$expiry} >= :riskexpiringnow AND {$expiry} <= :risksoon THEN 1 ELSE 0 END) AS expiring
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$source['userid']}
-                       {$companysql['join']}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where) . "
-              GROUP BY COALESCE({$companysql['idexpr']}, 0), COALESCE({$companysql['expr']}, 'Unassigned')";
-
-        $records = $DB->get_records_sql($sql, $params);
         $items = [];
         $max = 1;
-        foreach ($records as $record) {
-            $total = (int)$record->expired + (int)$record->expiring;
+        foreach ($companies as $record) {
+            $total = (int)$record['expired'] + (int)$record['expiring'];
             $max = max($max, $total);
             $items[] = [
-                'label' => (string)$record->companyname,
+                'label' => (string)$record['companyname'],
                 'value' => (string)$total,
                 'rawtotal' => $total,
-                'companyid' => (int)$record->companyid,
-                'companyname' => (string)$record->companyname,
-                'expired' => (int)$record->expired,
-                'expiring' => (int)$record->expiring,
+                'companyid' => (int)$record['companyid'],
+                'companyname' => (string)$record['companyname'],
+                'expired' => (int)$record['expired'],
+                'expiring' => (int)$record['expiring'],
             ];
         }
 
@@ -468,84 +419,62 @@ class document_repository {
     }
 
     public function expired_expiring_grouped_items(array $filters, string $dimension, int $limit = 10): array {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return [];
         }
 
-        $dimensionexpr = $this->dimension_expr($dimension);
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'grouped' . $dimension);
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, 'groupedorigin' . $dimension);
+        $groups = [];
+        foreach ($this->overview_rows($filters) as $row) {
+            $label = $this->row_dimension_label($row, $dimension);
+            if ($label === '') {
+                $label = 'Unassigned';
+            }
+            if (!isset($groups[$label])) {
+                $groups[$label] = (object)[
+                    'label' => $label,
+                    'expired' => 0,
+                    'expiring' => 0,
+                ];
+            }
+            if ($row['status'] === 'Expired') {
+                $groups[$label]->expired++;
+            } else if ($row['status'] === 'Expiring') {
+                $groups[$label]->expiring++;
+            }
+        }
 
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $now = time();
-        $soon = $now + (30 * DAYSECS);
-        $params += [
-            'groupedexpirednow' . $dimension => $now,
-            'groupedexpiringnow' . $dimension => $now,
-            'groupedsoon' . $dimension => $soon,
-        ];
-
-        $coursejoin = $dimension === 'course' && !empty($source['courseid']) ? "LEFT JOIN {course} cdim ON cdim.id = d.{$source['courseid']}" : '';
-        $table = $source['table'];
-        $sql = "SELECT {$dimensionexpr} AS label,
-                       SUM(CASE WHEN {$expiry} < :groupedexpirednow{$dimension} THEN 1 ELSE 0 END) AS expired,
-                       SUM(CASE WHEN {$expiry} >= :groupedexpiringnow{$dimension} AND {$expiry} <= :groupedsoon{$dimension} THEN 1 ELSE 0 END) AS expiring
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$source['userid']}
-                       {$coursejoin}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where) . "
-              GROUP BY {$dimensionexpr}";
-
-        $records = $DB->get_records_sql($sql, $params);
-        return $this->grouped_count_items($records, $limit);
+        return $this->grouped_count_items(array_values($groups), $limit);
     }
 
     public function certification_status_stacked_items(array $filters, string $dimension, int $limit = 10): array {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return [];
         }
 
-        $dimensionexpr = $this->dimension_expr($dimension);
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'stacked' . $dimension);
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, 'stackedorigin' . $dimension);
+        $groups = [];
+        foreach ($this->overview_rows($filters) as $row) {
+            $label = $this->row_dimension_label($row, $dimension);
+            if ($label === '') {
+                $label = 'Unassigned';
+            }
+            if (!isset($groups[$label])) {
+                $groups[$label] = (object)[
+                    'label' => $label,
+                    'active' => 0,
+                    'expiring' => 0,
+                    'expired' => 0,
+                ];
+            }
+            if ($row['status'] === 'Active') {
+                $groups[$label]->active++;
+            } else if ($row['status'] === 'Expiring') {
+                $groups[$label]->expiring++;
+            } else if ($row['status'] === 'Expired') {
+                $groups[$label]->expired++;
+            }
+        }
 
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $now = time();
-        $soon = $now + (30 * DAYSECS);
-        $params += [
-            'stackedexpirednow' . $dimension => $now,
-            'stackedexpiringnow' . $dimension => $now,
-            'stackedsoon' . $dimension => $soon,
-            'stackedactivesoon' . $dimension => $soon,
-        ];
-
-        $table = $source['table'];
-        $sql = "SELECT {$dimensionexpr} AS label,
-                       SUM(CASE WHEN {$expiry} > :stackedactivesoon{$dimension} THEN 1 ELSE 0 END) AS active,
-                       SUM(CASE WHEN {$expiry} >= :stackedexpiringnow{$dimension} AND {$expiry} <= :stackedsoon{$dimension} THEN 1 ELSE 0 END) AS expiring,
-                       SUM(CASE WHEN {$expiry} < :stackedexpirednow{$dimension} THEN 1 ELSE 0 END) AS expired
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$source['userid']}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where) . "
-              GROUP BY {$dimensionexpr}";
-
-        $records = $DB->get_records_sql($sql, $params, 0, $limit);
+        $records = array_slice(array_values($groups), 0, $limit);
         $items = [];
         foreach ($records as $record) {
             $active = (int)$record->active;
@@ -570,10 +499,7 @@ class document_repository {
     }
 
     public function document_rows(array $filters, string $status, int $page, int $perpage, bool $showidentity): array {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return [
                 'columns' => $this->columns(),
                 'rows' => [],
@@ -582,79 +508,51 @@ class document_repository {
             ];
         }
 
-        $employee = new employee_repository();
-        $userfilter = $employee->user_filter_sql($filters, 'u', 'docrows');
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, 'docrowsorigin');
-        $this->append_course_filter($where, $params, $filters, $source, 'docrowscourse');
-        $this->append_status_filter($where, $params, $status, $source, 'docrowsstatus');
-
-        $table = $source['table'];
-        $useridcolumn = $source['userid'];
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $coursejoin = '';
-        $courseselect = "'' AS coursename";
-        $analyticsjoin = '';
-        $company = new company_repository();
-        $companysql = $company->company_name_sql('u', 'docrowscompany');
-        if ($source['courseid'] !== '') {
-            $coursejoin = "LEFT JOIN {course} c ON c.id = d.{$source['courseid']}";
-            $analytics = new course_analytics_repository();
-            $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfdocrowsanalytics', 'cddocrowsanalytics');
-            $courseselect = 'c.fullname AS coursename';
-            $where[] = 'c.id IS NOT NULL';
-            $where[] = $analytics->eligibility_where_sql('c', 'cfdocrowsanalytics', 'cddocrowsanalytics');
+        $records = $this->overview_rows($filters);
+        if ($status === 'expired') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Expired';
+            }));
+        } else if ($status === 'expiring') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Expiring';
+            }));
+        } else if ($status === 'active') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Active';
+            }));
+        } else if ($status === 'nodocument') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'No document';
+            }));
         }
 
-        $wheresql = implode(' AND ', $where);
-        $countsql = "SELECT COUNT(1)
-                       FROM {{$table}} d
-                       JOIN {user} u ON u.id = d.{$useridcolumn}
-                            {$coursejoin}
-                            {$analyticsjoin}
-                            {$expiryjoin}
-                      WHERE {$wheresql}";
-        $totalcount = (int)$DB->count_records_sql($countsql, $params);
+        usort($records, static function(array $a, array $b): int {
+            $aexpiry = !empty($a['expirytime']) ? (int)$a['expirytime'] : PHP_INT_MAX;
+            $bexpiry = !empty($b['expirytime']) ? (int)$b['expirytime'] : PHP_INT_MAX;
+            return $aexpiry <=> $bexpiry;
+        });
 
-        $sql = "SELECT d.id,
-                       u.id AS userid,
-                       {$expiry} AS expirytime,
-                       u.firstname,
-                       u.lastname,
-                       u.department,
-                       u.city,
-                       {$companysql['select']},
-                       {$courseselect}
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$useridcolumn}
-                       {$coursejoin}
-                       {$analyticsjoin}
-                       {$companysql['join']}
-                       {$expiryjoin}
-                 WHERE {$wheresql}
-              ORDER BY CASE WHEN {$expiry} IS NULL THEN 1 ELSE 0 END, {$expiry} ASC";
-
-        $records = $DB->get_records_sql($sql, $params, $page * $perpage, $perpage);
+        $totalcount = count($records);
+        $records = array_slice($records, $page * $perpage, $perpage);
         $rows = [];
         foreach ($records as $record) {
-            $expiry = $record->expirytime !== null ? (int)$record->expirytime : null;
+            $expiry = !empty($record['expirytime']) ? (int)$record['expirytime'] : null;
             $days = $expiry !== null ? (int)floor(($expiry - time()) / DAYSECS) : null;
             $rows[] = [
                 'cells' => [
                     [
                         'key' => 'employee',
-                        'value' => $showidentity ? fullname($record) : get_string('hiddenuser'),
-                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->userid]))->out(false) : '',
+                        'value' => $showidentity ? (string)$record['employee'] : get_string('hiddenuser'),
+                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record['userid']]))->out(false) : '',
                     ],
-                    ['key' => 'company', 'value' => (string)$record->companyname],
-                    ['key' => 'department', 'value' => (string)$record->department],
-                    ['key' => 'location', 'value' => (string)$record->city],
-                    ['key' => 'course', 'value' => (string)$record->coursename],
+                    ['key' => 'company', 'value' => (string)$record['company']],
+                    ['key' => 'department', 'value' => (string)$record['department']],
+                    ['key' => 'location', 'value' => (string)$record['location']],
+                    ['key' => 'course', 'value' => (string)$record['course']],
                     ['key' => 'expiry', 'value' => $expiry !== null ? userdate($expiry, get_string('strftimedate')) : '-'],
                     ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
-                    ['key' => 'status', 'value' => $this->status_label($expiry)],
+                    ['key' => 'status', 'value' => (string)$record['status']],
                 ],
             ];
         }
@@ -703,6 +601,32 @@ class document_repository {
             'expiry' => '',
             'origin' => isset($columns['origin']) ? 'origin' : '',
             'status' => isset($columns['status']) ? 'status' : '',
+        ];
+    }
+
+    public function legacy_source(): ?array {
+        global $CFG, $DB;
+
+        require_once($CFG->libdir . '/xmldb/xmldb_table.php');
+        $manager = $DB->get_manager();
+        $required = ['sental_modeb_doc', 'sental_modeb_doc_user'];
+        foreach ($required as $tablename) {
+            if (!$manager->table_exists(new \xmldb_table($tablename))) {
+                return null;
+            }
+        }
+
+        return [
+            'kind' => 'legacy_type1',
+            'table' => 'sental_modeb_doc',
+            'usertable' => 'sental_modeb_doc_user',
+            'versiontable' => $manager->table_exists(new \xmldb_table('sental_modeb_doc_version')) ? 'sental_modeb_doc_version' : '',
+            'courseid' => 'courseid',
+            'userid' => 'userid',
+            'documentid' => 'id',
+            'documenttype' => 'documenttype',
+            'currentversion' => 'currentversion',
+            'null_expiry_means_active' => true,
         ];
     }
 
@@ -763,34 +687,21 @@ class document_repository {
     }
 
     private function count_expiring_between(array $filters, int $startdays, int $enddays): int {
-        global $DB;
-
-        $source = $this->source();
-        if ($source === null) {
+        if (!$this->is_configured()) {
             return 0;
         }
 
-        $employee = new employee_repository();
-        $prefix = 'forecast' . $startdays;
-        $userfilter = $employee->user_filter_sql($filters, 'u', $prefix);
-        $where = [$userfilter['sql']];
-        $params = $userfilter['params'];
-        $this->append_origin_filter($where, $params, $source, $prefix . 'origin');
+        $start = time() + ($startdays * DAYSECS);
+        $end = time() + ($enddays * DAYSECS);
+        $count = 0;
+        foreach ($this->overview_rows($filters) as $row) {
+            $expiry = !empty($row['expirytime']) ? (int)$row['expirytime'] : 0;
+            if ($expiry >= $start && $expiry <= $end) {
+                $count++;
+            }
+        }
 
-        $expiry = $this->expiry_sql('d', $source);
-        $expiryjoin = $this->expiry_join_sql('d', $source);
-        $params[$prefix . 'start'] = time() + ($startdays * DAYSECS);
-        $params[$prefix . 'end'] = time() + ($enddays * DAYSECS);
-        $table = $source['table'];
-
-        $sql = "SELECT COUNT(1)
-                  FROM {{$table}} d
-                  JOIN {user} u ON u.id = d.{$source['userid']}
-                       {$expiryjoin}
-                 WHERE " . implode(' AND ', $where) . "
-                   AND {$expiry} BETWEEN :{$prefix}start AND :{$prefix}end";
-
-        return (int)$DB->count_records_sql($sql, $params);
+        return $count;
     }
 
     private function visual_item(string $label, int $count, int $total, string $status): array {
@@ -813,6 +724,26 @@ class document_repository {
         }
 
         return "COALESCE(NULLIF(u.department, ''), 'Unassigned')";
+    }
+
+    private function overview_rows(array $filters): array {
+        return (new overview_repository())->enrolment_status_snapshot_rows($filters);
+    }
+
+    private function row_dimension_label(array $row, string $dimension): string {
+        if ($dimension === 'location') {
+            return trim((string)($row['location'] ?? ''));
+        }
+
+        if ($dimension === 'course') {
+            return trim((string)($row['course'] ?? ''));
+        }
+
+        if ($dimension === 'company') {
+            return trim((string)($row['company'] ?? ''));
+        }
+
+        return trim((string)($row['department'] ?? ''));
     }
 
     private function grouped_count_items(array $records, int $limit): array {
