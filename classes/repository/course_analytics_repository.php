@@ -31,7 +31,10 @@ class course_analytics_repository {
     ): \stdClass {
         global $DB;
 
-        $coursecontext = \context_course::instance($courseid);
+        $coursecontext = \context_course::instance($courseid, IGNORE_MISSING);
+        if (!$coursecontext) {
+            throw new \moodle_exception('error:invalidcourse', 'block_dashboardanalytics');
+        }
         $record = (object)[
             'fieldid' => $fieldid,
             'instanceid' => $courseid,
