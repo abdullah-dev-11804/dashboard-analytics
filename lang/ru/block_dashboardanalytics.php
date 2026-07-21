@@ -55,6 +55,7 @@ $string['filter:allpersonnelcategorieslabel'] = 'Все категории пе�
 $string['filter:allsiteslabel'] = 'Все объекты / площадки';
 $string['filter:alleducationslabel'] = 'Все уровни образования';
 $string['filter:companies'] = 'Компания';
+$string['filter:employees'] = 'Сотрудник';
 $string['filter:courses'] = 'Курс';
 $string['filter:daterange'] = 'Период';
 $string['filter:departments'] = 'Подразделение';
@@ -130,6 +131,7 @@ $string['js:heatmapallcombined'] = 'Все компании вместе';
 $string['js:heatmapcompliantlegend'] = '>=80% Соответствует';
 $string['js:heatmaprisklegend'] = '70–79% Под риском';
 $string['js:heatmapcriticallegend'] = '<70% Критично';
+$string['js:searchplaceholder'] = 'Поиск: {$a}';
 
 $string['kpi:activecourses'] = 'Активные курсы';
 $string['kpi:compliance'] = 'Соответствие';

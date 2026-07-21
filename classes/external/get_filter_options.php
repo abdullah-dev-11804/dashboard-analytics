@@ -42,6 +42,7 @@ class get_filter_options extends \external_api {
                 'key' => new \external_value(PARAM_ALPHANUMEXT, 'Filter key'),
                 'label' => new \external_value(PARAM_TEXT, 'Filter label'),
                 'multiple' => new \external_value(PARAM_BOOL, 'Whether multiple values are supported'),
+                'searchable' => new \external_value(PARAM_BOOL, 'Whether this filter should render as a searchable suggestion field', VALUE_DEFAULT, false),
                 'options' => new \external_multiple_structure(new \external_single_structure([
                     'value' => new \external_value(PARAM_RAW, 'Option value'),
                     'label' => new \external_value(PARAM_TEXT, 'Option label'),

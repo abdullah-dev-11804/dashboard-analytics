@@ -63,6 +63,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         heatmapCompliantLegend: '>=80% Compliant',
         heatmapRiskLegend: '70–79% At risk',
         heatmapCriticalLegend: '<70% Critical',
+        searchPlaceholder: 'Search {$a}',
         qualityCourseHeader: 'Course',
         qualityRatingHeader: 'Rating',
         qualityReviewsHeader: 'Reviews',
@@ -158,6 +159,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:heatmapcompliantlegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcriticallegend', component: 'block_dashboardanalytics'},
+        {key: 'js:searchplaceholder', component: 'block_dashboardanalytics'},
         {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityratingheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityreviewsheader', component: 'block_dashboardanalytics'},
@@ -253,6 +255,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'heatmapCompliantLegend',
         'heatmapRiskLegend',
         'heatmapCriticalLegend',
+        'searchPlaceholder',
         'qualityCourseHeader',
         'qualityRatingHeader',
         'qualityReviewsHeader',
@@ -365,12 +368,19 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var readFilters = function(root, state, overrides) {
         var filters = {};
-        Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
-            var key = select.getAttribute('data-filter-group');
-            if (key === 'daterange') {
-                filters[key] = select.value || defaultDateRange(state);
-            } else {
-                filters[key] = selectedValues(select);
+        Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(field) {
+            var key = field.getAttribute('data-filter-group');
+            if (field.tagName === 'SELECT') {
+                if (key === 'daterange') {
+                    filters[key] = field.value || defaultDateRange(state);
+                } else {
+                    filters[key] = selectedValues(field);
+                }
+                return;
+            }
+
+            if (field.type === 'hidden') {
+                filters[key] = field.value ? [field.value] : [];
             }
         });
 
@@ -445,17 +455,57 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return '';
     };
 
+    var selectedLabelForGroup = function(state, key) {
+        var selected = selectedValueForGroup(state, key);
+        if (selected === '') {
+            return '';
+        }
+
+        var group = (state.filterGroups || {})[key] || {};
+        var match = (group.options || []).find(function(option) {
+            return String(option.value) === String(selected);
+        });
+
+        return match ? String(match.label) : '';
+    };
+
+    var isSearchableGroup = function(group) {
+        return !!(group && group.searchable);
+    };
+
     var renderFilterControl = function(state, group) {
         var key = group.key;
         var selected = selectedValueForGroup(state, key);
+        var selectedLabel = selectedLabelForGroup(state, key);
         var options = group.options || [];
-        var includeBlank = key !== 'daterange';
+        var includeBlank = key !== 'daterange' && !isSearchableGroup(group);
         var allLabel = defaultOptionLabel(group);
-        var optionHtml = (includeBlank ? '<option value="">' + escapeHtml(allLabel) + '</option>' : '')
-            + options.map(function(option) {
-                var isSelected = String(option.value) === selected ? ' selected' : '';
-                return '<option value="' + escapeHtml(option.value) + '"' + isSelected + '>' + escapeHtml(option.label) + '</option>';
-            }).join('');
+        var optionHtml = '';
+
+        if (isSearchableGroup(group)) {
+            var listId = 'da-filter-list-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid));
+            optionHtml = '<input type="search" class="da-filter-select da-filter-searchable-input"'
+                + ' data-filter-search="' + escapeHtml(key) + '"'
+                + ' list="' + listId + '"'
+                + ' value="' + escapeHtml(selectedLabel) + '"'
+                + ' placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), group.label)) + '"'
+                + ' autocomplete="off" aria-label="' + escapeHtml(group.label) + '">'
+                + '<input type="hidden" data-filter-group="' + escapeHtml(key) + '" value="' + escapeHtml(selected) + '">'
+                + '<datalist id="' + listId + '">'
+                + options.map(function(option) {
+                    return '<option value="' + escapeHtml(option.label) + '" data-value="' + escapeHtml(option.value) + '"></option>';
+                }).join('')
+                + '</datalist>';
+        } else {
+            optionHtml = '<select id="da-filter-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid)) + '" class="da-filter-select"'
+                + ' data-filter-group="' + escapeHtml(key) + '" aria-label="' + escapeHtml(group.label) + '">'
+                + (includeBlank ? '<option value="">' + escapeHtml(allLabel) + '</option>' : '')
+                + options.map(function(option) {
+                    var isSelected = String(option.value) === selected ? ' selected' : '';
+                    return '<option value="' + escapeHtml(option.value) + '"' + isSelected + '>' + escapeHtml(option.label) + '</option>';
+                }).join('')
+                + '</select>';
+        }
 
         var remove = key !== state.companyFilterKey
             ? '<button type="button" class="da-filter-remove" data-action="remove-filter" data-filter-key="' + escapeHtml(key)
@@ -476,10 +526,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         return '<div class="da-filter-control" data-filter-wrap="' + escapeHtml(key) + '">'
             + '<div class="da-filter-control-inputs">'
-            + '<select id="da-filter-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid)) + '" class="da-filter-select"'
-            + ' data-filter-group="' + escapeHtml(key) + '" aria-label="' + escapeHtml(group.label) + '">'
             + optionHtml
-            + '</select>'
             + remove
             + '</div>'
             + customRange
@@ -546,8 +593,25 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var updateFilterCounts = function(root, state) {
         var active = [];
-        Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
-            var key = select.getAttribute('data-filter-group');
+
+        (state.activeFilterKeys || []).forEach(function(key) {
+            var wrap = root.querySelector('[data-filter-wrap="' + key + '"]');
+            var hidden = wrap ? wrap.querySelector('input[type="hidden"][data-filter-group]') : null;
+            if (hidden) {
+                if (hidden.value !== '') {
+                    var visible = wrap.querySelector('[data-filter-search]');
+                    if (visible && visible.value !== '') {
+                        active.push(visible.value);
+                    }
+                }
+                return;
+            }
+
+            var select = wrap ? wrap.querySelector('select[data-filter-group]') : null;
+            if (!select) {
+                return;
+            }
+
             var option = select.options[select.selectedIndex];
             var defaultRange = defaultDateRange(state);
             if (!option || option.value === '' || (key === 'daterange' && option.value === defaultRange)) {
@@ -2260,6 +2324,45 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).catch(Notification.exception);
     };
 
+    var syncSearchableFilter = function(input) {
+        if (!input) {
+            return false;
+        }
+
+        var wrap = input.closest('[data-filter-wrap]');
+        if (!wrap) {
+            return false;
+        }
+
+        var hidden = wrap.querySelector('input[type="hidden"][data-filter-group]');
+        var listId = input.getAttribute('list');
+        var list = listId ? document.getElementById(listId) : null;
+        if (!hidden || !list) {
+            return false;
+        }
+
+        var previous = hidden.value || '';
+        var entered = (input.value || '').trim().toLowerCase();
+        var matched = '';
+
+        if (entered !== '') {
+            Array.prototype.slice.call(list.querySelectorAll('option')).some(function(option) {
+                if ((option.value || '').trim().toLowerCase() === entered) {
+                    matched = option.getAttribute('data-value') || '';
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        hidden.value = matched;
+        if (matched === '') {
+            input.value = entered === '' ? '' : input.value;
+        }
+
+        return previous !== hidden.value;
+    };
+
     var loadKpis = function(root, state) {
         var container = root.querySelector('[data-region="kpi-strip"]');
         setLoading(container);
@@ -2366,6 +2469,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            if (event.target.matches('[data-filter-search]')) {
+                state.currentDrilldownPage = 0;
+                syncSearchableFilter(event.target);
+                updateFilterCounts(root, state);
+                refresh(root, state);
+                return;
+            }
+
             if (event.target.matches('[data-filter-custom]')) {
                 state.currentDrilldownPage = 0;
                 refresh(root, state);
@@ -2397,6 +2508,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
 
         root.addEventListener('input', function(event) {
+            if (event.target.matches('[data-filter-search]')) {
+                var changed = syncSearchableFilter(event.target);
+                updateFilterCounts(root, state);
+                if (event.target.value === '' || changed) {
+                    window.clearTimeout(timer);
+                    timer = window.setTimeout(function() {
+                        state.currentDrilldownPage = 0;
+                        refresh(root, state);
+                    }, 250);
+                }
+                return;
+            }
             if (event.target.matches('[data-act-field], [data-act-unit], [data-act-qty]')) {
                 updateReportsActPreview(root);
                 return;
@@ -2534,8 +2657,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var clearFilters = event.target.closest('[data-action="clear-filters"]');
             if (clearFilters && root.contains(clearFilters)) {
-                Array.prototype.slice.call(root.querySelectorAll('select[data-filter-group]')).forEach(function(select) {
-                    select.value = select.getAttribute('data-filter-group') === 'daterange' ? defaultDateRange(state) : '';
+                Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(field) {
+                    if (field.tagName === 'SELECT') {
+                        field.value = field.getAttribute('data-filter-group') === 'daterange' ? defaultDateRange(state) : '';
+                        return;
+                    }
+
+                    if (field.type === 'hidden') {
+                        field.value = '';
+                        var wrap = field.closest('[data-filter-wrap]');
+                        var visible = wrap ? wrap.querySelector('[data-filter-search]') : null;
+                        if (visible) {
+                            visible.value = '';
+                        }
+                    }
                 });
                 Array.prototype.slice.call(root.querySelectorAll('[data-filter-custom]')).forEach(function(input) {
                     input.value = '';

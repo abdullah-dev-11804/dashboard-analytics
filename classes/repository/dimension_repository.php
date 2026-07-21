@@ -16,14 +16,27 @@ class dimension_repository {
                 'label' => get_string('filter:companies', 'block_dashboardanalytics'),
                 'multiple' => true,
                 'options' => $companyrepo->get_company_options($scopefilters),
+                'searchable' => false,
             ],
         ];
+
+        $users = $this->users($scopefilters);
+        if ($users) {
+            $groups[] = [
+                'key' => 'userids',
+                'label' => get_string('filter:employees', 'block_dashboardanalytics'),
+                'multiple' => true,
+                'options' => $users,
+                'searchable' => true,
+            ];
+        }
 
         $groups[] = [
             'key' => 'departments',
             'label' => get_string('filter:departments', 'block_dashboardanalytics'),
             'multiple' => true,
             'options' => $this->profile_field_options($scopefilters, ['Department', 'department'], 'u.department'),
+            'searchable' => false,
         ];
 
         $groups[] = [
@@ -31,6 +44,7 @@ class dimension_repository {
             'label' => get_string('filter:locations', 'block_dashboardanalytics'),
             'multiple' => true,
             'options' => $this->profile_field_options($scopefilters, ['Region'], 'u.city'),
+            'searchable' => false,
         ];
 
         $positions = $this->profile_field_options(
@@ -44,6 +58,7 @@ class dimension_repository {
                 'label' => get_string('filter:positions', 'block_dashboardanalytics'),
                 'multiple' => true,
                 'options' => $positions,
+                'searchable' => false,
             ];
         }
 
@@ -52,6 +67,7 @@ class dimension_repository {
             'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
             'multiple' => true,
             'options' => $this->profile_field_options($scopefilters, ['PersonnelCategory'], ''),
+            'searchable' => false,
         ];
 
         $groups[] = [
@@ -59,6 +75,7 @@ class dimension_repository {
             'label' => get_string('filter:sites', 'block_dashboardanalytics'),
             'multiple' => true,
             'options' => $this->profile_field_options($scopefilters, ['Site'], ''),
+            'searchable' => false,
         ];
 
         $groups[] = [
@@ -66,6 +83,7 @@ class dimension_repository {
             'label' => get_string('filter:educations', 'block_dashboardanalytics'),
             'multiple' => true,
             'options' => $this->profile_field_options($scopefilters, ['edu'], ''),
+            'searchable' => false,
         ];
 
         $courses = $this->courses($scopefilters);
@@ -75,6 +93,7 @@ class dimension_repository {
                 'label' => get_string('filter:courses', 'block_dashboardanalytics'),
                 'multiple' => true,
                 'options' => $courses,
+                'searchable' => true,
             ];
         }
 
@@ -82,6 +101,7 @@ class dimension_repository {
             'key' => 'daterange',
             'label' => get_string('filter:daterange', 'block_dashboardanalytics'),
             'multiple' => false,
+            'searchable' => false,
             'options' => [
                 ['value' => 'day', 'label' => get_string('filter:day', 'block_dashboardanalytics')],
                 ['value' => 'week', 'label' => get_string('filter:week', 'block_dashboardanalytics')],
@@ -96,6 +116,38 @@ class dimension_repository {
         return array_values(array_filter($groups, static function(array $group): bool {
             return !empty($group['options']);
         }));
+    }
+
+    private function users(array $scopefilters): array {
+        global $DB;
+
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimfltuser');
+
+        $sql = "SELECT u.id,
+                       u.firstname,
+                       u.lastname,
+                       u.email
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+              ORDER BY u.lastname ASC, u.firstname ASC, u.email ASC";
+
+        $records = $DB->get_records_sql($sql, $filter['params'], 0, 1000);
+        $options = [];
+        foreach ($records as $record) {
+            $name = trim((string)$record->firstname . ' ' . (string)$record->lastname);
+            $label = $name !== '' ? $name : (string)$record->email;
+            if ((string)$record->email !== '' && stripos($label, (string)$record->email) === false) {
+                $label .= ' (' . (string)$record->email . ')';
+            }
+
+            $options[] = [
+                'value' => (string)(int)$record->id,
+                'label' => $label,
+            ];
+        }
+
+        return $options;
     }
 
     private function profile_field_options(array $scopefilters, array $shortnames, string $fallbackexpr): array {

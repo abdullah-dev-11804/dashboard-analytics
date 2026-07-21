@@ -55,6 +55,7 @@ $string['filter:allpersonnelcategorieslabel'] = 'All personnel categories';
 $string['filter:allsiteslabel'] = 'All sites / facilities';
 $string['filter:alleducationslabel'] = 'All education levels';
 $string['filter:companies'] = 'Company';
+$string['filter:employees'] = 'Employee';
 $string['filter:courses'] = 'Course';
 $string['filter:daterange'] = 'Period';
 $string['filter:departments'] = 'Department';
@@ -130,6 +131,7 @@ $string['js:heatmapallcombined'] = 'All companies combined';
 $string['js:heatmapcompliantlegend'] = '>=80% Compliant';
 $string['js:heatmaprisklegend'] = '70–79% At risk';
 $string['js:heatmapcriticallegend'] = '<70% Critical';
+$string['js:searchplaceholder'] = 'Search {$a}';
 
 $string['kpi:activecourses'] = 'Active courses';
 $string['kpi:compliance'] = 'Compliance';
