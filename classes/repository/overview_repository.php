@@ -925,7 +925,10 @@ class overview_repository {
             $expiryexpr = "COALESCE(v.expirydate, d.expirydate)";
         }
 
-        $sql = "SELECT d.{$source['documentid']} AS documentid,
+        $rowkeyexpr = $DB->sql_concat("d.{$source['documentid']}", "':'", "du.{$source['userid']}");
+
+        $sql = "SELECT {$rowkeyexpr} AS rowkey,
+                       d.{$source['documentid']} AS documentid,
                        du.{$source['userid']} AS userid,
                        c.id AS courseid,
                        CASE
