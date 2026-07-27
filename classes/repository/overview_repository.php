@@ -196,7 +196,7 @@ class overview_repository {
             $this->status_item(get_string('label:active', 'block_dashboardanalytics'), $counts['Active'], $total, 'ok'),
             $this->status_item(get_string('label:expiring', 'block_dashboardanalytics'), $counts['Expiring'], $total, 'warning'),
             $this->status_item(get_string('label:expired', 'block_dashboardanalytics'), $counts['Expired'], $total, 'danger'),
-            $this->status_item(get_string('label:nodocument', 'block_dashboardanalytics'), $counts['No document'], $total, 'muted'),
+            $this->status_item(get_string('label:inprogress', 'block_dashboardanalytics'), $counts['No document'], $total, 'muted'),
         ];
     }
 

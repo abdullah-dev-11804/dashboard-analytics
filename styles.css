@@ -2962,6 +2962,126 @@ body.da-modal-open {
     margin-top: .75rem;
 }
 
+.block-dashboardanalytics .da-donut-card {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-top: .75rem;
+}
+
+.block-dashboardanalytics .da-donut-card-chart {
+    position: relative;
+    flex: 0 0 250px;
+    width: 250px;
+    height: 250px;
+}
+
+.block-dashboardanalytics .da-donut-canvas-lg {
+    width: 250px;
+    height: 250px;
+}
+
+.block-dashboardanalytics .da-donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.block-dashboardanalytics .da-donut-center-value {
+    color: #101827;
+    font-size: 2.9rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.04em;
+}
+
+.block-dashboardanalytics .da-donut-center-label {
+    margin-top: .4rem;
+    color: #6c7c8d;
+    font-size: .64rem;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+
+.block-dashboardanalytics .da-donut-card-list {
+    flex: 1 1 380px;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: .38rem;
+}
+
+.block-dashboardanalytics .da-donut-card-row {
+    position: relative;
+    padding: .78rem .15rem .88rem 0;
+}
+
+.block-dashboardanalytics .da-donut-card-row-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: .75rem;
+}
+
+.block-dashboardanalytics .da-donut-card-swatch {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    background: var(--da-donut-color);
+}
+
+.block-dashboardanalytics .da-donut-card-name {
+    color: #1f2937;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-donut-card-count {
+    color: #111827;
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.03em;
+}
+
+.block-dashboardanalytics .da-donut-card-badge {
+    min-width: 62px;
+    border-radius: 4px;
+    background: var(--da-donut-color);
+    color: #fff;
+    padding: .34rem .5rem;
+    font-size: .76rem;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+}
+
+.block-dashboardanalytics .da-donut-card-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: .28rem;
+    height: 4px;
+    border-radius: 999px;
+    background: #edf1f5;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-donut-card-bar i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--da-donut-color);
+    transition: width .9s cubic-bezier(.2, .75, .3, 1) .1s;
+}
+
 .block-dashboardanalytics .da-donut-canvas {
     width: 180px;
     height: 180px;
@@ -2969,6 +3089,35 @@ body.da-modal-open {
 }
 
 @media (max-width: 520px) {
+    .block-dashboardanalytics .da-donut-card {
+        gap: 1.2rem;
+    }
+
+    .block-dashboardanalytics .da-donut-card-chart {
+        width: 210px;
+        height: 210px;
+        margin: 0 auto;
+        flex-basis: 210px;
+    }
+
+    .block-dashboardanalytics .da-donut-canvas-lg {
+        width: 210px;
+        height: 210px;
+    }
+
+    .block-dashboardanalytics .da-donut-card-list {
+        min-width: 0;
+        flex-basis: 100%;
+    }
+
+    .block-dashboardanalytics .da-donut-card-name {
+        font-size: .92rem;
+    }
+
+    .block-dashboardanalytics .da-donut-card-count {
+        font-size: 1.6rem;
+    }
+
     .block-dashboardanalytics .da-donut-wrap {
         grid-template-columns: 1fr;
     }

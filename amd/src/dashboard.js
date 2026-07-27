@@ -2075,17 +2075,43 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else if (panel.type === 'donut') {
-                body = '<div class="da-donut-wrap">'
-                    + '<canvas class="da-donut-canvas" width="180" height="180" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
-                    + '<div class="da-donut-list">' + visibleItems.map(function(item) {
-                        return '<div class="da-donut-row">'
-                            + '<span class="da-dot da-dot-' + escapeHtml(item.status) + '"></span>'
-                            + '<span>' + escapeHtml(item.label) + '</span>'
-                            + '<strong>' + escapeHtml(item.value) + '</strong>'
-                            + '<em>' + escapeHtml(item.meta) + '</em>'
-                            + '</div>';
-                    }).join('') + '</div>'
-                    + '</div>';
+                if (panel.key === 'documentstatus') {
+                    var donutTotal = visibleItems.reduce(function(sum, item) {
+                        return sum + Math.max(0, Number(item.value) || 0);
+                    }, 0);
+                    body = '<div class="da-donut-card">'
+                        + '<div class="da-donut-card-chart">'
+                        + '<canvas class="da-donut-canvas da-donut-canvas-lg" width="250" height="250" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
+                        + '<div class="da-donut-center">'
+                        + '<strong class="da-donut-center-value" data-donut-total="' + escapeHtml(panel.key) + '">' + escapeHtml(String(Math.round(donutTotal))) + '</strong>'
+                        + '<span class="da-donut-center-label">' + escapeHtml((text('total', 'total') + ' checks').toUpperCase()) + '</span>'
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="da-donut-card-list">' + visibleItems.map(function(item) {
+                            return '<div class="da-donut-card-row" data-donut-row="' + escapeHtml(panel.key + ':' + item.status) + '" style="--da-donut-color:' + escapeHtml(colorForStatus(item.status)) + '">'
+                                + '<div class="da-donut-card-row-head">'
+                                + '<span class="da-donut-card-swatch"></span>'
+                                + '<span class="da-donut-card-name">' + escapeHtml(item.label) + '</span>'
+                                + '<strong class="da-donut-card-count">' + escapeHtml(item.value) + '</strong>'
+                                + '<span class="da-donut-card-badge">' + escapeHtml((Number(item.percent) || 0).toFixed(1) + '%') + '</span>'
+                                + '</div>'
+                                + '<span class="da-donut-card-bar"><i data-width="' + escapeHtml(String(Math.max(0, Number(item.percent) || 0))) + '"></i></span>'
+                                + '</div>';
+                        }).join('') + '</div>'
+                        + '</div>';
+                } else {
+                    body = '<div class="da-donut-wrap">'
+                        + '<canvas class="da-donut-canvas" width="180" height="180" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
+                        + '<div class="da-donut-list">' + visibleItems.map(function(item) {
+                            return '<div class="da-donut-row">'
+                                + '<span class="da-dot da-dot-' + escapeHtml(item.status) + '"></span>'
+                                + '<span>' + escapeHtml(item.label) + '</span>'
+                                + '<strong>' + escapeHtml(item.value) + '</strong>'
+                                + '<em>' + escapeHtml(item.meta) + '</em>'
+                                + '</div>';
+                        }).join('') + '</div>'
+                        + '</div>';
+                }
             } else if (panel.type === 'histogram') {
                 body = '<div class="da-histogram">' + visibleItems.map(function(item) {
                     var height = Math.max(5, Math.min(100, Number(item.percent) || 0));
@@ -2227,47 +2253,83 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var total = items.reduce(function(sum, item) {
                 return sum + Math.max(0, Number(item.value) || Number(item.percent) || 0);
             }, 0);
+            var totalNode = root.querySelector('[data-donut-total="' + panel.key + '"]');
+            var animateBars = function() {
+                Array.prototype.slice.call(root.querySelectorAll('[data-donut-row^="' + panel.key + ':"] .da-donut-card-bar i')).forEach(function(bar) {
+                    var width = Math.max(0.8, Math.min(100, Number(bar.getAttribute('data-width')) || 0));
+                    window.requestAnimationFrame(function() {
+                        bar.style.width = width.toFixed(1) + '%';
+                    });
+                });
+            };
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.lineWidth = 26;
+            ctx.lineWidth = panel.key === 'documentstatus' ? 36 : 26;
             ctx.lineCap = 'butt';
 
             var cx = canvas.width / 2;
             var cy = canvas.height / 2;
-            var radius = 58;
+            var radius = panel.key === 'documentstatus' ? 68 : 58;
 
             if (!total) {
                 ctx.beginPath();
                 ctx.strokeStyle = '#edf1f6';
                 ctx.arc(cx, cy, radius, 0, Math.PI * 2);
                 ctx.stroke();
-                ctx.fillStyle = '#5d6878';
-                ctx.font = '600 14px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(text('noData', 'No data'), cx, cy);
+                if (totalNode) {
+                    totalNode.textContent = '0';
+                }
+                return;
+            }
+            var renderProgress = function(progress) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+                ctx.strokeStyle = '#edf1f6';
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                var remaining = (Math.PI * 2) * progress;
+                var start = -Math.PI / 2;
+                items.forEach(function(item) {
+                    var value = Math.max(0, Number(item.value) || Number(item.percent) || 0);
+                    var fullSpan = (value / total) * Math.PI * 2;
+                    var drawSpan = Math.max(0, Math.min(fullSpan, remaining));
+                    if (drawSpan > 0) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = colorForStatus(item.status);
+                        ctx.arc(cx, cy, radius, start, start + drawSpan);
+                        ctx.stroke();
+                    }
+                    start += fullSpan;
+                    remaining -= drawSpan;
+                });
+
+                if (totalNode) {
+                    totalNode.textContent = String(Math.round(total * progress));
+                }
+            };
+
+            if (panel.key === 'documentstatus') {
+                renderProgress(0);
+                animateBars();
+                var duration = 900;
+                var startTime = null;
+                var step = function(timestamp) {
+                    if (startTime === null) {
+                        startTime = timestamp;
+                    }
+                    var progress = Math.min(1, (timestamp - startTime) / duration);
+                    var eased = 1 - Math.pow(1 - progress, 3);
+                    renderProgress(eased);
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    }
+                };
+                window.requestAnimationFrame(step);
                 return;
             }
 
-            var start = -Math.PI / 2;
-            items.forEach(function(item) {
-                var value = Math.max(0, Number(item.value) || Number(item.percent) || 0);
-                var end = start + (value / total) * Math.PI * 2;
-                ctx.beginPath();
-                ctx.strokeStyle = colorForStatus(item.status);
-                ctx.arc(cx, cy, radius, start, end);
-                ctx.stroke();
-                start = end;
-            });
-
-            ctx.fillStyle = '#1f2937';
-            ctx.font = '700 22px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(Math.round(total)), cx, cy - 4);
-            ctx.fillStyle = '#5d6878';
-            ctx.font = '500 11px sans-serif';
-            ctx.fillText(text('total', 'total'), cx, cy + 17);
+            renderProgress(1);
         });
     };
 
