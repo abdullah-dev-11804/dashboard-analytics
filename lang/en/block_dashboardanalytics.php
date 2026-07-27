@@ -132,6 +132,14 @@ $string['js:heatmapcompliantlegend'] = '>=80% Compliant';
 $string['js:heatmaprisklegend'] = '70–79% At risk';
 $string['js:heatmapcriticallegend'] = '<70% Critical';
 $string['js:searchplaceholder'] = 'Search {$a}';
+$string['js:currentcompliance'] = 'Current compliance';
+$string['js:compliantthreshold'] = 'Compliant threshold';
+$string['js:criticalthresholdtitle'] = 'Critical threshold';
+$string['js:pointsvslastmonth'] = '{$a} pts vs last month';
+$string['js:nochangevslastmonth'] = 'No change vs last month';
+$string['js:months3short'] = '3M';
+$string['js:months6short'] = '6M';
+$string['js:months12short'] = '12M';
 
 $string['kpi:activecourses'] = 'Active courses';
 $string['kpi:compliance'] = 'Compliance';

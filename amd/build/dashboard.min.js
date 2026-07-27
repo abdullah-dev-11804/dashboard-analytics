@@ -64,6 +64,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         heatmapRiskLegend: '70–79% At risk',
         heatmapCriticalLegend: '<70% Critical',
         searchPlaceholder: 'Search {$a}',
+        currentCompliance: 'Current compliance',
+        compliantThresholdTitle: 'Compliant threshold',
+        criticalThresholdTitle: 'Critical threshold',
+        pointsVsLastMonth: '{$a} pts vs last month',
+        noChangeVsLastMonth: 'No change vs last month',
+        months3Short: '3M',
+        months6Short: '6M',
+        months12Short: '12M',
         qualityCourseHeader: 'Course',
         qualityRatingHeader: 'Rating',
         qualityReviewsHeader: 'Reviews',
@@ -160,6 +168,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcriticallegend', component: 'block_dashboardanalytics'},
         {key: 'js:searchplaceholder', component: 'block_dashboardanalytics'},
+        {key: 'js:currentcompliance', component: 'block_dashboardanalytics'},
+        {key: 'js:compliantthreshold', component: 'block_dashboardanalytics'},
+        {key: 'js:criticalthresholdtitle', component: 'block_dashboardanalytics'},
+        {key: 'js:pointsvslastmonth', component: 'block_dashboardanalytics'},
+        {key: 'js:nochangevslastmonth', component: 'block_dashboardanalytics'},
+        {key: 'js:months3short', component: 'block_dashboardanalytics'},
+        {key: 'js:months6short', component: 'block_dashboardanalytics'},
+        {key: 'js:months12short', component: 'block_dashboardanalytics'},
         {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityratingheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityreviewsheader', component: 'block_dashboardanalytics'},
@@ -256,6 +272,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'heatmapRiskLegend',
         'heatmapCriticalLegend',
         'searchPlaceholder',
+        'currentCompliance',
+        'compliantThresholdTitle',
+        'criticalThresholdTitle',
+        'pointsVsLastMonth',
+        'noChangeVsLastMonth',
+        'months3Short',
+        'months6Short',
+        'months12Short',
         'qualityCourseHeader',
         'qualityRatingHeader',
         'qualityReviewsHeader',
@@ -300,6 +324,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var formatString = function(template, value) {
         return String(template).replace('{$a}', value);
+    };
+
+    var formatPercent = function(value) {
+        var numeric = Number(value) || 0;
+        var rounded = Math.round(numeric * 10) / 10;
+        if (Math.abs(rounded - Math.round(rounded)) < 0.05) {
+            return String(Math.round(rounded));
+        }
+        return rounded.toFixed(1);
     };
 
     var defaultOptionLabel = function(group) {
@@ -1019,7 +1052,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
                 || panel.type === 'analyticscourses';
         };
@@ -1347,6 +1380,178 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>'
                     + '<div class="da-server-forecast-meta">' + escapeHtml(forecast.meta || '') + '</div>'
                     + '</div>';
+            } else if (panel.type === 'compliancetrendline') {
+                var trendOverrides = (((state || {}).currentVisualOverrides) || {});
+                var selectedRange = Math.max(3, Math.min(12, Number(trendOverrides.compliancetrendperiod) || 12));
+                var compliantThreshold = Number(trendOverrides.compliancenorm);
+                if (isNaN(compliantThreshold)) {
+                    compliantThreshold = Number(panel.threshold) || 80;
+                }
+                var criticalThreshold = Number(trendOverrides.compliancecritical);
+                if (isNaN(criticalThreshold)) {
+                    criticalThreshold = Number(panel.secondarythreshold) || 70;
+                }
+
+                compliantThreshold = Math.max(1, Math.min(100, compliantThreshold));
+                criticalThreshold = Math.max(0, Math.min(99, criticalThreshold));
+                if (criticalThreshold >= compliantThreshold) {
+                    criticalThreshold = Math.max(0, compliantThreshold - 1);
+                }
+
+                var aggregateSegments = [];
+                var sourceSeries = visibleItems.filter(function(item) {
+                    return Array.isArray(item.segments) && item.segments.length;
+                });
+
+                if (sourceSeries.length) {
+                    var segmentCount = sourceSeries.reduce(function(max, item) {
+                        return Math.max(max, (item.segments || []).length);
+                    }, 0);
+
+                    for (var segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+                        var monthPoints = sourceSeries.map(function(item) {
+                            return (item.segments || [])[segmentIndex] || null;
+                        }).filter(function(segment) {
+                            return !!segment;
+                        });
+
+                        if (!monthPoints.length) {
+                            continue;
+                        }
+
+                        var averagePercent = monthPoints.reduce(function(sum, segment) {
+                            return sum + (Number(segment.percent) || 0);
+                        }, 0) / monthPoints.length;
+
+                        aggregateSegments.push({
+                            label: monthPoints[0].label || '',
+                            percent: averagePercent
+                        });
+                    }
+                }
+
+                if (!aggregateSegments.length) {
+                    body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
+                } else {
+                    var displayedSegments = aggregateSegments.slice(Math.max(0, aggregateSegments.length - Math.min(selectedRange, aggregateSegments.length)));
+                    var lastSegment = displayedSegments[displayedSegments.length - 1] || {percent: 0, label: ''};
+                    var previousSegment = displayedSegments.length > 1 ? displayedSegments[displayedSegments.length - 2] : null;
+                    var currentPercent = Number(lastSegment.percent) || 0;
+                    var delta = previousSegment ? currentPercent - (Number(previousSegment.percent) || 0) : 0;
+                    var currentStatus = currentPercent >= compliantThreshold ? 'ok' : (currentPercent >= criticalThreshold ? 'warning' : 'danger');
+                    var yTicksTrend = [0, 20, 40, 60, 80, 100];
+                    var chartLeftTrend = 8;
+                    var chartRightTrend = 5;
+                    var chartTopTrend = 10;
+                    var chartBottomTrend = 14;
+                    var chartWidthTrend = 100 - chartLeftTrend - chartRightTrend;
+                    var chartHeightTrend = 100 - chartTopTrend - chartBottomTrend;
+                    var xForTrend = function(index, total) {
+                        if (total <= 1) {
+                            return chartLeftTrend;
+                        }
+                        return chartLeftTrend + ((index / (total - 1)) * chartWidthTrend);
+                    };
+                    var yForTrend = function(percent) {
+                        var safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+                        return chartTopTrend + ((100 - safePercent) / 100) * chartHeightTrend;
+                    };
+                    var zoneColorForValue = function(value) {
+                        if (value >= compliantThreshold) {
+                            return '#107c10';
+                        }
+                        if (value >= criticalThreshold) {
+                            return '#d9822b';
+                        }
+                        return '#d13438';
+                    };
+                    var lineSegments = [];
+                    for (var trendIndex = 1; trendIndex < displayedSegments.length; trendIndex++) {
+                        var previousPoint = displayedSegments[trendIndex - 1];
+                        var currentPoint = displayedSegments[trendIndex];
+                        lineSegments.push('<line x1="' + xForTrend(trendIndex - 1, displayedSegments.length).toFixed(2)
+                            + '" y1="' + yForTrend(previousPoint.percent).toFixed(2)
+                            + '" x2="' + xForTrend(trendIndex, displayedSegments.length).toFixed(2)
+                            + '" y2="' + yForTrend(currentPoint.percent).toFixed(2)
+                            + '" class="da-compliance-trendline-path" style="stroke:' + zoneColorForValue(currentPoint.percent) + '"></line>');
+                    }
+                    var xLabelsTrend = displayedSegments.map(function(segment, index) {
+                        return '<text x="' + xForTrend(index, displayedSegments.length).toFixed(2) + '" y="96" text-anchor="middle" class="da-compliance-trendline-x-label">'
+                            + escapeHtml(segment.label || '') + '</text>';
+                    }).join('');
+                    var yGridTrend = yTicksTrend.map(function(tick) {
+                        var y = yForTrend(tick).toFixed(2);
+                        return '<line x1="' + chartLeftTrend + '" y1="' + y + '" x2="' + (100 - chartRightTrend) + '" y2="' + y + '" class="da-compliance-trendline-grid"></line>'
+                            + '<text x="1.5" y="' + y + '" text-anchor="start" dominant-baseline="middle" class="da-compliance-trendline-y-label">' + tick + '%</text>';
+                    }).join('');
+                    var thresholdNormY = yForTrend(compliantThreshold).toFixed(2);
+                    var thresholdCriticalY = yForTrend(criticalThreshold).toFixed(2);
+                    var compliantZoneHeight = (yForTrend(compliantThreshold) - chartTopTrend).toFixed(2);
+                    var warningZoneHeight = (yForTrend(criticalThreshold) - yForTrend(compliantThreshold)).toFixed(2);
+                    var dangerZoneHeight = ((chartTopTrend + chartHeightTrend) - yForTrend(criticalThreshold)).toFixed(2);
+                    var currentX = xForTrend(displayedSegments.length - 1, displayedSegments.length).toFixed(2);
+                    var currentY = yForTrend(currentPercent).toFixed(2);
+                    var currentValueLabelY = Math.max(chartTopTrend + 2, Number(currentY) - 4).toFixed(2);
+                    var deltaText = '';
+                    var deltaClass = 'muted';
+                    if (previousSegment) {
+                        if (delta > 0) {
+                            deltaClass = 'ok';
+                            deltaText = '\u25B2 +' + formatPercent(delta) + ' ' + formatString(text('pointsVsLastMonth', '{$a} pts vs last month'), '').trim();
+                        } else if (delta < 0) {
+                            deltaClass = 'danger';
+                            deltaText = '\u25BC -' + formatPercent(Math.abs(delta)) + ' ' + formatString(text('pointsVsLastMonth', '{$a} pts vs last month'), '').trim();
+                        } else {
+                            deltaClass = 'muted';
+                            deltaText = text('noChangeVsLastMonth', 'No change vs last month');
+                        }
+                    }
+
+                    body = '<div class="da-compliance-trendline">'
+                        + '<div class="da-compliance-trendline-head">'
+                        + '<div class="da-compliance-trendline-periods">'
+                        + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 3 ? ' is-active' : '') + '" data-action="compliance-period" data-period="3">' + escapeHtml(text('months3Short', '3M')) + '</button>'
+                        + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 6 ? ' is-active' : '') + '" data-action="compliance-period" data-period="6">' + escapeHtml(text('months6Short', '6M')) + '</button>'
+                        + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 12 ? ' is-active' : '') + '" data-action="compliance-period" data-period="12">' + escapeHtml(text('months12Short', '12M')) + '</button>'
+                        + '</div>'
+                        + '<div class="da-compliance-trendline-kpi da-compliance-trendline-kpi-' + escapeHtml(currentStatus) + '">'
+                        + '<span class="da-compliance-trendline-kpi-label">' + escapeHtml(text('currentCompliance', 'Current compliance')) + '</span>'
+                        + '<strong class="da-compliance-trendline-kpi-value">' + escapeHtml(formatPercent(currentPercent) + '%') + '</strong>'
+                        + '<span class="da-compliance-trendline-kpi-delta da-text-' + escapeHtml(deltaClass) + '">' + escapeHtml(deltaText) + '</span>'
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="da-compliance-trendline-chart">'
+                        + '<svg class="da-compliance-trendline-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                        + '<rect x="' + chartLeftTrend + '" y="' + chartTopTrend + '" width="' + chartWidthTrend + '" height="' + compliantZoneHeight + '" class="da-compliance-trendline-zone-ok"></rect>'
+                        + '<rect x="' + chartLeftTrend + '" y="' + thresholdNormY + '" width="' + chartWidthTrend + '" height="' + warningZoneHeight + '" class="da-compliance-trendline-zone-warning"></rect>'
+                        + '<rect x="' + chartLeftTrend + '" y="' + thresholdCriticalY + '" width="' + chartWidthTrend + '" height="' + dangerZoneHeight + '" class="da-compliance-trendline-zone-danger"></rect>'
+                        + yGridTrend
+                        + '<line x1="' + chartLeftTrend + '" y1="' + thresholdNormY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdNormY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-ok"></line>'
+                        + '<line x1="' + chartLeftTrend + '" y1="' + thresholdCriticalY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdCriticalY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-danger"></line>'
+                        + lineSegments.join('')
+                        + '<circle cx="' + currentX + '" cy="' + currentY + '" r="1.6" class="da-compliance-trendline-point" style="fill:' + zoneColorForValue(currentPercent) + '"></circle>'
+                        + '<line x1="' + chartLeftTrend + '" y1="' + (chartTopTrend + chartHeightTrend) + '" x2="' + (100 - chartRightTrend) + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
+                        + '<line x1="' + chartLeftTrend + '" y1="' + chartTopTrend + '" x2="' + chartLeftTrend + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
+                        + xLabelsTrend
+                        + '<text x="' + (100 - chartRightTrend + 1) + '" y="' + thresholdNormY + '" text-anchor="start" dominant-baseline="middle" class="da-compliance-trendline-threshold-label da-text-ok">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</text>'
+                        + '<text x="' + (100 - chartRightTrend + 1) + '" y="' + thresholdCriticalY + '" text-anchor="start" dominant-baseline="middle" class="da-compliance-trendline-threshold-label da-text-danger">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</text>'
+                        + '<text x="' + currentX + '" y="' + currentValueLabelY + '" text-anchor="middle" class="da-compliance-trendline-current-label">' + escapeHtml(formatPercent(currentPercent) + '%') + '</text>'
+                        + '</svg>'
+                        + '</div>'
+                        + '<div class="da-compliance-trendline-legend">'
+                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
+                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(text('heatmapRiskLegend', '70–79% At risk')) + '</span>'
+                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('heatmapCriticalLegend', '<70% Critical')) + '</span>'
+                        + '</div>'
+                        + '<div class="da-compliance-trendline-footer">'
+                        + '<span class="da-compliance-trendline-footer-chip"><span class="da-compliance-trendline-footer-line"></span>Compliance line</span>'
+                        + '<label class="da-compliance-trendline-threshold-control"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('compliantThresholdTitle', 'Compliant threshold'))
+                        + '<input type="number" min="0" max="100" step="1" value="' + escapeHtml(formatPercent(compliantThreshold)) + '" data-action="compliance-threshold" data-threshold-key="compliancenorm">%</label>'
+                        + '<label class="da-compliance-trendline-threshold-control"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('criticalThresholdTitle', 'Critical threshold'))
+                        + '<input type="number" min="0" max="100" step="1" value="' + escapeHtml(formatPercent(criticalThreshold)) + '" data-action="compliance-threshold" data-threshold-key="compliancecritical">%</label>'
+                        + '</div>'
+                        + '</div>';
+                }
             } else if (panel.type === 'compliancetrendchart') {
                 var monthLabels = ((visibleItems[0] || {}).segments || []).map(function(segment) {
                     return segment.label || '';
@@ -1890,7 +2095,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return '<article class="da-visual-panel' + (isFullRowVisualPanel(panel) ? ' da-visual-panel-fullrow' : '')
                 + (isQualityPrototypePanel ? ' da-quality-prototype-panel' : '') + '" data-panel-key="' + escapeHtml(panel.key) + '">'
                 + '<h5>' + escapeHtml(panel.title) + '</h5>'
-                + '<p>' + escapeHtml(panel.description) + '</p>'
+                + (panel.description ? '<p>' + escapeHtml(panel.description) + '</p>' : '')
                 + qualityPanelActions
                 + body
                 + '</article>';
@@ -2416,6 +2621,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).then(function(response) {
             state.currentTab = tabkey;
             state.currentVisualOverrides = visualOverrides || {};
+            state.currentVisualResponse = response;
             setActiveTab(root, tabkey);
             renderVisuals(root, response, state);
             persistState(root, state);
@@ -2474,6 +2680,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 syncSearchableFilter(event.target);
                 updateFilterCounts(root, state);
                 refresh(root, state);
+                return;
+            }
+
+            if (event.target.matches('[data-action="compliance-threshold"]')) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {});
+                state.currentVisualOverrides[event.target.getAttribute('data-threshold-key') || ''] = Number(event.target.value) || 0;
+                if (state.currentVisualResponse) {
+                    renderVisuals(root, state.currentVisualResponse, state);
+                    persistState(root, state);
+                }
                 return;
             }
 
@@ -2583,6 +2799,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var addFilterToggle = event.target.closest('[data-action="toggle-add-filter"]');
             if (addFilterToggle && root.contains(addFilterToggle)) {
                 toggleAddFilterMenu(root);
+                return;
+            }
+
+            var compliancePeriod = event.target.closest('[data-action="compliance-period"]');
+            if (compliancePeriod && root.contains(compliancePeriod)) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    compliancetrendperiod: Number(compliancePeriod.getAttribute('data-period')) || 12
+                });
+                if (state.currentVisualResponse) {
+                    renderVisuals(root, state.currentVisualResponse, state);
+                    persistState(root, state);
+                }
                 return;
             }
 

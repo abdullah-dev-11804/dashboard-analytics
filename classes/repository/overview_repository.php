@@ -107,8 +107,8 @@ class overview_repository {
 
     public function compliance_trend_items(array $filters): array {
         $months = $this->month_windows($filters);
-        $current = $this->company_compliance_items($filters, 8);
-        $companies = array_slice(array_column($current, 'label'), 0, 4);
+        $current = $this->company_compliance_items($filters, 50);
+        $companies = array_column($current, 'label');
         $seriesstatuses = ['danger', 'warning', 'ok', 'info', 'muted'];
         $monthlabels = array_column($months, 'label');
         $monthkeys = array_column($months, 'key');

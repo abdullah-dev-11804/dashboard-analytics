@@ -121,8 +121,10 @@ class visual_service {
             'title' => get_string('panel:compliance:title', 'block_dashboardanalytics'),
             'description' => get_string('panel:compliance:description', 'block_dashboardanalytics'),
             'panels' => [
-                $this->panel('compliancetrend', get_string('panel:compliancetrendchart:title', 'block_dashboardanalytics'), 'compliancetrendchart', get_string('panel:compliancetrendchart:description', 'block_dashboardanalytics'), $overview->compliance_trend_items($filters)),
-                $this->panel('companycompliance', get_string('panel:companycompliancesnapshot:title', 'block_dashboardanalytics'), 'compliancesnapshot', get_string('panel:companycompliancesnapshot:description', 'block_dashboardanalytics'), $overview->company_compliance_items($filters)),
+                $this->panel('compliancetrend', get_string('panel:compliancetrendchart:title', 'block_dashboardanalytics'), 'compliancetrendline', '', $overview->compliance_trend_items($filters), [
+                    'threshold' => 80.0,
+                    'secondarythreshold' => 70.0,
+                ]),
                 $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
                 $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
                 $this->panel('complianceheatmap', get_string('panel:complianceheatmap:title', 'block_dashboardanalytics'), 'heatmap', get_string('panel:complianceheatmap:description', 'block_dashboardanalytics'), $documents->compliance_heatmap_items($filters, 6), [

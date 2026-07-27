@@ -132,6 +132,14 @@ $string['js:heatmapcompliantlegend'] = '>=80% Соответствует';
 $string['js:heatmaprisklegend'] = '70–79% Под риском';
 $string['js:heatmapcriticallegend'] = '<70% Критично';
 $string['js:searchplaceholder'] = 'Поиск: {$a}';
+$string['js:currentcompliance'] = 'Текущее соответствие';
+$string['js:compliantthreshold'] = 'Порог соответствия';
+$string['js:criticalthresholdtitle'] = 'Критический порог';
+$string['js:pointsvslastmonth'] = '{$a} пт к прошлому месяцу';
+$string['js:nochangevslastmonth'] = 'Без изменений к прошлому месяцу';
+$string['js:months3short'] = '3М';
+$string['js:months6short'] = '6М';
+$string['js:months12short'] = '12М';
 
 $string['kpi:activecourses'] = 'Активные курсы';
 $string['kpi:compliance'] = 'Соответствие';
