@@ -2264,12 +2264,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             };
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.lineWidth = panel.key === 'documentstatus' ? 36 : 26;
+            ctx.lineWidth = panel.key === 'documentstatus' ? 34 : 26;
             ctx.lineCap = 'butt';
 
             var cx = canvas.width / 2;
             var cy = canvas.height / 2;
-            var radius = panel.key === 'documentstatus' ? 68 : 58;
+            var radius = panel.key === 'documentstatus' ? 88 : 58;
 
             if (!total) {
                 ctx.beginPath();
