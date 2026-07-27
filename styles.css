@@ -1686,8 +1686,9 @@
 }
 
 .block-dashboardanalytics .da-compliance-trendline-y-label {
-    left: 0;
+    left: .15rem;
     transform: translateY(-50%);
+    text-align: right;
 }
 
 .block-dashboardanalytics .da-compliance-trendline-x-label {
@@ -1717,6 +1718,7 @@
     border: 2px solid #fff;
     box-shadow: 0 0 0 1px rgba(15, 23, 42, .06);
     transform: translate(-50%, -50%);
+    transition: transform .18s ease, box-shadow .18s ease;
 }
 
 .block-dashboardanalytics .da-compliance-trendline-hover-target {
@@ -1745,6 +1747,12 @@
     width: 0;
     border-left: 1px dashed rgba(71, 85, 105, .55);
     transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity .16s ease;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-crosshair.is-visible {
+    opacity: 1;
 }
 
 .block-dashboardanalytics .da-compliance-trendline-tooltip {
@@ -1757,10 +1765,33 @@
     padding: .42rem .55rem;
     font-size: .74rem;
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.15;
     white-space: nowrap;
-    transform: translateX(-50%);
+    transform: translate(-50%, -4px);
     box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
+    opacity: 0;
+    transition: opacity .18s ease, transform .18s ease;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-tooltip strong,
+.block-dashboardanalytics .da-compliance-trendline-tooltip span {
+    display: block;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-tooltip strong {
+    margin-bottom: .18rem;
+    font-size: .75rem;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-tooltip span {
+    color: rgba(255, 255, 255, .92);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-tooltip.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 .block-dashboardanalytics .da-compliance-trendline-threshold-label.da-text-ok {

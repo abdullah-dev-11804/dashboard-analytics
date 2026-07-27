@@ -1440,7 +1440,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var delta = previousSegment ? currentPercent - (Number(previousSegment.percent) || 0) : 0;
                     var currentStatus = currentPercent >= compliantThreshold ? 'ok' : (currentPercent >= criticalThreshold ? 'warning' : 'danger');
                     var yTicksTrend = [0, 20, 40, 60, 80, 100];
-                    var chartLeftTrend = 4.5;
+                    var chartLeftTrend = 3.2;
                     var chartRightTrend = 3.5;
                     var chartTopTrend = 10;
                     var chartBottomTrend = 11;
@@ -2686,11 +2686,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var tooltip = overlay.querySelector('[data-region="compliance-tooltip"]');
 
             if (crosshair) {
-                crosshair.hidden = true;
+                crosshair.classList.remove('is-visible');
+                window.setTimeout(function() {
+                    crosshair.hidden = true;
+                }, 140);
             }
 
             if (tooltip) {
-                tooltip.hidden = true;
+                tooltip.classList.remove('is-visible');
+                window.setTimeout(function() {
+                    tooltip.hidden = true;
+                }, 140);
             }
         };
         var showComplianceHover = function(target) {
@@ -2710,16 +2716,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             var left = target.style.left || '0%';
-            var tooltipText = (target.getAttribute('data-label') || '')
-                + ' - '
-                + (target.getAttribute('data-value') || '');
+            var monthLabel = target.getAttribute('data-label') || '';
+            var complianceValue = target.getAttribute('data-value') || '';
 
             crosshair.style.left = left;
             crosshair.hidden = false;
+            crosshair.classList.add('is-visible');
 
-            tooltip.textContent = tooltipText;
+            tooltip.innerHTML = '<strong>' + escapeHtml('Month ' + monthLabel) + '</strong>'
+                + '<span>' + escapeHtml('Compliance: ' + complianceValue) + '</span>';
             tooltip.hidden = false;
             tooltip.style.left = left;
+            window.requestAnimationFrame(function() {
+                tooltip.classList.add('is-visible');
+            });
 
             var buttonWidth = target.offsetWidth || 32;
             var overlayWidth = overlay.offsetWidth || 0;
