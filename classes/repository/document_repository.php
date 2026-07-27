@@ -219,13 +219,13 @@ class document_repository {
                         'courseid' => $courseid,
                         'label' => $coursename,
                         'total' => 0,
-                        'bad' => 0,
+                        'valid' => 0,
                     ];
                 }
 
                 $courses[$courseid]['total']++;
-                if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
-                    $courses[$courseid]['bad']++;
+                if ($row['status'] === 'Active' || $row['status'] === 'Expiring') {
+                    $courses[$courseid]['valid']++;
                 }
             }
 
@@ -235,22 +235,22 @@ class document_repository {
                     continue;
                 }
 
-                $percent = round(($course['bad'] / $course['total']) * 100, 1);
+                $percent = round(($course['valid'] / $course['total']) * 100, 1);
                 $courseitems[] = [
                     'courseid' => (int)$course['courseid'],
                     'label' => (string)$course['label'],
                     'value' => $percent . '%',
                     'percent' => $percent,
-                    'status' => $this->visual_status_for_percent(100.0 - $percent, true),
-                    'meta' => get_string('meta:coursewithoutvaliddoc', 'block_dashboardanalytics', (object)[
-                        'affected' => $course['bad'],
+                    'status' => $this->visual_status_for_percent($percent, true),
+                    'meta' => get_string('meta:coursewithvaliddoc', 'block_dashboardanalytics', (object)[
+                        'valid' => $course['valid'],
                         'total' => $course['total'],
                     ]),
                 ];
             }
 
             usort($courseitems, static function(array $a, array $b): int {
-                return $b['percent'] <=> $a['percent'];
+                return $a['percent'] <=> $b['percent'];
             });
 
             foreach (array_slice($courseitems, 0, $limit) as $item) {

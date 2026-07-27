@@ -114,8 +114,6 @@ class visual_service {
     private function compliance(array $filters): array {
         $overview = new overview_repository();
         $documents = new document_repository();
-        $eds = new eds_repository();
-        $edsrows = $eds->pending_manual_rows($filters, 0, 1);
 
         return [
             'title' => get_string('panel:compliance:title', 'block_dashboardanalytics'),
@@ -128,18 +126,11 @@ class visual_service {
                 $this->panel('complianceheatmap', get_string('panel:complianceheatmap:title', 'block_dashboardanalytics'), 'heatmap', get_string('panel:complianceheatmap:description', 'block_dashboardanalytics'), $documents->compliance_heatmap_items($filters, 6), [
                     'tabs' => $documents->compliance_heatmap_tabs($filters, 8),
                 ]),
-                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
-                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
                 $this->panel('riskcourse', get_string('panel:riskcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters), [
                     'tabs' => $documents->company_tabs($filters, 8),
                 ]),
-                $this->panel('edsqueue', get_string('panel:edsqueue:title', 'block_dashboardanalytics'), 'cards', get_string('panel:edsqueue:description', 'block_dashboardanalytics'), [[
-                    'label' => get_string('panel:pendingmanual', 'block_dashboardanalytics'),
-                    'value' => (string)$edsrows['totalcount'],
-                    'percent' => min(100, (float)$edsrows['totalcount']),
-                    'status' => $edsrows['totalcount'] > 0 ? 'warning' : 'ok',
-                    'meta' => get_string('panel:pendingmanualmeta', 'block_dashboardanalytics'),
-                ]]),
+                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
+                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
             ],
         ];
     }

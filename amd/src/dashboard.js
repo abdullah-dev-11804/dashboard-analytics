@@ -73,6 +73,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         months3Short: '3M',
         months6Short: '6M',
         months12Short: '12M',
+        sortWorstBest: 'Worst to best',
+        sortBestWorst: 'Best to worst',
         qualityCourseHeader: 'Course',
         qualityRatingHeader: 'Rating',
         qualityReviewsHeader: 'Reviews',
@@ -178,6 +180,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:months3short', component: 'block_dashboardanalytics'},
         {key: 'js:months6short', component: 'block_dashboardanalytics'},
         {key: 'js:months12short', component: 'block_dashboardanalytics'},
+        {key: 'js:sortworstbest', component: 'block_dashboardanalytics'},
+        {key: 'js:sortbestworst', component: 'block_dashboardanalytics'},
         {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityratingheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityreviewsheader', component: 'block_dashboardanalytics'},
@@ -283,6 +287,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'months3Short',
         'months6Short',
         'months12Short',
+        'sortWorstBest',
+        'sortBestWorst',
         'qualityCourseHeader',
         'qualityRatingHeader',
         'qualityReviewsHeader',
@@ -2129,7 +2135,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>';
                 }).join('') + '</div>';
             } else {
-                body = panelTabMarkup + '<div class="da-bars">' + visibleItems.map(function(item) {
+                var renderedBarItems = visibleItems.slice();
+                var barSortMarkup = '';
+                if (panel.key === 'riskcourse') {
+                    var courseSort = ((((state || {}).currentVisualOverrides) || {}).riskcoursesort || 'asc').toLowerCase();
+                    renderedBarItems.sort(function(a, b) {
+                        var delta = (Number(a.percent) || 0) - (Number(b.percent) || 0);
+                        return courseSort === 'desc' ? (-1 * delta) : delta;
+                    });
+                    barSortMarkup = '<div class="da-bar-sort-controls">'
+                        + '<button type="button" class="da-bar-sort-button' + (courseSort === 'asc' ? ' is-active' : '')
+                        + '" data-action="course-compliance-sort" data-sort="asc">' + escapeHtml(text('sortWorstBest', 'Worst to best')) + '</button>'
+                        + '<button type="button" class="da-bar-sort-button' + (courseSort === 'desc' ? ' is-active' : '')
+                        + '" data-action="course-compliance-sort" data-sort="desc">' + escapeHtml(text('sortBestWorst', 'Best to worst')) + '</button>'
+                        + '</div>';
+                }
+                body = panelTabMarkup + barSortMarkup + '<div class="da-bars">' + renderedBarItems.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                     var isBarClickable = !!item.drilldownkey;
                     var barTag = isBarClickable ? 'button' : 'div';
@@ -2975,6 +2996,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             if (compliancePeriod && root.contains(compliancePeriod)) {
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     compliancetrendperiod: Number(compliancePeriod.getAttribute('data-period')) || 12
+                });
+                if (state.currentVisualResponse) {
+                    renderVisuals(root, state.currentVisualResponse, state);
+                    persistState(root, state);
+                }
+                return;
+            }
+
+            var courseComplianceSort = event.target.closest('[data-action="course-compliance-sort"]');
+            if (courseComplianceSort && root.contains(courseComplianceSort)) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    riskcoursesort: (courseComplianceSort.getAttribute('data-sort') || 'asc').toLowerCase()
                 });
                 if (state.currentVisualResponse) {
                     renderVisuals(root, state.currentVisualResponse, state);
