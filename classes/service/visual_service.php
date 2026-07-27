@@ -125,11 +125,11 @@ class visual_service {
                     'threshold' => 80.0,
                     'secondarythreshold' => 70.0,
                 ]),
-                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
-                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
                 $this->panel('complianceheatmap', get_string('panel:complianceheatmap:title', 'block_dashboardanalytics'), 'heatmap', get_string('panel:complianceheatmap:description', 'block_dashboardanalytics'), $documents->compliance_heatmap_items($filters, 6), [
                     'tabs' => $documents->compliance_heatmap_tabs($filters, 8),
                 ]),
+                $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
+                $this->panel('riskcompany', get_string('panel:riskcompany:title', 'block_dashboardanalytics'), 'grouped', get_string('panel:riskcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
                 $this->panel('riskcourse', get_string('panel:riskcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters), [
                     'tabs' => $documents->company_tabs($filters, 8),
                 ]),
