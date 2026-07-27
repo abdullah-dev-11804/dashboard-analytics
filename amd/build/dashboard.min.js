@@ -1476,13 +1476,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '" class="da-compliance-trendline-path" style="stroke:' + zoneColorForValue(currentPoint.percent) + '"></line>');
                     }
                     var xLabelsTrend = displayedSegments.map(function(segment, index) {
-                        return '<text x="' + xForTrend(index, displayedSegments.length).toFixed(2) + '" y="96" text-anchor="middle" class="da-compliance-trendline-x-label">'
-                            + escapeHtml(segment.label || '') + '</text>';
+                        return '<span class="da-compliance-trendline-x-label" style="left:' + xForTrend(index, displayedSegments.length).toFixed(2) + '%">'
+                            + escapeHtml(segment.label || '') + '</span>';
                     }).join('');
                     var yGridTrend = yTicksTrend.map(function(tick) {
                         var y = yForTrend(tick).toFixed(2);
-                        return '<line x1="' + chartLeftTrend + '" y1="' + y + '" x2="' + (100 - chartRightTrend) + '" y2="' + y + '" class="da-compliance-trendline-grid"></line>'
-                            + '<text x="1.5" y="' + y + '" text-anchor="start" dominant-baseline="middle" class="da-compliance-trendline-y-label">' + tick + '%</text>';
+                        return '<line x1="' + chartLeftTrend + '" y1="' + y + '" x2="' + (100 - chartRightTrend) + '" y2="' + y + '" class="da-compliance-trendline-grid"></line>';
+                    }).join('');
+                    var yLabelsTrend = yTicksTrend.map(function(tick) {
+                        return '<span class="da-compliance-trendline-y-label" style="top:' + yForTrend(tick).toFixed(2) + '%">' + escapeHtml(tick + '%') + '</span>';
                     }).join('');
                     var thresholdNormY = yForTrend(compliantThreshold).toFixed(2);
                     var thresholdCriticalY = yForTrend(criticalThreshold).toFixed(2);
@@ -1532,11 +1534,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<circle cx="' + currentX + '" cy="' + currentY + '" r="1.6" class="da-compliance-trendline-point" style="fill:' + zoneColorForValue(currentPercent) + '"></circle>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + (chartTopTrend + chartHeightTrend) + '" x2="' + (100 - chartRightTrend) + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + chartTopTrend + '" x2="' + chartLeftTrend + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
-                        + xLabelsTrend
-                        + '<text x="' + (100 - chartRightTrend + 1) + '" y="' + thresholdNormY + '" text-anchor="start" dominant-baseline="middle" class="da-compliance-trendline-threshold-label da-text-ok">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</text>'
-                        + '<text x="' + (100 - chartRightTrend + 1) + '" y="' + thresholdCriticalY + '" text-anchor="start" dominant-baseline="middle" class="da-compliance-trendline-threshold-label da-text-danger">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</text>'
-                        + '<text x="' + currentX + '" y="' + currentValueLabelY + '" text-anchor="middle" class="da-compliance-trendline-current-label">' + escapeHtml(formatPercent(currentPercent) + '%') + '</text>'
                         + '</svg>'
+                        + '<div class="da-compliance-trendline-overlay">'
+                        + yLabelsTrend
+                        + xLabelsTrend
+                        + '<span class="da-compliance-trendline-threshold-label da-text-ok" style="top:' + thresholdNormY + '%">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</span>'
+                        + '<span class="da-compliance-trendline-threshold-label da-text-danger" style="top:' + thresholdCriticalY + '%">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</span>'
+                        + '<span class="da-compliance-trendline-current-label" style="left:' + currentX + '%; top:' + currentValueLabelY + '%">' + escapeHtml(formatPercent(currentPercent) + '%') + '</span>'
+                        + '</div>'
                         + '</div>'
                         + '<div class="da-compliance-trendline-legend">'
                         + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
