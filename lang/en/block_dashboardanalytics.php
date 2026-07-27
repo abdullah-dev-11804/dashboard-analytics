@@ -131,6 +131,7 @@ $string['js:heatmapallcombined'] = 'All companies combined';
 $string['js:heatmapcompliantlegend'] = '>=80% Compliant';
 $string['js:heatmaprisklegend'] = '70–79% At risk';
 $string['js:heatmapcriticallegend'] = '<70% Critical';
+$string['js:heatmapcorner'] = 'Personnel category';
 $string['js:searchplaceholder'] = 'Search {$a}';
 $string['js:currentcompliance'] = 'Current compliance';
 $string['js:compliantthreshold'] = 'Compliant threshold';
@@ -259,8 +260,8 @@ $string['panel:companycompliancesnapshot:title'] = 'Compliance % by company - sn
 $string['panel:companycompliancesnapshot:description'] = 'Sorted ascending (worst first). 80% reference line.';
 $string['panel:documentstatus:title'] = 'Document Status Distribution';
 $string['panel:documentstatus:description'] = 'Active, expiring, expired and missing certification checks across enrolled courses.';
-$string['panel:complianceheatmap:title'] = 'Compliance heatmap - personnel category x site / facility x company';
-$string['panel:complianceheatmap:description'] = 'Each cell = compliance %. Select a company tab. Click a cell for the employee list.';
+$string['panel:complianceheatmap:title'] = 'Compliance Heatmap';
+$string['panel:complianceheatmap:description'] = 'Click a cell for the employee list.';
 $string['panel:riskcompany:title'] = 'Expired vs Expiring by Company';
 $string['panel:riskcompany:description'] = 'Grouped bars per company. Click any bar to see the employee list.';
 $string['panel:coursecompliance:title'] = 'Course Non-compliance';

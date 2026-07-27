@@ -1343,19 +1343,19 @@
     display: flex;
     flex-wrap: wrap;
     gap: .55rem;
-    margin-bottom: .65rem;
+    margin-bottom: .9rem;
 }
 
 .block-dashboardanalytics .da-heatmap-tab {
-    min-height: 1.95rem;
-    border: 1px solid #cdd8e7;
+    min-height: 2rem;
+    border: 1px solid #d2dbe8;
     border-radius: 8px;
     background: #fff;
-    color: #5f728d;
-    padding: .24rem .72rem;
-    font-size: .78rem;
+    color: #6a7e9b;
+    padding: .24rem .78rem;
+    font-size: .76rem;
     line-height: 1;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .block-dashboardanalytics .da-heatmap-tab.is-active {
@@ -1365,37 +1365,46 @@
 }
 
 .block-dashboardanalytics .da-heatmap-subtitle {
-    color: #2f6fc2;
-    font-size: .82rem;
-    font-weight: 700;
-    margin-bottom: .5rem;
+    color: #55718f;
+    font-size: .8rem;
+    font-weight: 600;
+    margin-bottom: .8rem;
 }
 
 .block-dashboardanalytics .da-heatmap-table-wrap {
     overflow-x: auto;
-    border: 1px solid #d9e2ee;
+    border: 1px solid #e4e9ef;
     border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 18px 34px -28px rgba(15, 24, 34, .45);
 }
 
 .block-dashboardanalytics .da-heatmap-table {
     width: 100%;
-    border-collapse: collapse;
+    min-width: 900px;
+    border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
     background: #fff;
 }
 
 .block-dashboardanalytics .da-heatmap-table th,
 .block-dashboardanalytics .da-heatmap-table td {
-    border: 1px solid #d9e2ee;
+    border-right: 1px solid #e4e9ef;
+    border-bottom: 1px solid #e4e9ef;
 }
 
 .block-dashboardanalytics .da-heatmap-table thead th {
-    background: #eef3f8;
-    color: #5a7191;
-    font-size: .78rem;
-    font-weight: 700;
+    background: #1e4e9c;
+    border-bottom: 2px solid #143766;
+    color: #fff;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
     text-align: center;
-    padding: .72rem .6rem;
+    padding: .95rem .75rem;
+    line-height: 1.4;
 }
 
 .block-dashboardanalytics .da-heatmap-table tbody th {
@@ -1403,10 +1412,10 @@
     min-width: 180px;
     background: #fff;
     color: #21344d;
-    font-size: .86rem;
+    font-size: .9rem;
     font-weight: 700;
     text-align: left;
-    padding: .82rem .7rem;
+    padding: 1rem;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -1420,31 +1429,32 @@
 
 .block-dashboardanalytics .da-heatmap-cell {
     width: 100%;
-    min-height: 58px;
+    min-height: 78px;
     border: 0;
-    background: transparent;
+    background: var(--da-heatmap-bg, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: .8rem .6rem;
-    font-size: .9rem;
+    padding: .9rem .65rem;
+    font-size: 1.45rem;
     font-weight: 800;
-    color: #23415f;
+    color: var(--da-heatmap-fg, #23415f);
+    transition: box-shadow .15s ease, transform .15s ease;
 }
 
 .block-dashboardanalytics .da-heatmap-cell-ok {
-    background: #dff6e6;
-    color: #167e52;
+    background: var(--da-heatmap-bg, #dff6e6);
+    color: var(--da-heatmap-fg, #167e52);
 }
 
 .block-dashboardanalytics .da-heatmap-cell-warning {
-    background: #fff0bf;
-    color: #a86716;
+    background: var(--da-heatmap-bg, #fff0bf);
+    color: var(--da-heatmap-fg, #a86716);
 }
 
 .block-dashboardanalytics .da-heatmap-cell-danger {
-    background: #fde0df;
-    color: #c93b3a;
+    background: var(--da-heatmap-bg, #fde0df);
+    color: var(--da-heatmap-fg, #c93b3a);
 }
 
 .block-dashboardanalytics .da-heatmap-cell-muted {
@@ -1454,15 +1464,35 @@
 
 .block-dashboardanalytics .da-heatmap-cell:hover,
 .block-dashboardanalytics .da-heatmap-cell:focus {
-    box-shadow: inset 0 0 0 2px rgba(47, 111, 194, .18);
+    box-shadow: inset 0 0 0 2px var(--da-heatmap-ring, rgba(47, 111, 194, .18));
     outline: none;
+    transform: scale(1.01);
+}
+
+.block-dashboardanalytics .da-heatmap-cell-value {
+    line-height: 1;
 }
 
 .block-dashboardanalytics .da-heatmap-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: .9rem;
-    margin-top: .7rem;
+    gap: 1.2rem;
+    align-items: center;
+    margin-top: .85rem;
+}
+
+.block-dashboardanalytics .da-heatmap-ramp {
+    display: inline-flex;
+    gap: 2px;
+    margin-right: .5rem;
+    vertical-align: middle;
+}
+
+.block-dashboardanalytics .da-heatmap-ramp i {
+    width: 13px;
+    height: 13px;
+    border-radius: 2px;
+    display: inline-block;
 }
 
 .block-dashboardanalytics .da-compliance-snapshot-row {

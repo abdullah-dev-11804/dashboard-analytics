@@ -131,6 +131,7 @@ $string['js:heatmapallcombined'] = 'Все компании вместе';
 $string['js:heatmapcompliantlegend'] = '>=80% Соответствует';
 $string['js:heatmaprisklegend'] = '70–79% Под риском';
 $string['js:heatmapcriticallegend'] = '<70% Критично';
+$string['js:heatmapcorner'] = 'Категория персонала';
 $string['js:searchplaceholder'] = 'Поиск: {$a}';
 $string['js:currentcompliance'] = 'Текущее соответствие';
 $string['js:compliantthreshold'] = 'Порог соответствия';
@@ -259,8 +260,8 @@ $string['panel:companycompliancesnapshot:title'] = 'Соответствие % �
 $string['panel:companycompliancesnapshot:description'] = 'Сортировка по возрастанию, сначала худшие. Контрольная линия 80%.';
 $string['panel:documentstatus:title'] = 'Распределение статусов документов';
 $string['panel:documentstatus:description'] = 'Активные, истекающие, просроченные и отсутствующие проверки сертификатов по зачисленным курсам.';
-$string['panel:complianceheatmap:title'] = 'Тепловая карта соответствия - категория персонала x объект / площадка x компания';
-$string['panel:complianceheatmap:description'] = 'Каждая ячейка = % соответствия. Выберите вкладку компании. Нажмите ячейку для списка сотрудников.';
+$string['panel:complianceheatmap:title'] = 'Тепловая карта соответствия';
+$string['panel:complianceheatmap:description'] = 'Нажмите ячейку для списка сотрудников.';
 $string['panel:riskcompany:title'] = 'Просроченные и истекающие по компаниям';
 $string['panel:riskcompany:description'] = 'Сгруппированные столбцы по компаниям. Нажмите любой столбец для списка сотрудников.';
 $string['panel:coursecompliance:title'] = 'Несоответствие по курсам';

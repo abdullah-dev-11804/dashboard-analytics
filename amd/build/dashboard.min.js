@@ -63,6 +63,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         heatmapCompliantLegend: '>=80% Compliant',
         heatmapRiskLegend: '70–79% At risk',
         heatmapCriticalLegend: '<70% Critical',
+        heatmapCorner: 'Personnel category',
         searchPlaceholder: 'Search {$a}',
         currentCompliance: 'Current compliance',
         compliantThresholdTitle: 'Compliant threshold',
@@ -167,6 +168,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:heatmapcompliantlegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcriticallegend', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmapcorner', component: 'block_dashboardanalytics'},
         {key: 'js:searchplaceholder', component: 'block_dashboardanalytics'},
         {key: 'js:currentcompliance', component: 'block_dashboardanalytics'},
         {key: 'js:compliantthreshold', component: 'block_dashboardanalytics'},
@@ -271,6 +273,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'heatmapCompliantLegend',
         'heatmapRiskLegend',
         'heatmapCriticalLegend',
+        'heatmapCorner',
         'searchPlaceholder',
         'currentCompliance',
         'compliantThresholdTitle',
@@ -1703,6 +1706,50 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var selectedHeatmapMeta = heatmapTabs.filter(function(tab) {
                     return tab.key === selectedHeatmapTab;
                 })[0] || {};
+                var heatmapTone = function(percent, hasValue) {
+                    if (!hasValue) {
+                        return {
+                            background: '#f8fafc',
+                            color: '#8b97a8',
+                            ring: '#d9e2ee'
+                        };
+                    }
+
+                    var safe = Math.max(0, Math.min(100, Number(percent) || 0));
+                    if (safe >= 90) {
+                        return {background: '#0f8a55', color: '#ffffff', ring: '#0a6b41'};
+                    }
+                    if (safe >= 80) {
+                        return {background: '#4cc38a', color: '#06371f', ring: '#2fa76f'};
+                    }
+                    if (safe >= 70) {
+                        return {background: '#f5a623', color: '#4a2c00', ring: '#cc8408'};
+                    }
+                    if (safe >= 60) {
+                        return {background: '#ff8566', color: '#5c1a0a', ring: '#e46343'};
+                    }
+                    if (safe >= 50) {
+                        return {background: '#fa5a3d', color: '#5c1005', ring: '#d63c21'};
+                    }
+                    if (safe >= 40) {
+                        return {background: '#e13a1e', color: '#ffffff', ring: '#b32a13'};
+                    }
+                    if (safe >= 30) {
+                        return {background: '#c22412', color: '#ffffff', ring: '#96190b'};
+                    }
+                    if (safe >= 20) {
+                        return {background: '#a11a0c', color: '#ffffff', ring: '#7a1107'};
+                    }
+                    if (safe >= 10) {
+                        return {background: '#7f1207', color: '#ffffff', ring: '#5c0b04'};
+                    }
+                    return {background: '#5e0c04', color: '#ffffff', ring: '#3f0702'};
+                };
+                var heatmapLegendRamp = function(colors) {
+                    return '<span class="da-heatmap-ramp">' + colors.map(function(color) {
+                        return '<i style="background:' + escapeHtml(color) + '"></i>';
+                    }).join('') + '</span>';
+                };
                 var rowLabels = [];
                 var columnLabels = [];
                 var matrix = {};
@@ -1733,12 +1780,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + escapeHtml(tab.label) + '</button>';
                     }).join('') + '</div>' : '')
                     + '<div class="da-heatmap-subtitle">'
-                    + escapeHtml(selectedHeatmapTab === 'all'
-                        ? text('heatmapAllCombined', 'All companies combined')
-                        : (selectedHeatmapMeta.label || text('heatmapAllCombined', 'All companies combined')))
+                    + escapeHtml(panel.description || text('heatmapAllCombined', 'Click a cell for the employee list.'))
                     + '</div>'
                     + '<div class="da-heatmap-table-wrap"><table class="da-heatmap-table">'
-                    + '<thead><tr><th></th>' + columnLabels.map(function(label) {
+                    + '<thead><tr><th>' + escapeHtml(text('heatmapCorner', 'Personnel category')) + '</th>' + columnLabels.map(function(label) {
                         return '<th scope="col">' + escapeHtml(label) + '</th>';
                     }).join('') + '</tr></thead><tbody>'
                     + rowLabels.map(function(rowLabel) {
@@ -1748,6 +1793,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 if (!cell) {
                                     return '<td class="da-heatmap-cell-slot"><span class="da-heatmap-cell da-heatmap-cell-muted">—</span></td>';
                                 }
+                                var tone = heatmapTone(Number(cell.percent) || 0, (cell.value || '—') !== '—');
                                 return '<td class="da-heatmap-cell-slot"><button type="button" class="da-heatmap-cell da-heatmap-cell-'
                                     + escapeHtml(cell.status || 'muted') + '" data-action="heatmap-cell"'
                                     + ' data-drilldown="' + escapeHtml(cell.drilldownkey || 'company_compliance') + '"'
@@ -1755,6 +1801,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                     + ' data-site="' + escapeHtml(cell.columnlabel || '') + '"'
                                     + ' data-companyid="' + escapeHtml(String(cell.companyid || 0)) + '"'
                                     + ' data-companyname="' + escapeHtml(cell.companyname || '') + '"'
+                                    + ' style="--da-heatmap-bg:' + escapeHtml(tone.background) + ';--da-heatmap-fg:' + escapeHtml(tone.color) + ';--da-heatmap-ring:' + escapeHtml(tone.ring) + ';"'
                                     + ' title="' + escapeHtml(cell.meta || '') + '">'
                                     + '<span class="da-heatmap-cell-value">' + escapeHtml(cell.value || '—') + '</span>'
                                     + '</button></td>';
@@ -1762,9 +1809,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }).join('')
                     + '</tbody></table></div>'
                     + '<div class="da-heatmap-legend">'
-                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
-                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(text('heatmapRiskLegend', '70–79% At risk')) + '</span>'
-                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('heatmapCriticalLegend', '<70% Critical')) + '</span>'
+                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#4cc38a', '#0f8a55']) + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
+                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#f5a623']) + escapeHtml(text('heatmapRiskLegend', '70–79% At risk')) + '</span>'
+                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#ff8566', '#fa5a3d', '#e13a1e', '#c22412', '#a11a0c', '#7f1207', '#5e0c04']) + escapeHtml(text('heatmapCriticalLegend', '<70% Critical')) + '</span>'
                     + '</div>'
                     + '</div>';
             } else if (panel.type === 'servererrors') {
