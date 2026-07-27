@@ -1613,7 +1613,7 @@
     position: relative;
     min-height: 320px;
     border-top: 1px solid #edf1f6;
-    padding-top: .55rem;
+    padding-top: .35rem;
 }
 
 .block-dashboardanalytics .da-compliance-trendline-svg {
@@ -1625,7 +1625,7 @@
 
 .block-dashboardanalytics .da-compliance-trendline-overlay {
     position: absolute;
-    inset: .55rem 0 0 0;
+    inset: .35rem 0 0 0;
     pointer-events: none;
 }
 
@@ -1691,7 +1691,7 @@
 }
 
 .block-dashboardanalytics .da-compliance-trendline-x-label {
-    bottom: 0;
+    bottom: 12px;
     transform: translateX(-50%);
     white-space: nowrap;
 }
@@ -1707,6 +1707,60 @@
     font-weight: 800;
     transform: translate(-50%, -100%);
     white-space: nowrap;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-current-dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, .06);
+    transform: translate(-50%, -50%);
+}
+
+.block-dashboardanalytics .da-compliance-trendline-hover-target {
+    position: absolute;
+    top: 9.5%;
+    bottom: 11%;
+    width: 32px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    cursor: crosshair;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-hover-target:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, .45);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+.block-dashboardanalytics .da-compliance-trendline-crosshair {
+    position: absolute;
+    top: 10%;
+    bottom: 11%;
+    width: 0;
+    border-left: 1px dashed rgba(71, 85, 105, .55);
+    transform: translateX(-50%);
+}
+
+.block-dashboardanalytics .da-compliance-trendline-tooltip {
+    position: absolute;
+    top: 8px;
+    z-index: 3;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, .92);
+    color: #fff;
+    padding: .42rem .55rem;
+    font-size: .74rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
 }
 
 .block-dashboardanalytics .da-compliance-trendline-threshold-label.da-text-ok {

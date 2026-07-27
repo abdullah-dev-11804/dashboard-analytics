@@ -1440,10 +1440,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var delta = previousSegment ? currentPercent - (Number(previousSegment.percent) || 0) : 0;
                     var currentStatus = currentPercent >= compliantThreshold ? 'ok' : (currentPercent >= criticalThreshold ? 'warning' : 'danger');
                     var yTicksTrend = [0, 20, 40, 60, 80, 100];
-                    var chartLeftTrend = 8;
-                    var chartRightTrend = 5;
+                    var chartLeftTrend = 4.5;
+                    var chartRightTrend = 3.5;
                     var chartTopTrend = 10;
-                    var chartBottomTrend = 14;
+                    var chartBottomTrend = 11;
                     var chartWidthTrend = 100 - chartLeftTrend - chartRightTrend;
                     var chartHeightTrend = 100 - chartTopTrend - chartBottomTrend;
                     var xForTrend = function(index, total) {
@@ -1478,6 +1478,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var xLabelsTrend = displayedSegments.map(function(segment, index) {
                         return '<span class="da-compliance-trendline-x-label" style="left:' + xForTrend(index, displayedSegments.length).toFixed(2) + '%">'
                             + escapeHtml(segment.label || '') + '</span>';
+                    }).join('');
+                    var hoverTargetsTrend = displayedSegments.map(function(segment, index) {
+                        return '<button type="button" class="da-compliance-trendline-hover-target"'
+                            + ' data-action="compliance-hover"'
+                            + ' data-index="' + index + '"'
+                            + ' data-label="' + escapeHtml(segment.label || '') + '"'
+                            + ' data-value="' + escapeHtml(formatPercent(segment.percent) + '%') + '"'
+                            + ' style="left:' + xForTrend(index, displayedSegments.length).toFixed(2) + '%"'
+                            + ' aria-label="' + escapeHtml((segment.label || '') + ' ' + formatPercent(segment.percent) + '%') + '"></button>';
                     }).join('');
                     var yGridTrend = yTicksTrend.map(function(tick) {
                         var y = yForTrend(tick).toFixed(2);
@@ -1531,15 +1540,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<line x1="' + chartLeftTrend + '" y1="' + thresholdNormY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdNormY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-ok"></line>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + thresholdCriticalY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdCriticalY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-danger"></line>'
                         + lineSegments.join('')
-                        + '<circle cx="' + currentX + '" cy="' + currentY + '" r="1.6" class="da-compliance-trendline-point" style="fill:' + zoneColorForValue(currentPercent) + '"></circle>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + (chartTopTrend + chartHeightTrend) + '" x2="' + (100 - chartRightTrend) + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + chartTopTrend + '" x2="' + chartLeftTrend + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
                         + '</svg>'
                         + '<div class="da-compliance-trendline-overlay">'
                         + yLabelsTrend
                         + xLabelsTrend
+                        + '<span class="da-compliance-trendline-crosshair" data-region="compliance-crosshair" hidden></span>'
+                        + '<span class="da-compliance-trendline-tooltip" data-region="compliance-tooltip" hidden></span>'
+                        + hoverTargetsTrend
                         + '<span class="da-compliance-trendline-threshold-label da-text-ok" style="top:' + thresholdNormY + '%">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</span>'
                         + '<span class="da-compliance-trendline-threshold-label da-text-danger" style="top:' + thresholdCriticalY + '%">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</span>'
+                        + '<span class="da-compliance-trendline-current-dot" style="left:' + currentX + '%; top:' + currentY + '%; background:' + zoneColorForValue(currentPercent) + '"></span>'
                         + '<span class="da-compliance-trendline-current-label" style="left:' + currentX + '%; top:' + currentValueLabelY + '%">' + escapeHtml(formatPercent(currentPercent) + '%') + '</span>'
                         + '</div>'
                         + '</div>'
@@ -2665,6 +2677,60 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var bindEvents = function(root, state) {
         var timer = null;
+        var hideComplianceHover = function(overlay) {
+            if (!overlay) {
+                return;
+            }
+
+            var crosshair = overlay.querySelector('[data-region="compliance-crosshair"]');
+            var tooltip = overlay.querySelector('[data-region="compliance-tooltip"]');
+
+            if (crosshair) {
+                crosshair.hidden = true;
+            }
+
+            if (tooltip) {
+                tooltip.hidden = true;
+            }
+        };
+        var showComplianceHover = function(target) {
+            if (!target) {
+                return;
+            }
+
+            var overlay = target.closest('.da-compliance-trendline-overlay');
+            if (!overlay) {
+                return;
+            }
+
+            var crosshair = overlay.querySelector('[data-region="compliance-crosshair"]');
+            var tooltip = overlay.querySelector('[data-region="compliance-tooltip"]');
+            if (!crosshair || !tooltip) {
+                return;
+            }
+
+            var left = target.style.left || '0%';
+            var tooltipText = (target.getAttribute('data-label') || '')
+                + ' - '
+                + (target.getAttribute('data-value') || '');
+
+            crosshair.style.left = left;
+            crosshair.hidden = false;
+
+            tooltip.textContent = tooltipText;
+            tooltip.hidden = false;
+            tooltip.style.left = left;
+
+            var buttonWidth = target.offsetWidth || 32;
+            var overlayWidth = overlay.offsetWidth || 0;
+            var hoverTargetLeft = target.offsetLeft + (buttonWidth / 2);
+            var tooltipWidth = tooltip.offsetWidth || 0;
+            var minLeft = tooltipWidth / 2;
+            var maxLeft = Math.max(minLeft, overlayWidth - (tooltipWidth / 2));
+            var clampedLeft = Math.max(minLeft, Math.min(maxLeft, hoverTargetLeft));
+
+            tooltip.style.left = clampedLeft + 'px';
+        };
 
         root.addEventListener('change', function(event) {
             if (event.target.matches('select[data-filter-group]')) {
@@ -2763,6 +2829,47 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             timer = window.setTimeout(function() {
                 refresh(root, state);
             }, 350);
+        });
+
+        root.addEventListener('mouseover', function(event) {
+            var complianceHover = event.target.closest('[data-action="compliance-hover"]');
+            if (!complianceHover || !root.contains(complianceHover)) {
+                return;
+            }
+
+            showComplianceHover(complianceHover);
+        });
+
+        root.addEventListener('focusin', function(event) {
+            var complianceHover = event.target.closest('[data-action="compliance-hover"]');
+            if (!complianceHover || !root.contains(complianceHover)) {
+                return;
+            }
+
+            showComplianceHover(complianceHover);
+        });
+
+        root.addEventListener('mouseout', function(event) {
+            var complianceHover = event.target.closest('[data-action="compliance-hover"]');
+            if (!complianceHover || !root.contains(complianceHover)) {
+                return;
+            }
+
+            var related = event.relatedTarget;
+            if (related && complianceHover.contains(related)) {
+                return;
+            }
+
+            hideComplianceHover(complianceHover.closest('.da-compliance-trendline-overlay'));
+        });
+
+        root.addEventListener('focusout', function(event) {
+            var complianceHover = event.target.closest('[data-action="compliance-hover"]');
+            if (!complianceHover || !root.contains(complianceHover)) {
+                return;
+            }
+
+            hideComplianceHover(complianceHover.closest('.da-compliance-trendline-overlay'));
         });
 
         root.addEventListener('click', function(event) {
