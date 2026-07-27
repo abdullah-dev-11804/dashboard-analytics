@@ -1382,6 +1382,7 @@
 .block-dashboardanalytics .da-heatmap-table {
     width: 100%;
     min-width: 900px;
+    margin-bottom: 0;
     border-collapse: separate;
     border-spacing: 0;
     table-layout: fixed;
