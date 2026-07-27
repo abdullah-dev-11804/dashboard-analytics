@@ -2254,6 +2254,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return sum + Math.max(0, Number(item.value) || Number(item.percent) || 0);
             }, 0);
             var totalNode = root.querySelector('[data-donut-total="' + panel.key + '"]');
+            var chartNode = canvas.closest ? canvas.closest('.da-donut-card-chart') : null;
+            var centerNode = chartNode ? chartNode.querySelector('.da-donut-center') : null;
+            var centerLabelNode = centerNode ? centerNode.querySelector('.da-donut-center-label') : null;
             var animateBars = function() {
                 Array.prototype.slice.call(root.querySelectorAll('[data-donut-row^="' + panel.key + ':"] .da-donut-card-bar i')).forEach(function(bar) {
                     var width = Math.max(0.8, Math.min(100, Number(bar.getAttribute('data-width')) || 0));
@@ -2263,13 +2266,34 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 });
             };
 
+            var lineWidth = panel.key === 'documentstatus' ? 34 : 26;
+            var radius = panel.key === 'documentstatus' ? 88 : 58;
+
+            if (panel.key === 'documentstatus' && chartNode && centerNode && totalNode && centerLabelNode) {
+                var totalRect = totalNode.getBoundingClientRect();
+                var labelRect = centerLabelNode.getBoundingClientRect();
+                var contentWidth = Math.max(totalRect.width || 0, labelRect.width || 0);
+                var contentHeight = (totalRect.height || 0) + (labelRect.height || 0) + 8;
+                var innerDiameter = Math.ceil(Math.max(contentWidth + 34, contentHeight + 28, 126));
+                lineWidth = Math.max(30, Math.min(38, Math.round(innerDiameter * 0.24)));
+                radius = Math.ceil((innerDiameter / 2) + (lineWidth / 2) + 12);
+
+                var canvasSize = Math.ceil((radius * 2) + lineWidth + 18);
+                canvas.width = canvasSize;
+                canvas.height = canvasSize;
+                canvas.style.width = canvasSize + 'px';
+                canvas.style.height = canvasSize + 'px';
+                chartNode.style.width = canvasSize + 'px';
+                chartNode.style.height = canvasSize + 'px';
+                chartNode.style.flexBasis = canvasSize + 'px';
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.lineWidth = panel.key === 'documentstatus' ? 34 : 26;
+            ctx.lineWidth = lineWidth;
             ctx.lineCap = 'butt';
 
             var cx = canvas.width / 2;
             var cy = canvas.height / 2;
-            var radius = panel.key === 'documentstatus' ? 88 : 58;
 
             if (!total) {
                 ctx.beginPath();
