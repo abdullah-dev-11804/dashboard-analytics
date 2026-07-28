@@ -31,6 +31,8 @@ class filters {
             'customend' => self::date_input($decoded['customend'] ?? ''),
             'platformgrowthperiod' => self::platform_growth_period($decoded['platformgrowthperiod'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
+            'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),
+            'expiryendts' => self::timestamp($decoded['expiryendts'] ?? 0),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
         ];
     }
@@ -146,5 +148,10 @@ class filters {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
         $allowed = ['3months', '1year', '2years', 'alltime'];
         return in_array($value, $allowed, true) ? $value : '';
+    }
+
+    private static function timestamp($value): int {
+        $value = (int)$value;
+        return $value > 0 ? $value : 0;
     }
 }

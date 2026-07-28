@@ -41,11 +41,13 @@ $allowed = [
         'company_expiring_documents',
         'company_expired_documents',
         'company_course_noncompliance',
+        'company_forecast_documents',
     ],
     permissions::DASHBOARD_CLIENT => [
         'client_compliance',
         'client_expiring_documents',
         'client_expired_documents',
+        'client_forecast_documents',
     ],
     permissions::DASHBOARD_EMPLOYEE => [
         'employee_documents',

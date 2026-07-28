@@ -102,7 +102,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         exportLabel: 'Export',
         exportAllLabel: 'Export all',
         hideSidebar: 'Hide sidebar',
-        showSidebar: 'Show sidebar'
+        showSidebar: 'Show sidebar',
+        forecastSummaryTitle: 'Course summary',
+        forecastSummaryEmpty: 'Click a bar label to see the course breakdown.',
+        forecastSummaryTotal: 'Total',
+        forecastTableEmpty: 'Click a bar or a course segment to open The Learning Matrix.',
+        forecastTableLoading: 'Loading Learning Matrix...',
+        forecastUsersLabel: '{$a} users',
+        learningMatrixTitle: 'The Learning Matrix'
     };
 
     var stringList = [
@@ -215,7 +222,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:exportall', component: 'block_dashboardanalytics'},
         {key: 'js:exportcsv', component: 'block_dashboardanalytics'},
         {key: 'view:hidesidebar', component: 'block_dashboardanalytics'},
-        {key: 'view:showsidebar', component: 'block_dashboardanalytics'}
+        {key: 'view:showsidebar', component: 'block_dashboardanalytics'},
+        {key: 'forecast:summary:title', component: 'block_dashboardanalytics'},
+        {key: 'forecast:summary:empty', component: 'block_dashboardanalytics'},
+        {key: 'forecast:summary:total', component: 'block_dashboardanalytics'},
+        {key: 'forecast:table:empty', component: 'block_dashboardanalytics'},
+        {key: 'forecast:table:loading', component: 'block_dashboardanalytics'},
+        {key: 'forecast:tooltip:count', component: 'block_dashboardanalytics'},
+        {key: 'complianceactiontable', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -328,7 +342,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'exportAllLabel',
         'exportCsv',
         'hideSidebar',
-        'showSidebar'
+        'showSidebar',
+        'forecastSummaryTitle',
+        'forecastSummaryEmpty',
+        'forecastSummaryTotal',
+        'forecastTableEmpty',
+        'forecastTableLoading',
+        'forecastUsersLabel',
+        'learningMatrixTitle'
     ];
 
     var call = function(methodname, args) {
@@ -959,96 +980,59 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).join('');
     };
 
-    var drilldownExportUrl = function(root, state, scope) {
+    var drilldownExportUrlFor = function(root, state, scope, drilldownkey, overrides, page, perpage) {
         var exportable = [
             'company_compliance',
             'company_expiring_documents',
             'company_expired_documents',
+            'company_forecast_documents',
             'company_course_noncompliance',
             'client_compliance',
             'client_expiring_documents',
             'client_expired_documents',
+            'client_forecast_documents',
             'employee_documents'
         ];
 
-        if (!state.currentDrilldown || exportable.indexOf(state.currentDrilldown) === -1) {
+        if (!drilldownkey || exportable.indexOf(drilldownkey) === -1) {
             return '';
         }
 
         var params = new URLSearchParams();
         params.set('contextid', String(state.contextid));
         params.set('dashboardkey', String(state.dashboardkey || ''));
-        params.set('drilldownkey', String(state.currentDrilldown || ''));
-        params.set('filters', JSON.stringify(readFilters(root, state, state.currentDrilldownOverrides || undefined)));
+        params.set('drilldownkey', String(drilldownkey || ''));
+        params.set('filters', JSON.stringify(readFilters(root, state, overrides || undefined)));
         params.set('scope', scope === 'all' ? 'all' : 'visible');
-        params.set('page', String(Math.max(0, Number(state.currentDrilldownPage) || 0)));
-        params.set('perpage', String(Math.max(10, Number(state.currentDrilldownPerPage) || 20)));
+        params.set('page', String(Math.max(0, Number(page) || 0)));
+        params.set('perpage', String(Math.max(10, Number(perpage) || 20)));
         params.set('sesskey', M.cfg.sesskey);
         return M.cfg.wwwroot + '/blocks/dashboardanalytics/export.php?' + params.toString();
     };
 
-    var renderDrilldown = function(root, data, state) {
-        var container = root.querySelector('[data-region="drilldown"]');
-        var title = root.querySelector('[data-region="drilldown-title"]');
-        var count = root.querySelector('[data-region="drilldown-count"]');
-        var currentPage = Math.max(0, Number(state.currentDrilldownPage) || 0);
-        var perpage = Math.max(10, Number(state.currentDrilldownPerPage) || 20);
+    var drilldownExportUrl = function(root, state, scope) {
+        return drilldownExportUrlFor(
+            root,
+            state,
+            scope,
+            state.currentDrilldown,
+            state.currentDrilldownOverrides || undefined,
+            state.currentDrilldownPage,
+            state.currentDrilldownPerPage
+        );
+    };
+
+    var buildDrilldownTableMarkup = function(root, data, state, options) {
+        var columns = data.columns || [];
+        var currentPage = Math.max(0, Number(options.page) || 0);
+        var perpage = Math.max(10, Number(options.perpage) || 20);
         var totalcount = Math.max(0, Number(data.totalcount) || 0);
         var totalpages = Math.max(1, Math.ceil(totalcount / perpage));
-
-        if (title) {
-            title.textContent = data.title || text('details', 'Details');
-        }
-        if (count) {
-            count.textContent = totalcount ? formatString(text('rows', '{$a} rows'), String(totalcount)) : '';
-        }
-
-        if (!container) {
-            return;
-        }
-
-        if (data.notice) {
-            container.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
-            return;
-        }
-
-        if (!data.rows || !data.rows.length) {
-            container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
-            return;
-        }
-
-        if (state.currentDrilldown === 'company_server_disk') {
-            count.textContent = data.description || '';
-            var metricTiles = data.rows.map(function(row) {
-                var cellsByKey = {};
-                (row.cells || []).forEach(function(cell) {
-                    cellsByKey[cell.key] = cell.value;
-                });
-                var statusKey = cellsByKey.statuskey || 'muted';
-                var percent = Math.max(0, Math.min(100, Number(cellsByKey.percent) || 0));
-                return '<article class="da-server-metric da-server-metric-' + escapeHtml(statusKey) + '">'
-                    + '<div class="da-server-metric-head">'
-                    + '<strong>' + escapeHtml(cellsByKey.metric || '') + '</strong>'
-                    + '<span class="da-server-metric-value da-text-' + escapeHtml(statusKey) + '">' + escapeHtml(cellsByKey.value || '') + '</span>'
-                    + '</div>'
-                    + '<div class="da-server-metric-track"><span class="da-server-metric-fill da-bar-fill-' + escapeHtml(statusKey) + '" style="width:' + percent + '%"></span></div>'
-                    + '<div class="da-server-metric-meta">' + escapeHtml(cellsByKey.meta || '') + '</div>'
-                    + '</article>';
-            }).join('');
-
-            var serverAction = root.querySelector('[data-tab="server"]')
-                ? '<div class="da-server-metric-actions"><button type="button" class="da-row-action" data-action="goto-tab" data-tab="server">'
-                    + escapeHtml(text('goToServerTab', 'Go to Server tab')) + '</button></div>'
-                : '';
-
-            container.innerHTML = '<div class="da-server-metrics-panel"><div class="da-server-metrics-grid">'
-                + metricTiles + '</div>' + serverAction + '</div>';
-            return;
-        }
-
-        var columns = data.columns || [];
-        var exporturl = data.exporturl || drilldownExportUrl(root, state, 'visible');
-        var exportallurl = drilldownExportUrl(root, state, 'all');
+        var drilldownkey = options.drilldownkey || state.currentDrilldown || '';
+        var overrides = options.overrides || undefined;
+        var actionPrefix = options.actionPrefix || 'drilldown';
+        var exporturl = data.exporturl || drilldownExportUrlFor(root, state, 'visible', drilldownkey, overrides, currentPage, perpage);
+        var exportallurl = drilldownExportUrlFor(root, state, 'all', drilldownkey, overrides, currentPage, perpage);
         var head = columns.map(function(column) {
             return '<th scope="col">' + escapeHtml(column.label) + '</th>';
         }).join('');
@@ -1122,21 +1106,89 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '<div class="da-table-pagination-status">' + escapeHtml(formatString(text('page', 'Page {$a}'), String((currentPage + 1) + ' / ' + totalpages))) + '</div>'
             + '<div class="da-table-pagination-controls">'
             + '<label class="da-table-perpage-label"><span>' + escapeHtml(text('perPage', 'Rows per page')) + '</span>'
-            + '<select class="da-table-perpage" data-action="drilldown-perpage">'
+            + '<select class="da-table-perpage" data-action="' + escapeHtml(actionPrefix) + '-perpage">'
             + [20, 50, 100].map(function(size) {
                 return '<option value="' + size + '"' + (size === perpage ? ' selected' : '') + '>' + size + '</option>';
             }).join('')
             + '</select></label>'
-            + '<button type="button" class="da-pagination-button" data-action="drilldown-page" data-page="' + Math.max(0, currentPage - 1) + '"'
+            + '<button type="button" class="da-pagination-button" data-action="' + escapeHtml(actionPrefix) + '-page" data-page="' + Math.max(0, currentPage - 1) + '"'
             + (currentPage <= 0 ? ' disabled' : '') + '>' + escapeHtml(text('previous', 'Previous')) + '</button>'
-            + '<button type="button" class="da-pagination-button" data-action="drilldown-page" data-page="' + Math.min(totalpages - 1, currentPage + 1) + '"'
+            + '<button type="button" class="da-pagination-button" data-action="' + escapeHtml(actionPrefix) + '-page" data-page="' + Math.min(totalpages - 1, currentPage + 1) + '"'
             + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
             + '</div></div>' : '';
 
-        container.innerHTML = description + actions + '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
+        return description + actions + '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
             + '<thead><tr>' + head + '</tr></thead>'
             + '<tbody>' + body + '</tbody>'
             + '</table></div>' + pagination;
+    };
+
+    var renderDrilldown = function(root, data, state) {
+        var container = root.querySelector('[data-region="drilldown"]');
+        var title = root.querySelector('[data-region="drilldown-title"]');
+        var count = root.querySelector('[data-region="drilldown-count"]');
+        var currentPage = Math.max(0, Number(state.currentDrilldownPage) || 0);
+        var perpage = Math.max(10, Number(state.currentDrilldownPerPage) || 20);
+        var totalcount = Math.max(0, Number(data.totalcount) || 0);
+        var totalpages = Math.max(1, Math.ceil(totalcount / perpage));
+
+        if (title) {
+            title.textContent = data.title || text('details', 'Details');
+        }
+        if (count) {
+            count.textContent = totalcount ? formatString(text('rows', '{$a} rows'), String(totalcount)) : '';
+        }
+
+        if (!container) {
+            return;
+        }
+
+        if (data.notice) {
+            container.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
+            return;
+        }
+
+        if (!data.rows || !data.rows.length) {
+            container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            return;
+        }
+
+        if (state.currentDrilldown === 'company_server_disk') {
+            count.textContent = data.description || '';
+            var metricTiles = data.rows.map(function(row) {
+                var cellsByKey = {};
+                (row.cells || []).forEach(function(cell) {
+                    cellsByKey[cell.key] = cell.value;
+                });
+                var statusKey = cellsByKey.statuskey || 'muted';
+                var percent = Math.max(0, Math.min(100, Number(cellsByKey.percent) || 0));
+                return '<article class="da-server-metric da-server-metric-' + escapeHtml(statusKey) + '">'
+                    + '<div class="da-server-metric-head">'
+                    + '<strong>' + escapeHtml(cellsByKey.metric || '') + '</strong>'
+                    + '<span class="da-server-metric-value da-text-' + escapeHtml(statusKey) + '">' + escapeHtml(cellsByKey.value || '') + '</span>'
+                    + '</div>'
+                    + '<div class="da-server-metric-track"><span class="da-server-metric-fill da-bar-fill-' + escapeHtml(statusKey) + '" style="width:' + percent + '%"></span></div>'
+                    + '<div class="da-server-metric-meta">' + escapeHtml(cellsByKey.meta || '') + '</div>'
+                    + '</article>';
+            }).join('');
+
+            var serverAction = root.querySelector('[data-tab="server"]')
+                ? '<div class="da-server-metric-actions"><button type="button" class="da-row-action" data-action="goto-tab" data-tab="server">'
+                    + escapeHtml(text('goToServerTab', 'Go to Server tab')) + '</button></div>'
+                : '';
+
+            container.innerHTML = '<div class="da-server-metrics-panel"><div class="da-server-metrics-grid">'
+                + metricTiles + '</div>' + serverAction + '</div>';
+            return;
+        }
+
+        container.innerHTML = buildDrilldownTableMarkup(root, data, state, {
+            page: currentPage,
+            perpage: perpage,
+            drilldownkey: state.currentDrilldown || '',
+            overrides: state.currentDrilldownOverrides || undefined,
+            actionPrefix: 'drilldown'
+        });
     };
 
     var renderReportsActPanel = function() {
@@ -1370,6 +1422,228 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 'Unable to load course analytics controls.')) + '</div>';
         });
     };
+
+    var forecastPeriodOrder = ['30days', '60days', '90days', '6months', '12months', '3years'];
+
+    var forecastPeriodOptions = function(items) {
+        var map = {};
+        (items || []).forEach(function(item) {
+            if (item.periodkey && !map[item.periodkey]) {
+                map[item.periodkey] = item.rowlabel || item.periodkey;
+            }
+        });
+
+        return forecastPeriodOrder.filter(function(key) {
+            return !!map[key];
+        }).map(function(key) {
+            return {key: key, label: map[key]};
+        });
+    };
+
+    var forecastSelectionMatches = function(selection, tabKey, periodKey) {
+        return selection && selection.tabkey === tabKey && selection.periodkey === periodKey;
+    };
+
+    var getForecastSelection = function(state, panelKey, tabKey, periodKey) {
+        var selection = (((state || {}).currentVisualOverrides) || {})['forecastselection_' + panelKey] || null;
+        return forecastSelectionMatches(selection, tabKey, periodKey) ? selection : null;
+    };
+
+    var renderForecastWorkloadPanel = function(root, panel, state, visibleItems, selectedPanelTab) {
+        var overrides = ((state || {}).currentVisualOverrides) || {};
+        var periodOverrideKey = 'forecastperiod_' + panel.key;
+        var periodOptions = forecastPeriodOptions(panel.items || []);
+        var selectedPeriod = overrides[periodOverrideKey] || ((periodOptions[0] || {}).key) || '90days';
+        var periodItems = visibleItems.filter(function(item) {
+            return (item.periodkey || '') === selectedPeriod;
+        });
+        if (!periodItems.length && periodOptions.length) {
+            selectedPeriod = periodOptions[0].key;
+            periodItems = visibleItems.filter(function(item) {
+                return (item.periodkey || '') === selectedPeriod;
+            });
+        }
+
+        var selection = getForecastSelection(state, panel.key, selectedPanelTab || '', selectedPeriod);
+        var selectedBar = selection ? periodItems.find(function(item) {
+            return Number(item.fromts || 0) === Number(selection.fromts || 0)
+                && Number(item.tots || 0) === Number(selection.tots || 0);
+        }) : null;
+        var selectedCourseId = selection ? Number(selection.courseid || 0) : 0;
+        var maxTotal = periodItems.reduce(function(max, item) {
+            return Math.max(max, Number(item.value) || 0);
+        }, 1);
+
+        var periodButtons = '<div class="da-forecast-periods">' + periodOptions.map(function(option) {
+            return '<button type="button" class="da-forecast-period'
+                + (selectedPeriod === option.key ? ' is-active' : '')
+                + '" data-action="forecast-period" data-panel="' + escapeHtml(panel.key)
+                + '" data-period="' + escapeHtml(option.key) + '">'
+                + escapeHtml(option.label) + '</button>';
+        }).join('') + '</div>';
+
+        var chartBars = periodItems.map(function(item) {
+            var total = Number(item.value) || 0;
+            var totalHeight = maxTotal > 0 ? Math.max(total > 0 ? 8 : 0, Math.min(100, (total / maxTotal) * 100)) : 0;
+            var isSelected = !!selectedBar
+                && Number(selectedBar.fromts || 0) === Number(item.fromts || 0)
+                && Number(selectedBar.tots || 0) === Number(item.tots || 0);
+            var segments = item.segments || [];
+
+            return '<div class="da-forecast-bar-group' + (isSelected ? ' is-selected' : '') + '">'
+                + '<div class="da-forecast-bar-total">' + escapeHtml(item.value || '0') + '</div>'
+                + '<div class="da-forecast-bar-shell" style="height:' + totalHeight + '%">'
+                + segments.map(function(segment) {
+                    var totalSegments = Number(item.value) || 0;
+                    var segmentHeight = totalSegments > 0 ? Math.max(0, (Number(segment.value) || 0) / totalSegments * 100) : 0;
+                    var tooltipCount = formatString(text('forecastUsersLabel', '{$a} users'), String(segment.value || '0'));
+                    return '<button type="button" class="da-forecast-segment'
+                        + (selectedCourseId && Number(segment.courseid || 0) === selectedCourseId && isSelected ? ' is-selected' : '')
+                        + '" data-action="forecast-segment"'
+                        + ' data-panel="' + escapeHtml(panel.key) + '"'
+                        + ' data-tabkey="' + escapeHtml(selectedPanelTab || '') + '"'
+                        + ' data-period="' + escapeHtml(selectedPeriod) + '"'
+                        + ' data-courseid="' + escapeHtml(String(segment.courseid || 0)) + '"'
+                        + ' data-fromts="' + escapeHtml(String(segment.fromts || item.fromts || 0)) + '"'
+                        + ' data-tots="' + escapeHtml(String(segment.tots || item.tots || 0)) + '"'
+                        + ' data-label="' + escapeHtml(segment.label || '') + '"'
+                        + ' data-value="' + escapeHtml(String(segment.value || '0')) + '"'
+                        + ' data-tooltip="' + escapeHtml((segment.label || '') + ' — ' + tooltipCount) + '"'
+                        + ' style="height:' + segmentHeight + '%; background:' + escapeHtml(segment.colour || '#3b82f6') + '"></button>';
+                }).join('')
+                + '</div>'
+                + '<button type="button" class="da-forecast-bar-label" data-action="forecast-bar"'
+                + ' data-panel="' + escapeHtml(panel.key) + '"'
+                + ' data-tabkey="' + escapeHtml(selectedPanelTab || '') + '"'
+                + ' data-period="' + escapeHtml(selectedPeriod) + '"'
+                + ' data-fromts="' + escapeHtml(String(item.fromts || 0)) + '"'
+                + ' data-tots="' + escapeHtml(String(item.tots || 0)) + '">'
+                + escapeHtml(item.label || '') + '</button>'
+                + '</div>';
+        }).join('');
+
+        var yAxisSteps = [100, 75, 50, 25, 0].map(function(step) {
+            return '<div class="da-forecast-y-step" style="bottom:' + step + '%"><span>'
+                + escapeHtml(String(Math.round((maxTotal * step) / 100))) + '</span></div>';
+        }).join('');
+
+        var summarySegments = selectedBar ? (selectedBar.segments || []).slice().sort(function(a, b) {
+            return (Number(b.value) || 0) - (Number(a.value) || 0);
+        }) : [];
+        var summaryBody = summarySegments.length
+            ? summarySegments.map(function(segment) {
+                var total = Number(selectedBar.value) || 0;
+                var width = total > 0 ? Math.max(2, Math.min(100, ((Number(segment.value) || 0) / total) * 100)) : 0;
+                return '<div class="da-forecast-summary-row' + (selectedCourseId && Number(segment.courseid || 0) === selectedCourseId ? ' is-selected' : '') + '">'
+                    + '<div class="da-forecast-summary-head"><span class="da-forecast-summary-swatch" style="background:'
+                    + escapeHtml(segment.colour || '#3b82f6') + '"></span><span class="da-forecast-summary-name">'
+                    + escapeHtml(segment.label || '') + '</span><strong>' + escapeHtml(String(segment.value || '0')) + '</strong></div>'
+                    + '<div class="da-forecast-summary-track"><span style="width:' + width + '%; background:'
+                    + escapeHtml(segment.colour || '#3b82f6') + '"></span></div></div>';
+            }).join('')
+            : '<div class="da-empty">' + escapeHtml(text('forecastSummaryEmpty',
+                'Click a bar label to see the course breakdown.')) + '</div>';
+
+        var selectedMeta = selectedBar ? selectedBar.meta : '';
+        var tableHeadline = selectedBar
+            ? escapeHtml(text('details', 'Details')) + ': ' + escapeHtml(selectedBar.label || '')
+            : escapeHtml(text('forecastTableEmpty', 'Click a bar or a course segment to open The Learning Matrix.'));
+
+        return '<div class="da-forecast-workload" data-region="forecast-workload" data-panel-key="' + escapeHtml(panel.key) + '">'
+            + periodButtons
+            + '<div class="da-forecast-layout">'
+            + '<section class="da-forecast-chart-card">'
+            + '<div class="da-forecast-chart-wrap">'
+            + '<div class="da-forecast-y-axis">' + yAxisSteps + '</div>'
+            + '<div class="da-forecast-chart-area">'
+            + '<div class="da-forecast-bars">' + chartBars + '</div>'
+            + '<div class="da-forecast-tooltip" data-region="forecast-tooltip" hidden></div>'
+            + '</div></div>'
+            + '</section>'
+            + '<aside class="da-forecast-summary-card">'
+            + '<h6>' + escapeHtml(text('forecastSummaryTitle', 'Course summary')) + '</h6>'
+            + '<p>' + escapeHtml(selectedMeta || '') + '</p>'
+            + '<div class="da-forecast-summary-list">' + summaryBody + '</div>'
+            + '<div class="da-forecast-summary-total"><span>' + escapeHtml(text('forecastSummaryTotal', 'Total')) + '</span><strong>'
+            + escapeHtml(selectedBar ? String(selectedBar.value || '0') : '0') + '</strong></div>'
+            + '</aside>'
+            + '</div>'
+            + '<section class="da-forecast-table-card">'
+            + '<div class="da-forecast-table-head"><h6>' + escapeHtml(text('learningMatrixTitle', 'The Learning Matrix')) + '</h6>'
+            + '<span class="da-forecast-table-selection" data-region="forecast-selection">' + tableHeadline + '</span></div>'
+            + '<div class="da-forecast-table-body" data-region="forecast-table-body">'
+            + '<div class="da-empty">' + escapeHtml(text('forecastTableEmpty',
+                'Click a bar or a course segment to open The Learning Matrix.')) + '</div>'
+            + '</div></section></div>';
+    };
+
+    var loadForecastInlineTable = function(root, state, panelKey) {
+        var overrides = (((state || {}).currentVisualOverrides) || {}) || {};
+        var selection = overrides['forecastselection_' + panelKey] || null;
+        var panel = root.querySelector('.da-visual-panel[data-panel-key="' + panelKey + '"]');
+        var tableBody = panel ? panel.querySelector('[data-region="forecast-table-body"]') : null;
+        var selectionNode = panel ? panel.querySelector('[data-region="forecast-selection"]') : null;
+        var activePanelTab = panel ? panel.querySelector('.da-panel-tab.is-active') : null;
+        var currentPanelTab = activePanelTab ? (activePanelTab.getAttribute('data-tabkey') || '') : '';
+        var activePeriod = panel ? panel.querySelector('.da-forecast-period.is-active') : null;
+        var currentPeriod = activePeriod ? (activePeriod.getAttribute('data-period') || '') : (overrides['forecastperiod_' + panelKey] || '');
+        if (!panel || !tableBody) {
+            return Promise.resolve();
+        }
+
+        if (!selection || !selection.fromts || !selection.tots
+                || (selection.tabkey || '') !== currentPanelTab
+                || (selection.periodkey || '') !== currentPeriod) {
+            if (selectionNode) {
+                selectionNode.textContent = text('forecastTableEmpty',
+                    'Click a bar or a course segment to open The Learning Matrix.');
+            }
+            tableBody.innerHTML = '<div class="da-empty">' + escapeHtml(text('forecastTableEmpty',
+                'Click a bar or a course segment to open The Learning Matrix.')) + '</div>';
+            return Promise.resolve();
+        }
+
+        var drilldownkey = state.dashboardkey === 'client' ? 'client_forecast_documents' : 'company_forecast_documents';
+        var filterOverrides = {
+            expirystartts: Number(selection.fromts) || 0,
+            expiryendts: Number(selection.tots) || 0
+        };
+        if (selection.courseid) {
+            filterOverrides.courseids = [Number(selection.courseid)];
+        }
+
+        var currentPage = Math.max(0, Number(overrides['forecastpage_' + panelKey]) || 0);
+        var perpage = Math.max(10, Number(overrides['forecastperpage_' + panelKey]) || 20);
+
+        tableBody.innerHTML = '<div class="da-loading">' + escapeHtml(text('forecastTableLoading', 'Loading Learning Matrix...')) + '</div>';
+
+        if (selectionNode) {
+            selectionNode.textContent = selection.course
+                ? selection.label + ' — ' + selection.course
+                : selection.label;
+        }
+
+        return call('block_dashboardanalytics_get_drilldown', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            drilldownkey: drilldownkey,
+            filters: JSON.stringify(readFilters(root, state, filterOverrides)),
+            page: currentPage,
+            perpage: perpage
+        }).then(function(response) {
+            tableBody.innerHTML = buildDrilldownTableMarkup(root, response, state, {
+                page: currentPage,
+                perpage: perpage,
+                drilldownkey: drilldownkey,
+                overrides: filterOverrides,
+                actionPrefix: 'forecast-table'
+            });
+        }).catch(function(error) {
+            Notification.exception(error);
+            tableBody.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+        });
+    };
+
     var renderVisuals = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
@@ -1390,7 +1664,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline', 'forecastworkload'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
                 || panel.type === 'analyticscourses';
         };
@@ -1433,6 +1707,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 body = renderReportsActPanel();
             } else if (panel.type === 'analyticscourses') {
                 body = renderCourseAnalyticsPanel();
+            } else if (panel.type === 'forecastworkload') {
+                body = panelTabMarkup + renderForecastWorkloadPanel(root, panel, state, visibleItems, selectedPanelTab);
             } else if (!(panel.type === 'heatmap' ? items : visibleItems).length) {
                 body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
             } else if (panel.type === 'overviewsummary') {
@@ -2551,6 +2827,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         if (panels.some(function(panel) { return panel.type === 'analyticscourses'; })) {
             loadCourseAnalyticsControl(root, state);
         }
+        if (panels.some(function(panel) { return panel.type === 'forecastworkload'; })) {
+            loadForecastInlineTable(root, state, 'forecastworkload');
+        }
     };
 
     var colorForStatus = function(status) {
@@ -3200,6 +3479,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }, 140);
             }
         };
+        var hideForecastTooltip = function(rootNode) {
+            var tooltip = rootNode ? rootNode.querySelector('[data-region="forecast-tooltip"]') : null;
+            if (!tooltip) {
+                return;
+            }
+            tooltip.hidden = true;
+            tooltip.classList.remove('is-visible');
+            tooltip.textContent = '';
+        };
         var showComplianceHover = function(target) {
             if (!target) {
                 return;
@@ -3241,6 +3529,29 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var clampedLeft = Math.max(minLeft, Math.min(maxLeft, hoverTargetLeft));
 
             tooltip.style.left = clampedLeft + 'px';
+        };
+        var showForecastTooltip = function(target, event) {
+            if (!target) {
+                return;
+            }
+
+            var rootNode = target.closest('[data-region="forecast-workload"]');
+            var tooltip = rootNode ? rootNode.querySelector('[data-region="forecast-tooltip"]') : null;
+            var chartArea = rootNode ? rootNode.querySelector('.da-forecast-chart-area') : null;
+            if (!tooltip || !chartArea) {
+                return;
+            }
+
+            tooltip.textContent = target.getAttribute('data-tooltip') || '';
+            tooltip.hidden = false;
+            tooltip.classList.add('is-visible');
+
+            var bounds = chartArea.getBoundingClientRect();
+            var left = (event.clientX || bounds.left) - bounds.left;
+            var top = (event.clientY || bounds.top) - bounds.top;
+
+            tooltip.style.left = Math.max(12, Math.min(bounds.width - 12, left)) + 'px';
+            tooltip.style.top = Math.max(12, Math.min(bounds.height - 12, top - 16)) + 'px';
         };
 
         root.addEventListener('change', function(event) {
@@ -3306,6 +3617,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            if (event.target.matches('[data-action="forecast-table-perpage"]')) {
+                rememberCurrentState(root, state);
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    forecastperpage_forecastworkload: Number(event.target.value) || 20,
+                    forecastpage_forecastworkload: 0
+                });
+                loadForecastInlineTable(root, state, 'forecastworkload');
+                persistState(root, state);
+                commitBrowserHistoryState(root, state, 'push');
+                return;
+            }
+
             if (event.target.matches('[data-act-field]')) {
                 updateReportsActPreview(root);
                 return;
@@ -3353,43 +3676,69 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         root.addEventListener('mouseover', function(event) {
             var complianceHover = event.target.closest('[data-action="compliance-hover"]');
-            if (!complianceHover || !root.contains(complianceHover)) {
+            if (complianceHover && root.contains(complianceHover)) {
+                showComplianceHover(complianceHover);
                 return;
             }
 
-            showComplianceHover(complianceHover);
+            var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
+            if (forecastSegmentHover && root.contains(forecastSegmentHover)) {
+                showForecastTooltip(forecastSegmentHover, event);
+            }
         });
 
         root.addEventListener('focusin', function(event) {
             var complianceHover = event.target.closest('[data-action="compliance-hover"]');
-            if (!complianceHover || !root.contains(complianceHover)) {
+            if (complianceHover && root.contains(complianceHover)) {
+                showComplianceHover(complianceHover);
                 return;
             }
 
-            showComplianceHover(complianceHover);
+            var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
+            if (forecastSegmentHover && root.contains(forecastSegmentHover)) {
+                showForecastTooltip(forecastSegmentHover, {
+                    clientX: forecastSegmentHover.getBoundingClientRect().left,
+                    clientY: forecastSegmentHover.getBoundingClientRect().top
+                });
+            }
         });
 
         root.addEventListener('mouseout', function(event) {
             var complianceHover = event.target.closest('[data-action="compliance-hover"]');
-            if (!complianceHover || !root.contains(complianceHover)) {
+            if (complianceHover && root.contains(complianceHover)) {
+                var related = event.relatedTarget;
+                if (related && complianceHover.contains(related)) {
+                    return;
+                }
+
+                hideComplianceHover(complianceHover.closest('.da-compliance-trendline-overlay'));
                 return;
             }
 
-            var related = event.relatedTarget;
-            if (related && complianceHover.contains(related)) {
-                return;
+            var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
+            if (forecastSegmentHover && root.contains(forecastSegmentHover)) {
+                hideForecastTooltip(forecastSegmentHover.closest('[data-region="forecast-workload"]'));
             }
-
-            hideComplianceHover(complianceHover.closest('.da-compliance-trendline-overlay'));
         });
 
         root.addEventListener('focusout', function(event) {
             var complianceHover = event.target.closest('[data-action="compliance-hover"]');
-            if (!complianceHover || !root.contains(complianceHover)) {
+            if (complianceHover && root.contains(complianceHover)) {
+                hideComplianceHover(complianceHover.closest('.da-compliance-trendline-overlay'));
                 return;
             }
 
-            hideComplianceHover(complianceHover.closest('.da-compliance-trendline-overlay'));
+            var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
+            if (forecastSegmentHover && root.contains(forecastSegmentHover)) {
+                hideForecastTooltip(forecastSegmentHover.closest('[data-region="forecast-workload"]'));
+            }
+        });
+
+        root.addEventListener('mousemove', function(event) {
+            var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
+            if (forecastSegmentHover && root.contains(forecastSegmentHover)) {
+                showForecastTooltip(forecastSegmentHover, event);
+            }
         });
 
         root.addEventListener('click', function(event) {
@@ -3635,6 +3984,73 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     platformgrowthperiod: platformGrowthPeriod.getAttribute('data-period') || '1year'
                 });
                 loadVisuals(root, state, state.currentTab || 'overview', state.currentVisualOverrides);
+                return;
+            }
+
+            var forecastPeriod = event.target.closest('[data-action="forecast-period"]');
+            if (forecastPeriod && root.contains(forecastPeriod)) {
+                rememberCurrentState(root, state);
+                var forecastPanelKey = forecastPeriod.getAttribute('data-panel') || 'forecastworkload';
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastperiod_' + forecastPanelKey]: forecastPeriod.getAttribute('data-period') || '30days',
+                    ['forecastselection_' + forecastPanelKey]: null,
+                    ['forecastpage_' + forecastPanelKey]: 0
+                });
+                loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
+                return;
+            }
+
+            var forecastSegment = event.target.closest('[data-action="forecast-segment"]');
+            if (forecastSegment && root.contains(forecastSegment)) {
+                rememberCurrentState(root, state);
+                var forecastSegmentPanelKey = forecastSegment.getAttribute('data-panel') || 'forecastworkload';
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastselection_' + forecastSegmentPanelKey]: {
+                        tabkey: forecastSegment.getAttribute('data-tabkey') || '',
+                        periodkey: forecastSegment.getAttribute('data-period') || '',
+                        fromts: Number(forecastSegment.getAttribute('data-fromts')) || 0,
+                        tots: Number(forecastSegment.getAttribute('data-tots')) || 0,
+                        courseid: Number(forecastSegment.getAttribute('data-courseid')) || 0,
+                        course: forecastSegment.getAttribute('data-label') || '',
+                        label: forecastSegment.closest('.da-forecast-bar-group')
+                            ? (forecastSegment.closest('.da-forecast-bar-group').querySelector('.da-forecast-bar-label') || {}).textContent || ''
+                            : ''
+                    },
+                    ['forecastpage_' + forecastSegmentPanelKey]: 0
+                });
+                loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
+                return;
+            }
+
+            var forecastBar = event.target.closest('[data-action="forecast-bar"]');
+            if (forecastBar && root.contains(forecastBar)) {
+                rememberCurrentState(root, state);
+                var forecastBarPanelKey = forecastBar.getAttribute('data-panel') || 'forecastworkload';
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastselection_' + forecastBarPanelKey]: {
+                        tabkey: forecastBar.getAttribute('data-tabkey') || '',
+                        periodkey: forecastBar.getAttribute('data-period') || '',
+                        fromts: Number(forecastBar.getAttribute('data-fromts')) || 0,
+                        tots: Number(forecastBar.getAttribute('data-tots')) || 0,
+                        courseid: 0,
+                        course: '',
+                        label: forecastBar.textContent || ''
+                    },
+                    ['forecastpage_' + forecastBarPanelKey]: 0
+                });
+                loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
+                return;
+            }
+
+            var forecastTablePage = event.target.closest('[data-action="forecast-table-page"]');
+            if (forecastTablePage && root.contains(forecastTablePage) && !forecastTablePage.disabled) {
+                rememberCurrentState(root, state);
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    forecastpage_forecastworkload: Number(forecastTablePage.getAttribute('data-page')) || 0
+                });
+                loadForecastInlineTable(root, state, 'forecastworkload');
+                persistState(root, state);
+                commitBrowserHistoryState(root, state, 'push');
                 return;
             }
 

@@ -270,22 +270,76 @@ class document_repository {
     }
 
     public function forecast_window_items(array $filters): array {
+        $label30 = get_string('forecast:window:30days', 'block_dashboardanalytics');
+        $label60 = get_string('forecast:window:60days', 'block_dashboardanalytics');
+        $label90 = get_string('forecast:window:90days', 'block_dashboardanalytics');
         $counts = [
-            '30 days' => $this->count_expiring_between($filters, 0, 30),
-            '60 days' => $this->count_expiring_between($filters, 31, 60),
-            '90 days' => $this->count_expiring_between($filters, 61, 90),
+            $label30 => $this->count_expiring_between($filters, 0, 30),
+            $label60 => $this->count_expiring_between($filters, 31, 60),
+            $label90 => $this->count_expiring_between($filters, 61, 90),
         ];
         $max = max(1, max($counts));
         $items = [];
         foreach ($counts as $label => $count) {
+            $status = 'ok';
+            if ($label === $label30) {
+                $status = 'warning';
+            } else if ($label === $label60) {
+                $status = 'emerald';
+            }
+
             $items[] = [
                 'label' => $label,
                 'value' => (string)$count,
                 'percent' => round(($count / $max) * 100, 1),
-                'status' => $label === '30 days' ? 'danger' : ($label === '60 days' ? 'warning' : 'info'),
-                'meta' => 'documents expiring',
+                'status' => $status,
+                'meta' => get_string('forecast:documents_expiring', 'block_dashboardanalytics'),
             ];
         }
+        return $items;
+    }
+
+    public function forecast_scope_tabs(array $filters, int $limit = 8): array {
+        $tabs = $this->company_tabs($filters, $limit);
+        $companytabs = array_values(array_filter($tabs, static function(array $tab): bool {
+            return !empty($tab['companyid']) || !empty($tab['companyname']);
+        }));
+
+        if (count($companytabs) <= 1) {
+            if ($companytabs) {
+                $companytabs[0]['active'] = true;
+                return [$companytabs[0]];
+            }
+
+            return [[
+                'key' => 'scope',
+                'label' => get_string('forecast:scope:current', 'block_dashboardanalytics'),
+                'active' => true,
+                'companyid' => 0,
+                'companyname' => '',
+            ]];
+        }
+
+        foreach ($tabs as $index => $tab) {
+            $tabs[$index]['active'] = $index === 0;
+        }
+
+        return $tabs;
+    }
+
+    public function forecast_stacked_items(array $filters, int $limit = 8): array {
+        $items = [];
+        foreach ($this->forecast_scope_tabs($filters, $limit) as $tab) {
+            $scopefilters = $this->heatmap_tab_filters($filters, $tab);
+            foreach ($this->forecast_period_definitions() as $periodkey => $definition) {
+                $intervalitems = $this->forecast_interval_items($scopefilters, $periodkey, $definition);
+                foreach ($intervalitems as $intervalitem) {
+                    $intervalitem['groupkey'] = (string)$tab['key'];
+                    $items[] = $intervalitem;
+                }
+            }
+        }
+
         return $items;
     }
 
@@ -728,6 +782,203 @@ class document_repository {
         }
     }
 
+    private function forecast_period_definitions(): array {
+        return [
+            '30days' => [
+                'interval' => 'week',
+                'count' => 5,
+                'days' => 30,
+                'label' => get_string('forecast:period:30days', 'block_dashboardanalytics'),
+            ],
+            '60days' => [
+                'interval' => 'week',
+                'count' => 9,
+                'days' => 60,
+                'label' => get_string('forecast:period:60days', 'block_dashboardanalytics'),
+            ],
+            '90days' => [
+                'interval' => 'week',
+                'count' => 13,
+                'days' => 90,
+                'label' => get_string('forecast:period:90days', 'block_dashboardanalytics'),
+            ],
+            '6months' => [
+                'interval' => 'month',
+                'count' => 6,
+                'label' => get_string('forecast:period:6months', 'block_dashboardanalytics'),
+            ],
+            '12months' => [
+                'interval' => 'month',
+                'count' => 12,
+                'label' => get_string('forecast:period:12months', 'block_dashboardanalytics'),
+            ],
+            '3years' => [
+                'interval' => 'year',
+                'count' => 3,
+                'label' => get_string('forecast:period:3years', 'block_dashboardanalytics'),
+            ],
+        ];
+    }
+
+    private function forecast_interval_items(array $filters, string $periodkey, array $definition): array {
+        $intervals = $this->forecast_intervals($definition);
+        $rows = $this->forecast_candidate_rows($filters);
+        $groupmax = 1;
+        $items = [];
+
+        foreach ($intervals as $interval) {
+            $courses = [];
+            $total = 0;
+            foreach ($rows as $row) {
+                $expiry = (int)($row['expirytime'] ?? 0);
+                if ($expiry <= 0 || $expiry < $interval['fromts'] || $expiry > $interval['tots']) {
+                    continue;
+                }
+
+                $courseid = (int)($row['courseid'] ?? 0);
+                if (!isset($courses[$courseid])) {
+                    $courses[$courseid] = [
+                        'courseid' => $courseid,
+                        'label' => (string)($row['course'] ?? ''),
+                        'count' => 0,
+                    ];
+                }
+
+                $courses[$courseid]['count']++;
+                $total++;
+            }
+
+            uasort($courses, static function(array $a, array $b): int {
+                if ((int)$a['count'] !== (int)$b['count']) {
+                    return (int)$b['count'] <=> (int)$a['count'];
+                }
+
+                return \core_text::strtolower((string)$a['label']) <=> \core_text::strtolower((string)$b['label']);
+            });
+
+            $segments = [];
+            $courseindex = 0;
+            foreach ($courses as $course) {
+                $colour = $this->forecast_course_colour($courseindex);
+                $segments[] = [
+                    'label' => (string)$course['label'],
+                    'value' => (string)$course['count'],
+                    'percent' => $total > 0 ? round((((int)$course['count']) / $total) * 100, 1) : 0.0,
+                    'status' => 'info',
+                    'courseid' => (int)$course['courseid'],
+                    'colour' => $colour,
+                    'fromts' => (int)$interval['fromts'],
+                    'tots' => (int)$interval['tots'],
+                    'drilldownkey' => 'company_forecast_documents',
+                ];
+                $courseindex++;
+            }
+
+            $items[] = [
+                'label' => (string)$interval['label'],
+                'value' => (string)$total,
+                'percent' => 0.0,
+                'status' => $total > 0 ? 'info' : 'muted',
+                'meta' => (string)$interval['meta'],
+                'periodkey' => $periodkey,
+                'rowlabel' => (string)($definition['label'] ?? $periodkey),
+                'fromts' => (int)$interval['fromts'],
+                'tots' => (int)$interval['tots'],
+                'segments' => $segments,
+            ];
+            $groupmax = max($groupmax, $total);
+        }
+
+        foreach ($items as $index => $item) {
+            $items[$index]['percent'] = $groupmax > 0
+                ? round((((int)$item['value']) / $groupmax) * 100, 1)
+                : 0.0;
+        }
+
+        return $items;
+    }
+
+    private function forecast_intervals(array $definition): array {
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $today = new \DateTimeImmutable('today', $timezone);
+        $intervals = [];
+
+        if (($definition['interval'] ?? '') === 'week') {
+            $days = max(1, (int)($definition['days'] ?? 0));
+            $count = max(1, (int)($definition['count'] ?? 1));
+            for ($index = 0; $index < $count; $index++) {
+                $start = $today->modify('+' . ($index * 7) . ' days');
+                $tentativeend = $start->modify('+6 days');
+                $absoluteend = $today->modify('+' . ($days - 1) . ' days');
+                $end = $tentativeend < $absoluteend ? $tentativeend : $absoluteend;
+                $intervals[] = [
+                    'label' => userdate($start->getTimestamp(), '%d %b'),
+                    'meta' => userdate($start->getTimestamp(), '%d %b %Y') . ' - ' . userdate($end->getTimestamp(), '%d %b %Y'),
+                    'fromts' => $start->setTime(0, 0, 0)->getTimestamp(),
+                    'tots' => $end->setTime(23, 59, 59)->getTimestamp(),
+                ];
+            }
+            return $intervals;
+        }
+
+        if (($definition['interval'] ?? '') === 'month') {
+            $count = max(1, (int)($definition['count'] ?? 1));
+            $cursor = $today->modify('first day of this month');
+            for ($index = 0; $index < $count; $index++) {
+                $start = $cursor->modify('+' . $index . ' months');
+                $end = $start->modify('last day of this month');
+                $intervals[] = [
+                    'label' => userdate($start->getTimestamp(), '%b %y'),
+                    'meta' => userdate($start->getTimestamp(), '%B %Y'),
+                    'fromts' => $start->setTime(0, 0, 0)->getTimestamp(),
+                    'tots' => $end->setTime(23, 59, 59)->getTimestamp(),
+                ];
+            }
+            return $intervals;
+        }
+
+        $count = max(1, (int)($definition['count'] ?? 1));
+        $cursor = $today->setDate((int)$today->format('Y'), 1, 1);
+        for ($index = 0; $index < $count; $index++) {
+            $start = $cursor->modify('+' . $index . ' years');
+            $end = $start->modify('last day of December this year');
+            $intervals[] = [
+                'label' => $start->format('Y'),
+                'meta' => $start->format('Y'),
+                'fromts' => $start->setTime(0, 0, 0)->getTimestamp(),
+                'tots' => $end->setTime(23, 59, 59)->getTimestamp(),
+            ];
+        }
+
+        return $intervals;
+    }
+
+    private function forecast_candidate_rows(array $filters): array {
+        $now = time();
+
+        return array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now): bool {
+            $expiry = (int)($row['expirytime'] ?? 0);
+            return $expiry > $now;
+        }));
+    }
+
+    private function forecast_course_colour(int $index): string {
+        $palette = [
+            '#0d8f61',
+            '#f59e0b',
+            '#ef4444',
+            '#3b82f6',
+            '#8b5cf6',
+            '#14b8a6',
+            '#f97316',
+            '#84cc16',
+            '#ec4899',
+            '#06b6d4',
+        ];
+
+        return $palette[$index % count($palette)];
+    }
+
     private function count_expiring_between(array $filters, int $startdays, int $enddays): int {
         if (!$this->is_configured()) {
             return 0;
@@ -793,6 +1044,24 @@ class document_repository {
         } else if ($status === 'nodocument') {
             $records = array_values(array_filter($records, static function(array $row): bool {
                 return $row['status'] === 'No document';
+            }));
+        }
+
+        $expirystart = (int)($filters['expirystartts'] ?? 0);
+        $expiryend = (int)($filters['expiryendts'] ?? 0);
+        if ($expirystart > 0 || $expiryend > 0) {
+            $records = array_values(array_filter($records, static function(array $row) use ($expirystart, $expiryend): bool {
+                $expiry = (int)($row['expirytime'] ?? 0);
+                if ($expiry <= 0) {
+                    return false;
+                }
+                if ($expirystart > 0 && $expiry < $expirystart) {
+                    return false;
+                }
+                if ($expiryend > 0 && $expiry > $expiryend) {
+                    return false;
+                }
+                return true;
             }));
         }
 

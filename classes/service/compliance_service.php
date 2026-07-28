@@ -59,6 +59,13 @@ class compliance_service {
             );
         }
 
+        if ($drilldownkey === 'company_forecast_documents' || $drilldownkey === 'client_forecast_documents') {
+            return $this->result(
+                get_string('complianceactiontable', 'block_dashboardanalytics'),
+                (new document_repository())->document_rows($filters, '', $page, $perpage, $showidentity)
+            );
+        }
+
         if ($drilldownkey === 'employee_courses') {
             return $this->result(get_string('drilldown:title:mycourses', 'block_dashboardanalytics'), [
                 'columns' => [],
@@ -99,6 +106,7 @@ class compliance_service {
                 'company_eds_queue',
                 'company_server_disk',
                 'company_course_noncompliance',
+                'company_forecast_documents',
             ],
             permissions::DASHBOARD_CLIENT => [
                 'client_total_staff',
@@ -106,6 +114,7 @@ class compliance_service {
                 'client_expiring_documents',
                 'client_expired_documents',
                 'client_eds_queue',
+                'client_forecast_documents',
             ],
             permissions::DASHBOARD_EMPLOYEE => [
                 'employee_documents',

@@ -179,10 +179,17 @@ class visual_service {
 
         return [
             'title' => get_string('panel:forecast:title', 'block_dashboardanalytics'),
-            'description' => get_string('panel:forecast:description', 'block_dashboardanalytics'),
+            'description' => '',
             'panels' => [
                 $this->panel('expirywindows', get_string('panel:expirywindows:title', 'block_dashboardanalytics'), 'cards', get_string('panel:expirywindows:description', 'block_dashboardanalytics'), $documents->forecast_window_items($filters)),
-                $this->panel('forecastcompany', get_string('panel:forecastcompany:title', 'block_dashboardanalytics'), 'bar', get_string('panel:forecastcompany:description', 'block_dashboardanalytics'), $documents->risk_by_company_items($filters)),
+                $this->panel(
+                    'forecastworkload',
+                    get_string('panel:forecastworkload:title', 'block_dashboardanalytics'),
+                    'forecastworkload',
+                    '',
+                    $documents->forecast_stacked_items($filters),
+                    ['tabs' => $documents->forecast_scope_tabs($filters, 8)]
+                ),
             ],
         ];
     }
