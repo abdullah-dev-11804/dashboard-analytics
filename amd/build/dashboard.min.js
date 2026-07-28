@@ -418,7 +418,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         if (!button) {
             return;
         }
-        button.disabled = readActionHistory(state).length === 0;
+        button.disabled = false;
     };
 
     var rememberCurrentState = function(root, state) {
@@ -497,6 +497,90 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return true;
     };
 
+    var browserHistoryState = function(root, state) {
+        return {
+            marker: 'block_dashboardanalytics',
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            snapshot: snapshotState(root, state)
+        };
+    };
+
+    var matchesBrowserHistoryState = function(payload, state) {
+        return !!(payload
+            && payload.marker === 'block_dashboardanalytics'
+            && Number(payload.contextid) === Number(state.contextid)
+            && String(payload.dashboardkey || '') === String(state.dashboardkey || '')
+            && payload.snapshot);
+    };
+
+    var commitBrowserHistoryState = function(root, state, mode) {
+        if (!window.history || !window.history.pushState || !window.history.replaceState) {
+            return;
+        }
+
+        var payload = browserHistoryState(root, state);
+        var current = window.history.state;
+        if (mode !== 'replace' && matchesBrowserHistoryState(current, state)
+            && snapshotsEqual(current.snapshot, payload.snapshot)) {
+            return;
+        }
+
+        if (mode === 'replace') {
+            window.history.replaceState(payload, document.title, window.location.href);
+            return;
+        }
+
+        if (mode === 'push') {
+            window.history.pushState(payload, document.title, window.location.href);
+        }
+    };
+
+    var restoreBrowserHistoryState = function(root, state, payload) {
+        if (!matchesBrowserHistoryState(payload, state)) {
+            return false;
+        }
+
+        applySnapshotToState(state, payload.snapshot);
+        setActiveTab(root, state.currentTab);
+
+        if (Object.keys(state.filterGroups || {}).length) {
+            renderFilters(root, state, Object.keys(state.filterGroups).map(function(key) {
+                return state.filterGroups[key];
+            }));
+            updateFilterCounts(root, state);
+        }
+
+        if (state.currentTab === 'kpis') {
+            loadDrilldown(
+                root,
+                state,
+                state.currentDrilldown || defaultDrilldownKey(state),
+                state.currentDrilldownOverrides,
+                state.currentDrilldownPage,
+                state.currentDrilldownPerPage,
+                'skip'
+            );
+            return true;
+        }
+
+        if (state.currentDrilldown) {
+            loadDrilldown(
+                root,
+                state,
+                state.currentDrilldown,
+                state.currentDrilldownOverrides,
+                state.currentDrilldownPage,
+                state.currentDrilldownPerPage,
+                'skip'
+            );
+            return true;
+        }
+
+        loadVisuals(root, state, state.currentTab || 'overview', state.currentVisualOverrides, 'skip');
+        return true;
+    };
+
     var initViewStretchToggle = function(root, state) {
         var button = document.querySelector('[data-action="view-stretch-toggle"]');
         var backButton = document.querySelector('[data-action="view-back"]');
@@ -530,7 +614,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         if (backButton && backButton.getAttribute('data-bound') !== '1') {
             backButton.setAttribute('data-bound', '1');
             backButton.addEventListener('click', function() {
-                restorePreviousState(root, state);
+                window.history.back();
             });
         }
     };
@@ -1197,6 +1281,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).then(function(response) {
             renderCourseAnalyticsResults(root, response, state);
             persistState(root, state);
+            commitBrowserHistoryState(root, state, 'push');
         }).catch(function(error) {
             Notification.exception(error);
             results.innerHTML = '<div class="da-empty">' + escapeHtml(text('courseAnalyticsLoadError',
@@ -2917,7 +3002,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).catch(Notification.exception);
     };
 
-    var loadDrilldown = function(root, state, drilldownkey, filterOverrides, page, perpage) {
+    var loadDrilldown = function(root, state, drilldownkey, filterOverrides, page, perpage, historyMode) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
         var targetPage = typeof page === 'number' ? page : (state.currentDrilldownPage || 0);
@@ -2938,10 +3023,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             state.currentDrilldownPerPage = targetPerPage;
             renderDrilldown(root, response, state);
             persistState(root, state);
+            commitBrowserHistoryState(root, state, historyMode || 'push');
         }).catch(Notification.exception);
     };
 
-    var loadVisuals = function(root, state, tabkey, overrides) {
+    var loadVisuals = function(root, state, tabkey, overrides, historyMode) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
         var visualOverrides = typeof overrides !== 'undefined'
@@ -2961,21 +3047,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             setActiveTab(root, tabkey);
             renderVisuals(root, response, state);
             persistState(root, state);
+            commitBrowserHistoryState(root, state, historyMode || 'push');
         }).catch(Notification.exception);
     };
 
-    var refresh = function(root, state) {
+    var refresh = function(root, state, historyMode) {
         persistState(root, state);
         loadKpis(root, state);
         if (state.currentTab === 'kpis') {
-            loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state));
+            loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state), undefined, undefined, undefined, historyMode || 'push');
             return;
         }
         if (state.currentDrilldown) {
-            loadDrilldown(root, state, state.currentDrilldown);
+            loadDrilldown(root, state, state.currentDrilldown, undefined, undefined, undefined, historyMode || 'push');
             return;
         }
-        loadVisuals(root, state, state.currentTab || 'overview');
+        loadVisuals(root, state, state.currentTab || 'overview', undefined, historyMode || 'push');
     };
 
     var setActiveTab = function(root, tabkey) {
@@ -3092,6 +3179,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (state.currentVisualResponse) {
                     renderVisuals(root, state.currentVisualResponse, state);
                     persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
                 }
                 return;
             }
@@ -3276,6 +3364,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (state.currentVisualResponse) {
                     renderVisuals(root, state.currentVisualResponse, state);
                     persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
                 }
                 return;
             }
@@ -3632,6 +3721,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         setActiveTab(root, state.currentTab);
         initViewStretchToggle(root, state);
         updateBackButtonState(state);
+        if (root.getAttribute('data-history-bound') !== '1') {
+            root.setAttribute('data-history-bound', '1');
+            window.addEventListener('popstate', function(event) {
+                restoreBrowserHistoryState(root, state, event.state);
+            });
+        }
 
         Str.get_strings(stringList).then(function(values) {
             stringTargets.forEach(function(target, index) {
@@ -3652,7 +3747,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             bindEvents(root, state);
             loadFilters(root, state).then(function() {
                 updateFilterCounts(root, state);
-                refresh(root, state);
+                if (matchesBrowserHistoryState(window.history.state, state)) {
+                    restoreBrowserHistoryState(root, state, window.history.state);
+                    return;
+                }
+                refresh(root, state, 'replace');
             });
         }).catch(Notification.exception);
     };
