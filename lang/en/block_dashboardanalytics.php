@@ -144,6 +144,8 @@ $string['js:months6short'] = '6M';
 $string['js:months12short'] = '12M';
 $string['js:sortworstbest'] = 'Worst to best';
 $string['js:sortbestworst'] = 'Best to worst';
+$string['js:export'] = 'Export';
+$string['js:exportall'] = 'Export all';
 $string['js:exportcsv'] = 'Export CSV';
 
 $string['kpi:activecourses'] = 'Active courses';

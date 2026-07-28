@@ -144,6 +144,8 @@ $string['js:months6short'] = '6 ай';
 $string['js:months12short'] = '12 ай';
 $string['js:sortworstbest'] = 'Нашардан жақсыға';
 $string['js:sortbestworst'] = 'Жақсыдан нашарға';
+$string['js:export'] = 'Экспорт';
+$string['js:exportall'] = 'Барлығын экспорттау';
 $string['js:exportcsv'] = 'CSV экспорттау';
 
 $string['kpi:activecourses'] = 'Белсенді курстар';

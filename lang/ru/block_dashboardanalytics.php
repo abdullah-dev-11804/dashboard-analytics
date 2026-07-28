@@ -144,6 +144,8 @@ $string['js:months6short'] = '6М';
 $string['js:months12short'] = '12М';
 $string['js:sortworstbest'] = 'От худшего к лучшему';
 $string['js:sortbestworst'] = 'От лучшего к худшему';
+$string['js:export'] = 'Экспорт';
+$string['js:exportall'] = 'Экспортировать всё';
 $string['js:exportcsv'] = 'Экспорт CSV';
 
 $string['kpi:activecourses'] = 'Активные курсы';

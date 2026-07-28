@@ -12,6 +12,9 @@ $contextid = required_param('contextid', PARAM_INT);
 $dashboardkey = required_param('dashboardkey', PARAM_ALPHANUMEXT);
 $drilldownkey = required_param('drilldownkey', PARAM_ALPHANUMEXT);
 $filtersjson = optional_param('filters', '{}', PARAM_RAW);
+$scope = optional_param('scope', 'visible', PARAM_ALPHA);
+$page = optional_param('page', 0, PARAM_INT);
+$perpage = optional_param('perpage', 20, PARAM_INT);
 require_login();
 require_sesskey();
 
@@ -54,11 +57,18 @@ if (!in_array($drilldownkey, $allowed[$resolveddashboard] ?? [], true)) {
 }
 
 $documents = new document_repository();
-$export = $documents->document_export_rows($scopedfilters, $status, $showidentity);
+$scope = $scope === 'all' ? 'all' : 'visible';
+$page = max(0, $page);
+$perpage = min(100, max(10, $perpage));
+
+$export = $scope === 'all'
+    ? $documents->document_table_export_rows($scopedfilters, $status, $showidentity)
+    : $documents->document_table_export_rows($scopedfilters, $status, $showidentity, $page, $perpage);
 $columns = $export['columns'] ?? [];
 $rows = $export['rows'] ?? [];
 
-$filename = clean_filename('learning-matrix-' . userdate(time(), '%Y%m%d-%H%M') . '.csv');
+$filenamesuffix = $scope === 'all' ? 'all' : 'page-' . ($page + 1);
+$filename = clean_filename('learning-matrix-' . $filenamesuffix . '-' . userdate(time(), '%Y%m%d-%H%M') . '.csv');
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 

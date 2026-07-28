@@ -99,6 +99,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         courseAnalyticsHeaderAnalytics: 'Analytics',
         courseAnalyticsHeaderToggle: 'Toggle',
         formulaTooltip: 'Formula',
+        exportLabel: 'Export',
+        exportAllLabel: 'Export all',
         hideSidebar: 'Hide sidebar',
         showSidebar: 'Show sidebar'
     };
@@ -209,6 +211,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:courseanalyticsheaderanalytics', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'},
         {key: 'js:formulatooltip', component: 'block_dashboardanalytics'},
+        {key: 'js:export', component: 'block_dashboardanalytics'},
+        {key: 'js:exportall', component: 'block_dashboardanalytics'},
         {key: 'js:exportcsv', component: 'block_dashboardanalytics'},
         {key: 'view:hidesidebar', component: 'block_dashboardanalytics'},
         {key: 'view:showsidebar', component: 'block_dashboardanalytics'}
@@ -320,6 +324,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'courseAnalyticsHeaderAnalytics',
         'courseAnalyticsHeaderToggle',
         'formulaTooltip',
+        'exportLabel',
+        'exportAllLabel',
         'exportCsv',
         'hideSidebar',
         'showSidebar'
@@ -936,7 +942,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).join('');
     };
 
-    var drilldownExportUrl = function(root, state) {
+    var drilldownExportUrl = function(root, state, scope) {
         var exportable = [
             'company_compliance',
             'company_expiring_documents',
@@ -957,6 +963,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         params.set('dashboardkey', String(state.dashboardkey || ''));
         params.set('drilldownkey', String(state.currentDrilldown || ''));
         params.set('filters', JSON.stringify(readFilters(root, state, state.currentDrilldownOverrides || undefined)));
+        params.set('scope', scope === 'all' ? 'all' : 'visible');
+        params.set('page', String(Math.max(0, Number(state.currentDrilldownPage) || 0)));
+        params.set('perpage', String(Math.max(10, Number(state.currentDrilldownPerPage) || 20)));
         params.set('sesskey', M.cfg.sesskey);
         return M.cfg.wwwroot + '/blocks/dashboardanalytics/export.php?' + params.toString();
     };
@@ -1021,7 +1030,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         var columns = data.columns || [];
-        var exporturl = data.exporturl || drilldownExportUrl(root, state);
+        var exporturl = data.exporturl || drilldownExportUrl(root, state, 'visible');
+        var exportallurl = drilldownExportUrl(root, state, 'all');
         var head = columns.map(function(column) {
             return '<th scope="col">' + escapeHtml(column.label) + '</th>';
         }).join('');
@@ -1083,8 +1093,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             ? '<div class="da-description">' + escapeHtml(data.description) + '</div>'
             : '';
         var actions = exporturl
-            ? '<div class="da-table-actions"><a class="da-row-action" href="' + escapeHtml(exporturl) + '">'
-                + escapeHtml(text('exportCsv', 'Export CSV')) + '</a></div>'
+            ? '<div class="da-table-actions">'
+                + '<a class="da-row-action" href="' + escapeHtml(exporturl) + '">'
+                + escapeHtml(text('exportLabel', 'Export')) + '</a>'
+                + '<a class="da-row-action" href="' + escapeHtml(exportallurl) + '">'
+                + escapeHtml(text('exportAllLabel', 'Export all')) + '</a>'
+                + '</div>'
             : '';
 
         var pagination = totalcount ? '<div class="da-table-pagination">'

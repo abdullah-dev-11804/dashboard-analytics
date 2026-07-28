@@ -559,6 +559,52 @@ class document_repository {
         ];
     }
 
+    public function document_table_export_rows(
+        array $filters,
+        string $status,
+        bool $showidentity,
+        ?int $page = null,
+        ?int $perpage = null
+    ): array {
+        $groups = $this->document_matrix_groups($filters, $status);
+        if ($page !== null && $perpage !== null && $perpage > 0) {
+            $groups = array_slice($groups, max(0, $page) * $perpage, $perpage);
+        }
+
+        $rows = [];
+        foreach ($groups as $group) {
+            $coursecount = count($group['courses']);
+            $rows[] = [
+                'employee' => $showidentity ? (string)$group['employee'] : get_string('hiddenuser'),
+                'position' => (string)$group['position'],
+                'company' => (string)$group['company'],
+                'location' => (string)$group['region'],
+                'department' => (string)$group['department'],
+                'site' => (string)$group['site'],
+                'course' => get_string('label:coursecount', 'block_dashboardanalytics', $coursecount),
+                'expiry' => '',
+                'days' => '',
+                'status' => '',
+            ];
+        }
+
+        return [
+            'columns' => [
+                'employee' => get_string('label:employee', 'block_dashboardanalytics'),
+                'position' => get_string('label:position', 'block_dashboardanalytics'),
+                'company' => get_string('label:company', 'block_dashboardanalytics'),
+                'location' => get_string('label:location', 'block_dashboardanalytics'),
+                'department' => get_string('label:department', 'block_dashboardanalytics'),
+                'site' => get_string('label:site', 'block_dashboardanalytics'),
+                'course' => get_string('label:course', 'block_dashboardanalytics'),
+                'expiry' => get_string('label:expirydate', 'block_dashboardanalytics'),
+                'days' => get_string('label:daysremaining', 'block_dashboardanalytics'),
+                'status' => get_string('label:status', 'block_dashboardanalytics'),
+            ],
+            'rows' => $rows,
+        ];
+    }
+
     public function source(): ?array {
         global $CFG, $DB;
 
