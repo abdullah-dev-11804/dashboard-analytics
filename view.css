@@ -124,6 +124,7 @@
     padding: 1rem 1.05rem;
     box-shadow: 0 12px 28px rgba(15, 23, 42, .05);
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    font-family: var(--sental-brand-font, var(--font-family-sans-serif, inherit));
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi:hover,
@@ -136,6 +137,16 @@
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-trend,
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-hint {
     font-size: .8rem;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-note {
+    font-size: .76rem;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-trend-plain {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-value {

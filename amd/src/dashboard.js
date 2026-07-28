@@ -929,14 +929,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         container.innerHTML = cards.map(function(card) {
+            var trendClass = card.trendstyle === 'plain' ? ' da-kpi-trend-plain' : '';
             return '<button type="button" class="da-kpi da-kpi-' + escapeHtml(card.status)
                 + '" data-drilldown="' + escapeHtml(card.drilldownkey)
+                + (card.filterstatus ? '" data-filter-status="' + escapeHtml(card.filterstatus) : '')
                 + '" title="' + escapeHtml(card.help) + '">'
                 + '<span class="da-kpi-label">' + escapeHtml(card.label) + '</span>'
+                + (card.note ? '<span class="da-kpi-note">' + escapeHtml(card.note) + '</span>' : '')
                 + '<span class="da-kpi-value">' + escapeHtml(card.value)
                 + (card.unit ? ' <small>' + escapeHtml(card.unit) + '</small>' : '')
                 + '</span>'
-                + (card.trend ? '<span class="da-kpi-trend">' + escapeHtml(card.trend) + '</span>' : '')
+                + (card.trend ? '<span class="da-kpi-trend' + trendClass + '">' + escapeHtml(card.trend) + '</span>' : '')
                 + (card.help ? '<span class="da-kpi-hint">' + escapeHtml(card.help) + '</span>' : '')
                 + '</button>';
         }).join('');
@@ -3730,7 +3733,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 state.currentTab = 'kpis';
                 setActiveTab(root, 'kpis');
                 state.currentDrilldownPage = 0;
-                loadDrilldown(root, state, kpi.getAttribute('data-drilldown'), undefined, 0, state.currentDrilldownPerPage || 20);
+                var kpiOverrides = undefined;
+                if (kpi.getAttribute('data-filter-status')) {
+                    kpiOverrides = {status: kpi.getAttribute('data-filter-status')};
+                }
+                loadDrilldown(root, state, kpi.getAttribute('data-drilldown'), kpiOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
             }
 

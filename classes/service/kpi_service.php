@@ -83,6 +83,8 @@ class kpi_service {
             $previousmonth = (new \DateTimeImmutable('last day of previous month 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
             $previousreport = $overview->overall_employee_compliance_summary($filters, $previousmonth);
             $statuscounts = $overview->status_counts($filters);
+            $totalcheckscount = (int)$statuscounts['active'] + (int)$statuscounts['expiring'] + (int)$statuscounts['expired'] + (int)$statuscounts['nodocument'];
+            $totalchecks = max(1, $totalcheckscount);
             $cards = [
                 [
                     'key' => 'totalactiveusers',
@@ -92,25 +94,27 @@ class kpi_service {
                     'status' => 'info',
                     'trend' => '',
                     'drilldownkey' => 'company_total_active_users',
-                    'help' => get_string('kpi:help:bydeptlocationposition', 'block_dashboardanalytics'),
+                    'help' => '',
                 ],
             ];
 
             $compliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics');
-            $compliancestatus = $currentreport['total'] > 0
-                ? ($currentreport['percent'] >= 80 ? 'ok' : ($currentreport['percent'] >= 70 ? 'warning' : 'danger'))
-                : 'muted';
-            $compliancetrend = $this->percent_delta_badge((float)$currentreport['percent'], (float)$previousreport['percent'], get_string('kpi:trend:vslastmo', 'block_dashboardanalytics'));
+            $compliancetrend = (int)$statuscounts['active'] . ' / ' . $totalcheckscount;
 
             $cards[] = [
                 'key' => 'overallcompliance',
                 'label' => get_string('kpi:overallcompliance', 'block_dashboardanalytics'),
                 'value' => $compliancevalue,
                 'unit' => '',
-                'status' => $compliancestatus,
+                'status' => 'ok',
                 'trend' => $compliancetrend,
+                'trendstyle' => 'plain',
                 'drilldownkey' => 'company_compliance',
-                'help' => get_string('kpi:help:bydeptlocationcourse', 'block_dashboardanalytics'),
+                'filterstatus' => 'active',
+                'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < 80
+                    ? get_string('kpi:belowthreshold', 'block_dashboardanalytics')
+                    : '',
+                'help' => '',
             ];
             $cards[] = [
                 'key' => 'expiring30',
@@ -118,9 +122,10 @@ class kpi_service {
                 'value' => (string)$statuscounts['expiring'],
                 'unit' => '',
                 'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
-                'trend' => '',
+                'trend' => round(((int)$statuscounts['expiring'] / $totalchecks) * 100, 1) . '%',
+                'trendstyle' => 'plain',
                 'drilldownkey' => 'company_expiring_documents',
-                'help' => get_string('kpi:help:employeelist', 'block_dashboardanalytics'),
+                'help' => '',
             ];
             $cards[] = [
                 'key' => 'expired',
@@ -128,9 +133,10 @@ class kpi_service {
                 'value' => (string)$statuscounts['expired'],
                 'unit' => '',
                 'status' => $statuscounts['expired'] > 0 ? 'danger' : 'ok',
-                'trend' => '',
+                'trend' => round(((int)$statuscounts['expired'] / $totalchecks) * 100, 1) . '%',
+                'trendstyle' => 'plain',
                 'drilldownkey' => 'company_expired_documents',
-                'help' => get_string('kpi:help:urgentactionlist', 'block_dashboardanalytics'),
+                'help' => '',
             ];
             $cards[] = [
                 'key' => 'edsqueue',
@@ -140,7 +146,7 @@ class kpi_service {
                 'status' => $edsqueue['status'],
                 'trend' => $edsqueue['count'] > 0 ? $edsqueue['badge'] : '',
                 'drilldownkey' => 'company_eds_queue',
-                'help' => get_string('kpi:help:edsqueue', 'block_dashboardanalytics'),
+                'help' => '',
             ];
 
             if (is_siteadmin($userid)) {
@@ -164,11 +170,10 @@ class kpi_service {
         $previousmonth = (new \DateTimeImmutable('last day of previous month 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
         $previousreport = $overview->overall_employee_compliance_summary($filters, $previousmonth);
         $statuscounts = $overview->status_counts($filters);
+        $totalcheckscount = (int)$statuscounts['active'] + (int)$statuscounts['expiring'] + (int)$statuscounts['expired'] + (int)$statuscounts['nodocument'];
+        $totalchecks = max(1, $totalcheckscount);
         $clientcompliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics');
-        $clientcompliancestatus = $currentreport['total'] > 0
-            ? ($currentreport['percent'] >= 80 ? 'ok' : ($currentreport['percent'] >= 70 ? 'warning' : 'danger'))
-            : 'muted';
-        $clientcompliancetrend = $this->percent_delta_badge((float)$currentreport['percent'], (float)$previousreport['percent'], get_string('kpi:trend:vslastmo', 'block_dashboardanalytics'));
+        $clientcompliancetrend = (int)$statuscounts['active'] . ' / ' . $totalcheckscount;
 
         return [
             [
@@ -179,17 +184,22 @@ class kpi_service {
                 'status' => 'ok',
                 'trend' => '',
                 'drilldownkey' => 'client_total_staff',
-                'help' => get_string('kpi:help:activeconfirmedusers', 'block_dashboardanalytics'),
+                'help' => '',
             ],
             [
                 'key' => 'overallcompliance',
                 'label' => get_string('kpi:overallcompliance', 'block_dashboardanalytics'),
                 'value' => $clientcompliancevalue,
                 'unit' => '',
-                'status' => $clientcompliancestatus,
+                'status' => 'ok',
                 'trend' => $clientcompliancetrend,
+                'trendstyle' => 'plain',
                 'drilldownkey' => 'client_compliance',
-                'help' => get_string('kpi:help:bydeptlocationcourse', 'block_dashboardanalytics'),
+                'filterstatus' => 'active',
+                'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < 80
+                    ? get_string('kpi:belowthreshold', 'block_dashboardanalytics')
+                    : '',
+                'help' => '',
             ],
             [
                 'key' => 'expiring30',
@@ -197,9 +207,10 @@ class kpi_service {
                 'value' => (string)$statuscounts['expiring'],
                 'unit' => '',
                 'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
-                'trend' => '',
+                'trend' => round(((int)$statuscounts['expiring'] / $totalchecks) * 100, 1) . '%',
+                'trendstyle' => 'plain',
                 'drilldownkey' => 'client_expiring_documents',
-                'help' => get_string('kpi:help:employeelist', 'block_dashboardanalytics'),
+                'help' => '',
             ],
             [
                 'key' => 'expired',
@@ -207,9 +218,10 @@ class kpi_service {
                 'value' => (string)$statuscounts['expired'],
                 'unit' => '',
                 'status' => $statuscounts['expired'] > 0 ? 'danger' : 'ok',
-                'trend' => '',
+                'trend' => round(((int)$statuscounts['expired'] / $totalchecks) * 100, 1) . '%',
+                'trendstyle' => 'plain',
                 'drilldownkey' => 'client_expired_documents',
-                'help' => get_string('kpi:help:urgentactionlist', 'block_dashboardanalytics'),
+                'help' => '',
             ],
             [
                 'key' => 'edsqueue',
@@ -219,7 +231,7 @@ class kpi_service {
                 'status' => $edsqueue['status'],
                 'trend' => $edsqueue['count'] > 0 ? $edsqueue['badge'] : '',
                 'drilldownkey' => 'client_eds_queue',
-                'help' => get_string('kpi:help:edsqueue', 'block_dashboardanalytics'),
+                'help' => '',
             ],
         ];
     }
