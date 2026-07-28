@@ -97,7 +97,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         courseAnalyticsHeaderCourse: 'Course',
         courseAnalyticsHeaderVisibility: 'Visibility',
         courseAnalyticsHeaderAnalytics: 'Analytics',
-        courseAnalyticsHeaderToggle: 'Toggle'
+        courseAnalyticsHeaderToggle: 'Toggle',
+        formulaTooltip: 'Formula'
     };
 
     var stringList = [
@@ -204,7 +205,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:courseanalyticsheadercourse', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheadervisibility', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheaderanalytics', component: 'block_dashboardanalytics'},
-        {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'}
+        {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'},
+        {key: 'js:formulatooltip', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -311,7 +313,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'courseAnalyticsHeaderCourse',
         'courseAnalyticsHeaderVisibility',
         'courseAnalyticsHeaderAnalytics',
-        'courseAnalyticsHeaderToggle'
+        'courseAnalyticsHeaderToggle',
+        'formulaTooltip'
     ];
 
     var call = function(methodname, args) {
@@ -370,6 +373,165 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             window.sessionStorage.setItem(storageKey(state), JSON.stringify(payload));
         } catch (error) {
             // Ignore storage write issues.
+        }
+    };
+
+    var actionHistoryKey = function(state) {
+        return storageKey(state) + ':history';
+    };
+
+    var readActionHistory = function(state) {
+        try {
+            return JSON.parse(window.sessionStorage.getItem(actionHistoryKey(state)) || '[]');
+        } catch (error) {
+            return [];
+        }
+    };
+
+    var writeActionHistory = function(state, payload) {
+        try {
+            window.sessionStorage.setItem(actionHistoryKey(state), JSON.stringify(payload));
+        } catch (error) {
+            // Ignore storage write issues.
+        }
+    };
+
+    var snapshotState = function(root, state) {
+        return {
+            activeFilterKeys: (state.activeFilterKeys || []).slice(),
+            filters: Object.keys(state.filterGroups || {}).length ? readFilters(root, state) : Object.assign({}, state.persistedFilters || {}),
+            currentTab: state.currentTab || 'overview',
+            currentDrilldown: state.currentDrilldown || '',
+            currentDrilldownPage: Math.max(0, Number(state.currentDrilldownPage) || 0),
+            currentDrilldownPerPage: Math.max(10, Number(state.currentDrilldownPerPage) || 20),
+            currentDrilldownOverrides: state.currentDrilldownOverrides || null,
+            visualOverrides: Object.assign({}, state.currentVisualOverrides || {})
+        };
+    };
+
+    var snapshotsEqual = function(a, b) {
+        return JSON.stringify(a || {}) === JSON.stringify(b || {});
+    };
+
+    var updateBackButtonState = function(state) {
+        var button = document.querySelector('[data-action="view-back"]');
+        if (!button) {
+            return;
+        }
+        button.disabled = readActionHistory(state).length === 0;
+    };
+
+    var rememberCurrentState = function(root, state) {
+        var history = readActionHistory(state);
+        var snapshot = snapshotState(root, state);
+        if (!history.length || !snapshotsEqual(history[history.length - 1], snapshot)) {
+            history.push(snapshot);
+            if (history.length > 40) {
+                history = history.slice(history.length - 40);
+            }
+            writeActionHistory(state, history);
+        }
+        updateBackButtonState(state);
+    };
+
+    var applySnapshotToState = function(state, snapshot) {
+        if (!snapshot) {
+            return;
+        }
+        state.activeFilterKeys = Array.isArray(snapshot.activeFilterKeys) ? snapshot.activeFilterKeys.slice() : [];
+        state.persistedFilters = snapshot.filters || {};
+        state.currentTab = snapshot.currentTab || 'overview';
+        state.currentDrilldown = snapshot.currentDrilldown || '';
+        state.currentDrilldownPage = Math.max(0, Number(snapshot.currentDrilldownPage) || 0);
+        state.currentDrilldownPerPage = Math.max(10, Number(snapshot.currentDrilldownPerPage) || 20);
+        state.currentDrilldownOverrides = snapshot.currentDrilldownOverrides || null;
+        state.currentVisualOverrides = snapshot.visualOverrides || {};
+    };
+
+    var restorePreviousState = function(root, state) {
+        var history = readActionHistory(state);
+        var snapshot = history.pop();
+        if (!snapshot) {
+            updateBackButtonState(state);
+            return false;
+        }
+
+        writeActionHistory(state, history);
+        applySnapshotToState(state, snapshot);
+        setActiveTab(root, state.currentTab);
+
+        if (Object.keys(state.filterGroups || {}).length) {
+            renderFilters(root, state, Object.keys(state.filterGroups).map(function(key) {
+                return state.filterGroups[key];
+            }));
+            updateFilterCounts(root, state);
+        }
+
+        updateBackButtonState(state);
+
+        if (state.currentTab === 'kpis') {
+            loadDrilldown(
+                root,
+                state,
+                state.currentDrilldown || defaultDrilldownKey(state),
+                state.currentDrilldownOverrides,
+                state.currentDrilldownPage,
+                state.currentDrilldownPerPage
+            );
+            return true;
+        }
+
+        if (state.currentDrilldown) {
+            loadDrilldown(
+                root,
+                state,
+                state.currentDrilldown,
+                state.currentDrilldownOverrides,
+                state.currentDrilldownPage,
+                state.currentDrilldownPerPage
+            );
+            return true;
+        }
+
+        loadVisuals(root, state, state.currentTab || 'overview', state.currentVisualOverrides);
+        return true;
+    };
+
+    var initViewStretchToggle = function(root, state) {
+        var button = document.querySelector('[data-action="view-stretch-toggle"]');
+        var backButton = document.querySelector('[data-action="view-back"]');
+        if (!document.body.classList.contains('path-block-dashboardanalytics-view')) {
+            return;
+        }
+
+        var storage = 'block_dashboardanalytics:view:stretch';
+        var apply = function(enabled) {
+            if (button) {
+                document.body.classList.toggle('da-view-stretched', !!enabled);
+                button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            }
+        };
+
+        apply(window.localStorage.getItem(storage) === '1');
+
+        if (button && button.getAttribute('data-bound') !== '1') {
+            button.setAttribute('data-bound', '1');
+            button.addEventListener('click', function() {
+                var next = !document.body.classList.contains('da-view-stretched');
+                apply(next);
+                try {
+                    window.localStorage.setItem(storage, next ? '1' : '0');
+                } catch (error) {
+                    // Ignore storage write issues.
+                }
+            });
+        }
+
+        if (backButton && backButton.getAttribute('data-bound') !== '1') {
+            backButton.setAttribute('data-bound', '1');
+            backButton.addEventListener('click', function() {
+                restorePreviousState(root, state);
+            });
         }
     };
 
@@ -1225,7 +1387,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(text('turnoverMonitor', '5–10% Monitor')) + '</span>'
                     + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('turnoverHigh', '>10% High')) + '</span>'
                     + '</div>'
-                    + '<div class="da-turnover-rate-formula">' + escapeHtml(text('turnoverFormula', 'Formula: Deactivated / Avg active × 100')) + '</div>'
                     + '</div>';
             } else if (panel.key === 'newhirerisk') {
                 body = '<div class="da-newhire-risk-wrap">'
@@ -1244,7 +1405,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '<div class="da-newhire-risk-value da-text-' + escapeHtml(item.status) + '">' + escapeHtml(item.value) + '</div>'
                             + '</div>';
                     }).join('') + '</div>'
-                    + '<div class="da-turnover-rate-formula">' + escapeHtml(panel.description || '') + '</div>'
                     + '</div>';
             } else if (panel.type === 'activitysnapshot') {
                 var metrics = visibleItems.slice(0, 4);
@@ -2203,9 +2363,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>';
             }
 
+            var panelHelp = panel.formula
+                ? '<span class="da-panel-help" title="' + escapeHtml(text('formulaTooltip', 'Formula') + ': ' + panel.formula) + '" aria-label="'
+                    + escapeHtml(text('formulaTooltip', 'Formula') + ': ' + panel.formula) + '">i</span>'
+                : '';
+
             return '<article class="da-visual-panel' + (isFullRowVisualPanel(panel) ? ' da-visual-panel-fullrow' : '')
                 + (isQualityPrototypePanel ? ' da-quality-prototype-panel' : '') + '" data-panel-key="' + escapeHtml(panel.key) + '">'
-                + '<h5>' + escapeHtml(panel.title) + '</h5>'
+                + '<div class="da-visual-panel-headline"><h5>' + escapeHtml(panel.title) + '</h5>' + panelHelp + '</div>'
                 + (panel.description ? '<p>' + escapeHtml(panel.description) + '</p>' : '')
                 + qualityPanelActions
                 + body
@@ -2898,6 +3063,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         root.addEventListener('change', function(event) {
             if (event.target.matches('select[data-filter-group]')) {
+                rememberCurrentState(root, state);
                 if (event.target.getAttribute('data-filter-group') === 'daterange') {
                     state.persistedFilters = readFilters(root, state);
                     renderFilters(root, state, Object.keys(state.filterGroups).map(function(key) {
@@ -2911,6 +3077,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             if (event.target.matches('[data-filter-search]')) {
+                rememberCurrentState(root, state);
                 state.currentDrilldownPage = 0;
                 syncSearchableFilter(event.target);
                 updateFilterCounts(root, state);
@@ -2919,6 +3086,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             if (event.target.matches('[data-action="compliance-threshold"]')) {
+                rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {});
                 state.currentVisualOverrides[event.target.getAttribute('data-threshold-key') || ''] = Number(event.target.value) || 0;
                 if (state.currentVisualResponse) {
@@ -2929,12 +3097,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             if (event.target.matches('[data-filter-custom]')) {
+                rememberCurrentState(root, state);
                 state.currentDrilldownPage = 0;
                 refresh(root, state);
                 return;
             }
 
             if (event.target.matches('[data-action="drilldown-perpage"]')) {
+                rememberCurrentState(root, state);
                 state.currentDrilldownPage = 0;
                 state.currentDrilldownPerPage = Number(event.target.value) || 20;
                 if (state.currentDrilldown) {
@@ -2944,6 +3114,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             if (event.target.matches('[data-action="course-analytics-perpage"]')) {
+                rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     courseanalytics_perpage: Number(event.target.value) || 20,
                     courseanalytics_page: 0
@@ -2965,6 +3136,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (event.target.value === '' || changed) {
                     window.clearTimeout(timer);
                     timer = window.setTimeout(function() {
+                        rememberCurrentState(root, state);
                         state.currentDrilldownPage = 0;
                         refresh(root, state);
                     }, 250);
@@ -2991,6 +3163,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
             window.clearTimeout(timer);
             timer = window.setTimeout(function() {
+                rememberCurrentState(root, state);
                 refresh(root, state);
             }, 350);
         });
@@ -3039,18 +3212,21 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         root.addEventListener('click', function(event) {
             var reportsActLoad = event.target.closest('[data-action="reports-act-load"]');
             if (reportsActLoad && root.contains(reportsActLoad)) {
+                rememberCurrentState(root, state);
                 loadReportsActServices(root, state);
                 return;
             }
 
             var reportsActReset = event.target.closest('[data-action="reports-act-reset"]');
             if (reportsActReset && root.contains(reportsActReset)) {
+                rememberCurrentState(root, state);
                 resetReportsActToLms(root);
                 return;
             }
 
             var reportsActClear = event.target.closest('[data-action="reports-act-clear"]');
             if (reportsActClear && root.contains(reportsActClear)) {
+                rememberCurrentState(root, state);
                 clearReportsAct(root);
                 return;
             }
@@ -3080,6 +3256,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var compliancePeriod = event.target.closest('[data-action="compliance-period"]');
             if (compliancePeriod && root.contains(compliancePeriod)) {
+                rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     compliancetrendperiod: Number(compliancePeriod.getAttribute('data-period')) || 12
                 });
@@ -3092,6 +3269,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var courseComplianceSort = event.target.closest('[data-action="course-compliance-sort"]');
             if (courseComplianceSort && root.contains(courseComplianceSort)) {
+                rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     riskcoursesort: (courseComplianceSort.getAttribute('data-sort') || 'asc').toLowerCase()
                 });
@@ -3130,6 +3308,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var courseAnalyticsPage = event.target.closest('[data-action="course-analytics-page"]');
             if (courseAnalyticsPage && root.contains(courseAnalyticsPage) && !courseAnalyticsPage.disabled) {
+                rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     courseanalytics_page: Number(courseAnalyticsPage.getAttribute('data-page')) || 0
                 });
@@ -3139,6 +3318,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var addFilter = event.target.closest('[data-action="add-filter"]');
             if (addFilter && root.contains(addFilter)) {
+                rememberCurrentState(root, state);
                 var addKey = addFilter.getAttribute('data-filter-key');
                 if (addKey && state.activeFilterKeys.indexOf(addKey) === -1) {
                     state.persistedFilters = readFilters(root, state);
@@ -3157,6 +3337,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var removeFilter = event.target.closest('[data-action="remove-filter"]');
             if (removeFilter && root.contains(removeFilter)) {
+                rememberCurrentState(root, state);
                 var removeKey = removeFilter.getAttribute('data-filter-key');
                 state.persistedFilters = readFilters(root, state);
                 state.activeFilterKeys = state.activeFilterKeys.filter(function(key) {
@@ -3173,6 +3354,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var clearFilters = event.target.closest('[data-action="clear-filters"]');
             if (clearFilters && root.contains(clearFilters)) {
+                rememberCurrentState(root, state);
                 Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(field) {
                     if (field.tagName === 'SELECT') {
                         field.value = field.getAttribute('data-filter-group') === 'daterange' ? defaultDateRange(state) : '';
@@ -3199,6 +3381,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var rowAction = event.target.closest('[data-action="company-report"]');
             if (rowAction && root.contains(rowAction)) {
+                rememberCurrentState(root, state);
                 var companyid = rowAction.getAttribute('data-companyid');
                 var company = rowAction.getAttribute('data-company');
                 var overrides = {};
@@ -3229,6 +3412,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var gotoTab = event.target.closest('[data-action="goto-tab"]');
             if (gotoTab && root.contains(gotoTab)) {
+                rememberCurrentState(root, state);
                 var targettab = gotoTab.getAttribute('data-tab');
                 if (targettab && root.querySelector('[data-tab="' + targettab + '"]')) {
                     setActiveTab(root, targettab);
@@ -3243,6 +3427,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var platformGrowthPeriod = event.target.closest('[data-action="platformgrowth-period"]');
             if (platformGrowthPeriod && root.contains(platformGrowthPeriod)) {
+                rememberCurrentState(root, state);
                 state.currentDrilldown = '';
                 state.currentDrilldownOverrides = null;
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
@@ -3254,6 +3439,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var panelTab = event.target.closest('[data-action="panel-tab"]');
             if (panelTab && root.contains(panelTab)) {
+                rememberCurrentState(root, state);
                 var panelKey = panelTab.getAttribute('data-panel') || '';
                 var tabKey = panelTab.getAttribute('data-tabkey') || '';
                 if (panelKey && tabKey) {
@@ -3267,6 +3453,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var heatmapTab = event.target.closest('[data-action="heatmap-tab"]');
             if (heatmapTab && root.contains(heatmapTab)) {
+                rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     heatmapcompany: heatmapTab.getAttribute('data-tabkey') || 'all'
                 });
@@ -3276,6 +3463,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var heatmapCell = event.target.closest('[data-action="heatmap-cell"]');
             if (heatmapCell && root.contains(heatmapCell)) {
+                rememberCurrentState(root, state);
                 var heatmapOverrides = {
                     personnelcategories: [heatmapCell.getAttribute('data-personnelcategory') || ''],
                     sites: [heatmapCell.getAttribute('data-site') || '']
@@ -3302,6 +3490,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var groupedDrilldown = event.target.closest('[data-action="grouped-drilldown"]');
             if (groupedDrilldown && root.contains(groupedDrilldown)) {
+                rememberCurrentState(root, state);
                 var groupedOverrides = {};
                 var groupedCompanyId = groupedDrilldown.getAttribute('data-companyid') || '0';
                 var groupedCompanyName = groupedDrilldown.getAttribute('data-companyname') || '';
@@ -3318,6 +3507,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var barDrilldown = event.target.closest('[data-action="bar-drilldown"]');
             if (barDrilldown && root.contains(barDrilldown)) {
+                rememberCurrentState(root, state);
                 var barOverrides = {};
                 var barCompanyId = barDrilldown.getAttribute('data-companyid') || '0';
                 var barCompanyName = barDrilldown.getAttribute('data-companyname') || '';
@@ -3338,6 +3528,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var pager = event.target.closest('[data-action="drilldown-page"]');
             if (pager && root.contains(pager) && !pager.disabled && state.currentDrilldown) {
+                rememberCurrentState(root, state);
                 loadDrilldown(
                     root,
                     state,
@@ -3351,6 +3542,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var kpi = event.target.closest('[data-drilldown]');
             if (kpi && root.contains(kpi)) {
+                rememberCurrentState(root, state);
                 state.currentTab = 'kpis';
                 setActiveTab(root, 'kpis');
                 state.currentDrilldownPage = 0;
@@ -3360,6 +3552,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             var tab = event.target.closest('[data-tab]');
             if (tab && root.contains(tab)) {
+                rememberCurrentState(root, state);
                 var tabkey = tab.getAttribute('data-tab');
                 setActiveTab(root, tabkey);
                 state.currentTab = tabkey;
@@ -3437,6 +3630,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             state.currentTab = activeTab ? activeTab.getAttribute('data-tab') : 'overview';
         }
         setActiveTab(root, state.currentTab);
+        initViewStretchToggle(root, state);
+        updateBackButtonState(state);
 
         Str.get_strings(stringList).then(function(values) {
             stringTargets.forEach(function(target, index) {

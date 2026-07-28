@@ -124,6 +124,7 @@ $string['js:interactivelabel'] = 'интерактивті';
 $string['js:combobarlinelabel'] = 'Құрама диаграмма';
 $string['js:chartjsbarlabel'] = 'Бағандар';
 $string['js:turnoverformula'] = 'Формула: Белсенділігі тоқтатылғандар / Белсенділердің орташа саны × 100';
+$string['js:newhireriskformula'] = 'Формула: 30+ күн бұрын қосылған және құжаты жоқ жаңа қызметкерлер / барлық жаңа қызметкерлер × 100';
 $string['js:turnovergood'] = '<5% Қалыпты';
 $string['js:turnovermonitor'] = '5–10% Бақылау';
 $string['js:turnoverhigh'] = '>10% Жоғары';
@@ -536,6 +537,9 @@ $string['js:courseanalyticsheadercourse'] = 'Курс';
 $string['js:courseanalyticsheadervisibility'] = 'Көріну';
 $string['js:courseanalyticsheaderanalytics'] = 'Аналитика';
 $string['js:courseanalyticsheadertoggle'] = 'Ауыстырғыш';
+$string['js:formulatooltip'] = 'Формула';
+$string['view:back'] = 'Артқа';
+$string['view:stretch'] = 'Stretch';
 
 
 $string['panel:reportsact:title'] = 'Есептер (АВР)';

@@ -1246,6 +1246,29 @@
     font-size: .84rem;
 }
 
+.block-dashboardanalytics .da-visual-panel-headline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.block-dashboardanalytics .da-panel-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 999px;
+    background: #edf4ff;
+    color: #2f6fc2;
+    font-size: .78rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: help;
+}
+
 .block-dashboardanalytics .da-compliance-trend-wrap,
 .block-dashboardanalytics .da-compliance-snapshot-wrap {
     margin-top: .75rem;

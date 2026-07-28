@@ -65,6 +65,7 @@ class get_visuals extends \external_api {
                 'emptymessage' => new \external_value(PARAM_TEXT, 'Optional empty-state message', VALUE_OPTIONAL),
                 'chartlabel' => new \external_value(PARAM_TEXT, 'Optional chart badge label', VALUE_OPTIONAL),
                 'interactivelabel' => new \external_value(PARAM_TEXT, 'Optional interactive badge label', VALUE_OPTIONAL),
+                'formula' => new \external_value(PARAM_TEXT, 'Optional formula tooltip', VALUE_OPTIONAL),
                 'footer' => new \external_value(PARAM_TEXT, 'Optional panel footer note', VALUE_OPTIONAL),
                 'alertmessage' => new \external_value(PARAM_TEXT, 'Optional panel alert message', VALUE_OPTIONAL),
                 'alertstatus' => new \external_value(PARAM_ALPHANUMEXT, 'Optional panel alert status', VALUE_OPTIONAL),

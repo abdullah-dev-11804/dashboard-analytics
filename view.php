@@ -37,6 +37,27 @@ $renderer = $PAGE->get_renderer('block_dashboardanalytics');
 
 echo $OUTPUT->header();
 echo html_writer::start_div('dashboardanalytics-page');
+echo html_writer::start_div('dashboardanalytics-page-toolbar');
+echo html_writer::tag(
+    'button',
+    get_string('view:back', 'block_dashboardanalytics'),
+    [
+        'type' => 'button',
+        'class' => 'dashboardanalytics-page-toolbar-button',
+        'data-action' => 'view-back',
+    ]
+);
+echo html_writer::tag(
+    'button',
+    get_string('view:stretch', 'block_dashboardanalytics'),
+    [
+        'type' => 'button',
+        'class' => 'dashboardanalytics-page-toolbar-button dashboardanalytics-page-toolbar-button-secondary',
+        'data-action' => 'view-stretch-toggle',
+        'aria-pressed' => 'false',
+    ]
+);
+echo html_writer::end_div();
 echo $renderer->render(new dashboard($context, true));
 echo html_writer::end_div();
 echo $OUTPUT->footer();

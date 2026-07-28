@@ -124,6 +124,7 @@ $string['js:interactivelabel'] = 'interactive';
 $string['js:combobarlinelabel'] = 'Combo bar-line';
 $string['js:chartjsbarlabel'] = 'Chart.js bar';
 $string['js:turnoverformula'] = 'Formula: Deactivated / Avg active × 100';
+$string['js:newhireriskformula'] = 'Formula: New hires 30+ days ago with 0 documents / all new hires × 100';
 $string['js:turnovergood'] = '<5% Good';
 $string['js:turnovermonitor'] = '5–10% Monitor';
 $string['js:turnoverhigh'] = '>10% High';
@@ -536,6 +537,9 @@ $string['js:courseanalyticsheadercourse'] = 'Course';
 $string['js:courseanalyticsheadervisibility'] = 'Visibility';
 $string['js:courseanalyticsheaderanalytics'] = 'Analytics';
 $string['js:courseanalyticsheadertoggle'] = 'Toggle';
+$string['js:formulatooltip'] = 'Formula';
+$string['view:back'] = 'Back';
+$string['view:stretch'] = 'Stretch';
 
 
 $string['panel:reportsact:title'] = 'Reports / Act';

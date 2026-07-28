@@ -124,6 +124,7 @@ $string['js:interactivelabel'] = 'interactive';
 $string['js:combobarlinelabel'] = 'Комбинированный график';
 $string['js:chartjsbarlabel'] = 'Столбцы';
 $string['js:turnoverformula'] = 'Формула: Деактивированные / Среднее активных × 100';
+$string['js:newhireriskformula'] = 'Формула: Новые сотрудники 30+ дней назад без документов / все новые сотрудники × 100';
 $string['js:turnovergood'] = '<5% Норма';
 $string['js:turnovermonitor'] = '5–10% Контроль';
 $string['js:turnoverhigh'] = '>10% Высокая';
@@ -536,6 +537,9 @@ $string['js:courseanalyticsheadercourse'] = 'Курс';
 $string['js:courseanalyticsheadervisibility'] = 'Видимость';
 $string['js:courseanalyticsheaderanalytics'] = 'Аналитика';
 $string['js:courseanalyticsheadertoggle'] = 'Переключатель';
+$string['js:formulatooltip'] = 'Формула';
+$string['view:back'] = 'Назад';
+$string['view:stretch'] = 'Stretch';
 
 
 $string['panel:reportsact:title'] = 'Отчёты (АВР)';
