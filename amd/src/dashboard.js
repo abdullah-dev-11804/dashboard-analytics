@@ -928,19 +928,33 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return;
         }
 
+        var appendixVariant = root.getAttribute('data-dashboardkey') !== 'employee';
+        container.classList.toggle('da-kpi-strip-appendix', appendixVariant);
+
         container.innerHTML = cards.map(function(card) {
             var trendClass = card.trendstyle === 'plain' ? ' da-kpi-trend-plain' : '';
-            return '<button type="button" class="da-kpi da-kpi-' + escapeHtml(card.status)
-                + '" data-drilldown="' + escapeHtml(card.drilldownkey)
+            var cardClass = 'da-kpi da-kpi-' + escapeHtml(card.status);
+            if (appendixVariant) {
+                cardClass += ' da-kpi-appendix da-kpi-appendix-' + escapeHtml(card.key);
+            }
+            var railPercent = Math.max(0, Math.min(100, Number(card.railpercent) || 0));
+            return '<button type="button" class="' + cardClass + '"'
+                + ' style="--da-kpi-rail-width:' + railPercent + '%"'
+                + ' data-drilldown="' + escapeHtml(card.drilldownkey)
                 + (card.filterstatus ? '" data-filter-status="' + escapeHtml(card.filterstatus) : '')
                 + '" title="' + escapeHtml(card.help) + '">'
                 + '<span class="da-kpi-label">' + escapeHtml(card.label) + '</span>'
                 + (card.note ? '<span class="da-kpi-note">' + escapeHtml(card.note) + '</span>' : '')
+                + '<span class="da-kpi-figure">'
                 + '<span class="da-kpi-value">' + escapeHtml(card.value)
                 + (card.unit ? ' <small>' + escapeHtml(card.unit) + '</small>' : '')
                 + '</span>'
-                + (card.trend ? '<span class="da-kpi-trend' + trendClass + '">' + escapeHtml(card.trend) + '</span>' : '')
-                + (card.help ? '<span class="da-kpi-hint">' + escapeHtml(card.help) + '</span>' : '')
+                + ((card.trend || card.note) ? '<span class="da-kpi-meta">'
+                    + (card.trend ? '<span class="da-kpi-trend' + trendClass + '">' + escapeHtml(card.trend) + '</span>' : '')
+                    + '</span>' : '')
+                + '</span>'
+                + (card.help && !appendixVariant ? '<span class="da-kpi-hint">' + escapeHtml(card.help) + '</span>' : '')
+                + (appendixVariant ? '<span class="da-kpi-rail"><i></i></span>' : '')
                 + '</button>';
         }).join('');
     };

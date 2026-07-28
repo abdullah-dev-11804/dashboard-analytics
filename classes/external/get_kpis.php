@@ -50,6 +50,7 @@ class get_kpis extends \external_api {
                 'value' => new \external_value(PARAM_TEXT, 'KPI value'),
                 'unit' => new \external_value(PARAM_TEXT, 'KPI unit'),
                 'status' => new \external_value(PARAM_ALPHANUMEXT, 'KPI status'),
+                'railpercent' => new \external_value(PARAM_FLOAT, 'Optional KPI rail width percent', VALUE_OPTIONAL),
                 'trend' => new \external_value(PARAM_TEXT, 'KPI trend'),
                 'trendstyle' => new \external_value(PARAM_ALPHA, 'Optional KPI trend display style', VALUE_OPTIONAL),
                 'drilldownkey' => new \external_value(PARAM_ALPHANUMEXT, 'Drilldown key'),

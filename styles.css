@@ -417,6 +417,160 @@
     line-height: 1.15;
 }
 
+.block-dashboardanalytics .da-kpi-strip-appendix {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix {
+    --da-kpi-accent: #1746cf;
+    min-height: 136px;
+    border: 0;
+    border-radius: 3px;
+    padding: 0;
+    background: var(--da-kpi-accent);
+    color: #fff;
+    display: grid;
+    grid-template-rows: 56px 1fr 4px;
+    gap: 0;
+    overflow: hidden;
+    box-shadow: 0 10px 20px -16px var(--da-kpi-accent);
+    font-family: var(--sental-brand-font, "IBM Plex Sans", var(--font-family-sans-serif, inherit));
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix:hover,
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix:focus {
+    transform: none;
+    box-shadow: 0 12px 22px -16px var(--da-kpi-accent);
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-label {
+    padding: 14px 16px 0;
+    color: rgba(255, 255, 255, .86);
+    font-family: var(--sental-brand-mono-font, "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-note {
+    margin: 0 16px;
+    align-self: start;
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: .45em;
+    color: #d62d20;
+    background: #fff;
+    border-radius: 2px;
+    padding: .45em .6em;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-figure {
+    align-self: end;
+    padding: 0 16px 16px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 9px;
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-value {
+    color: #fff;
+    font-size: clamp(26px, 2.7vw, 44px);
+    font-weight: 600;
+    line-height: .95;
+    letter-spacing: -.035em;
+    white-space: nowrap;
+    flex: none;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-value small {
+    font-size: .42em;
+    font-weight: 600;
+    opacity: .96;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-trend {
+    display: inline-flex;
+    align-self: auto;
+    padding: .45em .6em;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .22);
+    color: #fff;
+    font-family: var(--sental-brand-mono-font, "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-trend-plain {
+    background: rgba(255, 255, 255, .22);
+    color: #fff;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-hint {
+    display: none;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-rail {
+    background: rgba(255, 255, 255, .28);
+    position: relative;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-rail i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--da-kpi-rail-width, 100%);
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-totalactiveusers {
+    --da-kpi-accent: #1746cf;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-overallcompliance {
+    --da-kpi-accent: #0b8256;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-expiring30 {
+    --da-kpi-accent: #a96100;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-expired {
+    --da-kpi-accent: #c62a1e;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-edsqueue {
+    --da-kpi-accent: #0a7e61;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-serverdisk {
+    --da-kpi-accent: #0a6e7d;
+}
+
 .block-dashboardanalytics .da-panel {
     border: 1px solid var(--da-border);
     border-radius: 8px;
