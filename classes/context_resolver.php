@@ -5,6 +5,8 @@ namespace block_dashboardanalytics;
 
 defined('MOODLE_INTERNAL') || die();
 
+require_once($CFG->libdir . '/externallib.php');
+
 class context_resolver {
 
     public static function require_context(int $contextid): \context {
@@ -19,4 +21,3 @@ class context_resolver {
         return $context;
     }
 }
-

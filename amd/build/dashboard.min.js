@@ -701,7 +701,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
     };
 
     var activeFilterDefaults = function(state) {
-        var defaults = [state.companyFilterKey, 'daterange', 'departments', 'locations', 'sites', 'positions'];
+        var defaults = [state.companyFilterKey, 'locations', 'sites', 'departments', 'personnelcategories', 'positions', 'userids'];
         return defaults.filter(function(key) {
             return key && state.filterGroups[key];
         });

@@ -25,45 +25,6 @@ class dimension_repository {
         }
 
         $groups[] = [
-            'key' => 'daterange',
-            'label' => get_string('filter:daterange', 'block_dashboardanalytics'),
-            'multiple' => false,
-            'searchable' => false,
-            'options' => [
-                ['value' => 'day', 'label' => get_string('filter:day', 'block_dashboardanalytics')],
-                ['value' => 'week', 'label' => get_string('filter:week', 'block_dashboardanalytics')],
-                ['value' => 'month', 'label' => get_string('filter:month', 'block_dashboardanalytics')],
-                ['value' => '6months', 'label' => get_string('filter:6months', 'block_dashboardanalytics')],
-                ['value' => 'year', 'label' => get_string('filter:year', 'block_dashboardanalytics')],
-                ['value' => 'alltime', 'label' => get_string('filter:alltime', 'block_dashboardanalytics')],
-                ['value' => 'customrange', 'label' => get_string('filter:customrange', 'block_dashboardanalytics')],
-            ],
-        ];
-
-        $users = $this->users($this->filters_without_keys($scopefilters, ['userids']));
-        if ($users) {
-            $groups[] = [
-                'key' => 'userids',
-                'label' => get_string('filter:employees', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $users,
-                'searchable' => true,
-            ];
-        }
-
-        $groups[] = [
-            'key' => 'departments',
-            'label' => get_string('filter:departments', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options(
-                $this->filters_without_keys($scopefilters, ['departments']),
-                ['Department', 'department'],
-                'u.department'
-            ),
-            'searchable' => false,
-        ];
-
-        $groups[] = [
             'key' => 'locations',
             'label' => get_string('filter:locations', 'block_dashboardanalytics'),
             'multiple' => true,
@@ -87,6 +48,30 @@ class dimension_repository {
             'searchable' => false,
         ];
 
+        $groups[] = [
+            'key' => 'departments',
+            'label' => get_string('filter:departments', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['departments']),
+                ['Department', 'department'],
+                'u.department'
+            ),
+            'searchable' => false,
+        ];
+
+        $groups[] = [
+            'key' => 'personnelcategories',
+            'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['personnelcategories']),
+                ['PersonnelCategory'],
+                ''
+            ),
+            'searchable' => false,
+        ];
+
         $positions = $this->profile_field_options(
             $this->filters_without_keys($scopefilters, ['positions']),
             array_values(array_filter(['Job_Title', trim((string)get_config('block_dashboardanalytics', 'positionfield'))])),
@@ -102,16 +87,31 @@ class dimension_repository {
             ];
         }
 
+        $users = $this->users($this->filters_without_keys($scopefilters, ['userids']));
+        if ($users) {
+            $groups[] = [
+                'key' => 'userids',
+                'label' => get_string('filter:employees', 'block_dashboardanalytics'),
+                'multiple' => true,
+                'options' => $users,
+                'searchable' => true,
+            ];
+        }
+
         $groups[] = [
-            'key' => 'personnelcategories',
-            'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options(
-                $this->filters_without_keys($scopefilters, ['personnelcategories']),
-                ['PersonnelCategory'],
-                ''
-            ),
+            'key' => 'daterange',
+            'label' => get_string('filter:daterange', 'block_dashboardanalytics'),
+            'multiple' => false,
             'searchable' => false,
+            'options' => [
+                ['value' => 'day', 'label' => get_string('filter:day', 'block_dashboardanalytics')],
+                ['value' => 'week', 'label' => get_string('filter:week', 'block_dashboardanalytics')],
+                ['value' => 'month', 'label' => get_string('filter:month', 'block_dashboardanalytics')],
+                ['value' => '6months', 'label' => get_string('filter:6months', 'block_dashboardanalytics')],
+                ['value' => 'year', 'label' => get_string('filter:year', 'block_dashboardanalytics')],
+                ['value' => 'alltime', 'label' => get_string('filter:alltime', 'block_dashboardanalytics')],
+                ['value' => 'customrange', 'label' => get_string('filter:customrange', 'block_dashboardanalytics')],
+            ],
         ];
 
         $groups[] = [
