@@ -573,19 +573,21 @@ class document_repository {
 
         $rows = [];
         foreach ($groups as $group) {
-            $coursecount = count($group['courses']);
-            $rows[] = [
-                'employee' => $showidentity ? (string)$group['employee'] : get_string('hiddenuser'),
-                'position' => (string)$group['position'],
-                'company' => (string)$group['company'],
-                'location' => (string)$group['region'],
-                'department' => (string)$group['department'],
-                'site' => (string)$group['site'],
-                'course' => get_string('label:coursecount', 'block_dashboardanalytics', $coursecount),
-                'expiry' => '',
-                'days' => '',
-                'status' => '',
-            ];
+            foreach ($group['courses'] as $record) {
+                [$expirytext, $daystext] = $this->document_date_cells($record);
+                $rows[] = [
+                    'employee' => $showidentity ? (string)$group['employee'] : get_string('hiddenuser'),
+                    'position' => (string)$group['position'],
+                    'company' => (string)$group['company'],
+                    'location' => (string)$group['region'],
+                    'department' => (string)$group['department'],
+                    'site' => (string)$group['site'],
+                    'course' => (string)($record['course'] ?? ''),
+                    'expiry' => $expirytext,
+                    'days' => $daystext,
+                    'status' => $this->status_display((string)($record['status'] ?? '')),
+                ];
+            }
         }
 
         return [
