@@ -18,13 +18,17 @@ class get_filter_options extends \external_api {
     public static function execute_parameters(): \external_function_parameters {
         return new \external_function_parameters([
             'contextid' => new \external_value(PARAM_INT, 'Block context ID'),
+            'filters' => new \external_value(PARAM_RAW, 'JSON encoded filters', VALUE_DEFAULT, '{}'),
         ]);
     }
 
-    public static function execute(int $contextid): array {
+    public static function execute(int $contextid, string $filters = '{}'): array {
         global $USER;
 
-        $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid]);
+        $params = self::validate_parameters(self::execute_parameters(), [
+            'contextid' => $contextid,
+            'filters' => $filters,
+        ]);
         $context = context_resolver::require_context((int)$params['contextid']);
         $dashboardkey = permissions::resolve_dashboard_key($context, (int)$USER->id);
         if ($dashboardkey === null) {
@@ -32,7 +36,11 @@ class get_filter_options extends \external_api {
         }
 
         $repository = new dimension_repository();
-        $scopefilters = filters::apply_dashboard_scope([], $dashboardkey, (int)$USER->id);
+        $scopefilters = filters::apply_dashboard_scope(
+            filters::from_json($params['filters']),
+            $dashboardkey,
+            (int)$USER->id
+        );
         return ['groups' => $repository->get_filter_groups($scopefilters)];
     }
 

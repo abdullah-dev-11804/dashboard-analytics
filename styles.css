@@ -436,6 +436,12 @@
     overflow-x: auto;
 }
 
+.block-dashboardanalytics .da-table-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: .75rem;
+}
+
 .block-dashboardanalytics .da-table {
     width: 100%;
     border-collapse: collapse;
@@ -453,6 +459,37 @@
 .block-dashboardanalytics .da-table th {
     background: #f9fafc;
     color: var(--da-muted);
+    font-weight: 600;
+}
+
+.block-dashboardanalytics .da-matrix-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.block-dashboardanalytics .da-matrix-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    color: var(--da-blue);
+    font-size: .85rem;
+}
+
+.block-dashboardanalytics .da-matrix-course-row.is-collapsed {
+    display: none;
+}
+
+.block-dashboardanalytics .da-matrix-summary-row td {
+    background: #fbfcfe;
     font-weight: 600;
 }
 
@@ -665,8 +702,10 @@
 
 .block-dashboardanalytics .da-badge-info,
 .block-dashboardanalytics .da-badge-check,
+.block-dashboardanalytics .da-badge-nodocument,
 .da-company-summary-modal-root .da-badge-info,
-.da-company-summary-modal-root .da-badge-check {
+.da-company-summary-modal-root .da-badge-check,
+.da-company-summary-modal-root .da-badge-nodocument {
     background: #edf4ff;
     color: #2e5fa7;
 }

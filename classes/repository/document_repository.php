@@ -508,60 +508,54 @@ class document_repository {
             ];
         }
 
-        $records = $this->overview_rows($filters);
-        if ($status === 'expired') {
-            $records = array_values(array_filter($records, static function(array $row): bool {
-                return $row['status'] === 'Expired';
-            }));
-        } else if ($status === 'expiring') {
-            $records = array_values(array_filter($records, static function(array $row): bool {
-                return $row['status'] === 'Expiring';
-            }));
-        } else if ($status === 'active') {
-            $records = array_values(array_filter($records, static function(array $row): bool {
-                return $row['status'] === 'Active';
-            }));
-        } else if ($status === 'nodocument') {
-            $records = array_values(array_filter($records, static function(array $row): bool {
-                return $row['status'] === 'No document';
-            }));
-        }
-
-        usort($records, static function(array $a, array $b): int {
-            $aexpiry = !empty($a['expirytime']) ? (int)$a['expirytime'] : PHP_INT_MAX;
-            $bexpiry = !empty($b['expirytime']) ? (int)$b['expirytime'] : PHP_INT_MAX;
-            return $aexpiry <=> $bexpiry;
-        });
-
-        $totalcount = count($records);
-        $records = array_slice($records, $page * $perpage, $perpage);
-        $rows = [];
-        foreach ($records as $record) {
-            $expiry = !empty($record['expirytime']) ? (int)$record['expirytime'] : null;
-            $days = $expiry !== null ? (int)floor(($expiry - time()) / DAYSECS) : null;
-            $rows[] = [
-                'cells' => [
-                    [
-                        'key' => 'employee',
-                        'value' => $showidentity ? (string)$record['employee'] : get_string('hiddenuser'),
-                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record['userid']]))->out(false) : '',
-                    ],
-                    ['key' => 'company', 'value' => (string)$record['company']],
-                    ['key' => 'department', 'value' => (string)$record['department']],
-                    ['key' => 'location', 'value' => (string)$record['location']],
-                    ['key' => 'course', 'value' => (string)$record['course']],
-                    ['key' => 'expiry', 'value' => $expiry !== null ? userdate($expiry, get_string('strftimedate')) : '-'],
-                    ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
-                    ['key' => 'status', 'value' => (string)$record['status']],
-                ],
-            ];
-        }
+        $groups = $this->document_matrix_groups($filters, $status);
+        $totalcount = count($groups);
+        $groups = array_slice($groups, $page * $perpage, $perpage);
+        $rows = $this->document_matrix_rows($groups, $showidentity);
 
         return [
             'columns' => $this->columns(),
             'rows' => $rows,
             'totalcount' => $totalcount,
             'notice' => '',
+            'exporturl' => '',
+        ];
+    }
+
+    public function document_export_rows(array $filters, string $status, bool $showidentity): array {
+        $records = $this->filtered_document_records($filters, $status);
+        $rows = [];
+
+        foreach ($records as $record) {
+            [$expirytext, $daystext] = $this->document_date_cells($record);
+            $rows[] = [
+                'employee' => $showidentity ? (string)$record['employee'] : get_string('hiddenuser'),
+                'position' => (string)($record['position'] ?? ''),
+                'company' => (string)($record['company'] ?? ''),
+                'region' => (string)($record['location'] ?? ''),
+                'department' => (string)($record['department'] ?? ''),
+                'site' => (string)($record['site'] ?? ''),
+                'course' => (string)($record['course'] ?? ''),
+                'expiry' => $expirytext,
+                'days' => $daystext,
+                'status' => $this->status_display((string)$record['status']),
+            ];
+        }
+
+        return [
+            'columns' => [
+                'employee' => get_string('label:employee', 'block_dashboardanalytics'),
+                'position' => get_string('label:position', 'block_dashboardanalytics'),
+                'company' => get_string('label:company', 'block_dashboardanalytics'),
+                'region' => get_string('label:location', 'block_dashboardanalytics'),
+                'department' => get_string('label:department', 'block_dashboardanalytics'),
+                'site' => get_string('label:site', 'block_dashboardanalytics'),
+                'course' => get_string('label:course', 'block_dashboardanalytics'),
+                'expiry' => get_string('label:expirydate', 'block_dashboardanalytics'),
+                'days' => get_string('label:daysremaining', 'block_dashboardanalytics'),
+                'status' => get_string('label:status', 'block_dashboardanalytics'),
+            ],
+            'rows' => $rows,
         ];
     }
 
@@ -728,6 +722,233 @@ class document_repository {
 
     private function overview_rows(array $filters): array {
         return (new overview_repository())->enrolment_status_snapshot_rows($filters);
+    }
+
+    private function filtered_document_records(array $filters, string $status): array {
+        $records = $this->overview_rows($filters);
+        if ($status === 'expired') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Expired';
+            }));
+        } else if ($status === 'expiring') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Expiring';
+            }));
+        } else if ($status === 'active') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Active';
+            }));
+        } else if ($status === 'noncompliant') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Expired' || $row['status'] === 'No document';
+            }));
+        } else if ($status === 'nodocument') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'No document';
+            }));
+        }
+
+        usort($records, static function(array $a, array $b): int {
+            $astatus = self::matrix_status_weight((string)($a['status'] ?? ''));
+            $bstatus = self::matrix_status_weight((string)($b['status'] ?? ''));
+            if ($astatus !== $bstatus) {
+                return $astatus <=> $bstatus;
+            }
+
+            $aexpiry = !empty($a['expirytime']) ? (int)$a['expirytime'] : PHP_INT_MAX;
+            $bexpiry = !empty($b['expirytime']) ? (int)$b['expirytime'] : PHP_INT_MAX;
+            if ($aexpiry !== $bexpiry) {
+                return $aexpiry <=> $bexpiry;
+            }
+
+            $aname = mb_strtolower(trim((string)($a['employee'] ?? '')));
+            $bname = mb_strtolower(trim((string)($b['employee'] ?? '')));
+            if ($aname !== $bname) {
+                return $aname <=> $bname;
+            }
+
+            return ((int)($a['courseid'] ?? 0)) <=> ((int)($b['courseid'] ?? 0));
+        });
+
+        return $records;
+    }
+
+    private function document_matrix_groups(array $filters, string $status): array {
+        $records = $this->filtered_document_records($filters, $status);
+        $groups = [];
+
+        foreach ($records as $record) {
+            $groupid = 'u' . (int)$record['userid'];
+            if (!isset($groups[$groupid])) {
+                $groups[$groupid] = [
+                    'groupid' => $groupid,
+                    'userid' => (int)$record['userid'],
+                    'employee' => (string)$record['employee'],
+                    'position' => (string)($record['position'] ?? ''),
+                    'company' => (string)($record['company'] ?? ''),
+                    'region' => (string)($record['location'] ?? ''),
+                    'department' => (string)($record['department'] ?? ''),
+                    'site' => (string)($record['site'] ?? ''),
+                    'courses' => [],
+                    'summarysort' => self::matrix_status_weight((string)($record['status'] ?? '')),
+                    'minexpiry' => !empty($record['expirytime']) ? (int)$record['expirytime'] : PHP_INT_MAX,
+                ];
+            }
+
+            $groups[$groupid]['courses'][] = $record;
+            $groups[$groupid]['summarysort'] = min(
+                (int)$groups[$groupid]['summarysort'],
+                self::matrix_status_weight((string)($record['status'] ?? ''))
+            );
+            $groups[$groupid]['minexpiry'] = min(
+                (int)$groups[$groupid]['minexpiry'],
+                !empty($record['expirytime']) ? (int)$record['expirytime'] : PHP_INT_MAX
+            );
+        }
+
+        foreach ($groups as $groupid => $group) {
+            usort($group['courses'], static function(array $a, array $b): int {
+                $astatus = self::matrix_status_weight((string)($a['status'] ?? ''));
+                $bstatus = self::matrix_status_weight((string)($b['status'] ?? ''));
+                if ($astatus !== $bstatus) {
+                    return $astatus <=> $bstatus;
+                }
+
+                $aexpiry = !empty($a['expirytime']) ? (int)$a['expirytime'] : PHP_INT_MAX;
+                $bexpiry = !empty($b['expirytime']) ? (int)$b['expirytime'] : PHP_INT_MAX;
+                if ($aexpiry !== $bexpiry) {
+                    return $aexpiry <=> $bexpiry;
+                }
+
+                return mb_strtolower((string)($a['course'] ?? '')) <=> mb_strtolower((string)($b['course'] ?? ''));
+            });
+            $groups[$groupid] = $group;
+        }
+
+        $groups = array_values($groups);
+        usort($groups, static function(array $a, array $b): int {
+            if ($a['summarysort'] !== $b['summarysort']) {
+                return $a['summarysort'] <=> $b['summarysort'];
+            }
+            if ($a['minexpiry'] !== $b['minexpiry']) {
+                return $a['minexpiry'] <=> $b['minexpiry'];
+            }
+            return mb_strtolower((string)$a['employee']) <=> mb_strtolower((string)$b['employee']);
+        });
+
+        return $groups;
+    }
+
+    private function document_matrix_rows(array $groups, bool $showidentity): array {
+        $rows = [];
+        foreach ($groups as $group) {
+            $coursecount = count($group['courses']);
+            $rows[] = [
+                'rowtype' => 'summary',
+                'groupid' => (string)$group['groupid'],
+                'expanded' => false,
+                'cells' => [
+                    [
+                        'key' => 'employee',
+                        'value' => $showidentity ? (string)$group['employee'] : get_string('hiddenuser'),
+                        'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$group['userid']]))->out(false) : '',
+                    ],
+                    ['key' => 'position', 'value' => (string)$group['position']],
+                    ['key' => 'company', 'value' => (string)$group['company']],
+                    ['key' => 'location', 'value' => (string)$group['region']],
+                    ['key' => 'department', 'value' => (string)$group['department']],
+                    ['key' => 'site', 'value' => (string)$group['site']],
+                    [
+                        'key' => 'course',
+                        'value' => get_string('label:coursecount', 'block_dashboardanalytics', $coursecount),
+                        'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
+                    ],
+                    ['key' => 'expiry', 'value' => ''],
+                    ['key' => 'days', 'value' => ''],
+                    ['key' => 'status', 'value' => ''],
+                ],
+            ];
+
+            foreach ($group['courses'] as $record) {
+                [$expirytext, $daystext] = $this->document_date_cells($record);
+                $statuskey = (string)$record['status'];
+                $rows[] = [
+                    'rowtype' => 'course',
+                    'groupid' => (string)$group['groupid'],
+                    'expanded' => false,
+                    'cells' => [
+                        ['key' => 'employee', 'value' => ''],
+                        ['key' => 'position', 'value' => ''],
+                        ['key' => 'company', 'value' => ''],
+                        ['key' => 'location', 'value' => ''],
+                        ['key' => 'department', 'value' => ''],
+                        ['key' => 'site', 'value' => ''],
+                        ['key' => 'course', 'value' => (string)$record['course']],
+                        ['key' => 'expiry', 'value' => $expirytext],
+                        ['key' => 'days', 'value' => $daystext],
+                        [
+                            'key' => 'status',
+                            'value' => $this->status_display($statuskey),
+                            'statuskey' => $this->status_badge_key($statuskey),
+                        ],
+                    ],
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function document_date_cells(array $record): array {
+        $expiry = !empty($record['expirytime']) ? (int)$record['expirytime'] : null;
+        if ($expiry === null || $expiry <= 0) {
+            return ['', ''];
+        }
+
+        $days = (int)floor(($expiry - time()) / DAYSECS);
+        return [
+            userdate($expiry, get_string('strftimedate')),
+            (string)$days,
+        ];
+    }
+
+    private static function matrix_status_weight(string $status): int {
+        if ($status === 'Expired') {
+            return 1;
+        }
+        if ($status === 'Expiring') {
+            return 2;
+        }
+        if ($status === 'Active') {
+            return 3;
+        }
+        return 4;
+    }
+
+    private function status_display(string $status): string {
+        if ($status === 'Active') {
+            return get_string('label:active', 'block_dashboardanalytics');
+        }
+        if ($status === 'Expiring') {
+            return get_string('label:expiring', 'block_dashboardanalytics');
+        }
+        if ($status === 'Expired') {
+            return get_string('label:expired', 'block_dashboardanalytics');
+        }
+        return get_string('label:nodocument', 'block_dashboardanalytics');
+    }
+
+    private function status_badge_key(string $status): string {
+        if ($status === 'Active') {
+            return 'active';
+        }
+        if ($status === 'Expiring') {
+            return 'expiring';
+        }
+        if ($status === 'Expired') {
+            return 'expired';
+        }
+        return 'nodocument';
     }
 
     private function row_dimension_label(array $row, string $dimension): string {
@@ -928,9 +1149,11 @@ class document_repository {
     private function columns(): array {
         return [
             ['key' => 'employee', 'label' => get_string('label:employee', 'block_dashboardanalytics')],
+            ['key' => 'position', 'label' => get_string('label:position', 'block_dashboardanalytics')],
             ['key' => 'company', 'label' => get_string('label:company', 'block_dashboardanalytics')],
-            ['key' => 'department', 'label' => get_string('label:department', 'block_dashboardanalytics')],
             ['key' => 'location', 'label' => get_string('label:location', 'block_dashboardanalytics')],
+            ['key' => 'department', 'label' => get_string('label:department', 'block_dashboardanalytics')],
+            ['key' => 'site', 'label' => get_string('label:site', 'block_dashboardanalytics')],
             ['key' => 'course', 'label' => get_string('label:course', 'block_dashboardanalytics')],
             ['key' => 'expiry', 'label' => get_string('label:expirydate', 'block_dashboardanalytics')],
             ['key' => 'days', 'label' => get_string('label:daysremaining', 'block_dashboardanalytics')],

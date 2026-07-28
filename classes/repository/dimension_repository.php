@@ -10,90 +10,17 @@ class dimension_repository {
     public function get_filter_groups(array $scopefilters = []): array {
         $companyrepo = new company_repository();
 
-        $groups = [
-            [
-                'key' => $companyrepo->company_filter_key($scopefilters),
+        $groups = [];
+
+        $companykey = $companyrepo->company_filter_key($scopefilters);
+        $companyoptions = $companyrepo->get_company_options($this->filters_without_keys($scopefilters, [$companykey, 'companies']));
+        if (count($companyoptions) > 1) {
+            $groups[] = [
+                'key' => $companykey,
                 'label' => get_string('filter:companies', 'block_dashboardanalytics'),
                 'multiple' => true,
-                'options' => $companyrepo->get_company_options($scopefilters),
+                'options' => $companyoptions,
                 'searchable' => false,
-            ],
-        ];
-
-        $users = $this->users($scopefilters);
-        if ($users) {
-            $groups[] = [
-                'key' => 'userids',
-                'label' => get_string('filter:employees', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $users,
-                'searchable' => true,
-            ];
-        }
-
-        $groups[] = [
-            'key' => 'departments',
-            'label' => get_string('filter:departments', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options($scopefilters, ['Department', 'department'], 'u.department'),
-            'searchable' => false,
-        ];
-
-        $groups[] = [
-            'key' => 'locations',
-            'label' => get_string('filter:locations', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options($scopefilters, ['Region'], 'u.city'),
-            'searchable' => false,
-        ];
-
-        $positions = $this->profile_field_options(
-            $scopefilters,
-            array_values(array_filter(['Job_Title', trim((string)get_config('block_dashboardanalytics', 'positionfield'))])),
-            ''
-        );
-        if ($positions) {
-            $groups[] = [
-                'key' => 'positions',
-                'label' => get_string('filter:positions', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $positions,
-                'searchable' => false,
-            ];
-        }
-
-        $groups[] = [
-            'key' => 'personnelcategories',
-            'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options($scopefilters, ['PersonnelCategory'], ''),
-            'searchable' => false,
-        ];
-
-        $groups[] = [
-            'key' => 'sites',
-            'label' => get_string('filter:sites', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options($scopefilters, ['Site'], ''),
-            'searchable' => false,
-        ];
-
-        $groups[] = [
-            'key' => 'educations',
-            'label' => get_string('filter:educations', 'block_dashboardanalytics'),
-            'multiple' => true,
-            'options' => $this->profile_field_options($scopefilters, ['edu'], ''),
-            'searchable' => false,
-        ];
-
-        $courses = $this->courses($scopefilters);
-        if ($courses) {
-            $groups[] = [
-                'key' => 'courseids',
-                'label' => get_string('filter:courses', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $courses,
-                'searchable' => true,
             ];
         }
 
@@ -113,9 +40,113 @@ class dimension_repository {
             ],
         ];
 
+        $users = $this->users($this->filters_without_keys($scopefilters, ['userids']));
+        if ($users) {
+            $groups[] = [
+                'key' => 'userids',
+                'label' => get_string('filter:employees', 'block_dashboardanalytics'),
+                'multiple' => true,
+                'options' => $users,
+                'searchable' => true,
+            ];
+        }
+
+        $groups[] = [
+            'key' => 'departments',
+            'label' => get_string('filter:departments', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['departments']),
+                ['Department', 'department'],
+                'u.department'
+            ),
+            'searchable' => false,
+        ];
+
+        $groups[] = [
+            'key' => 'locations',
+            'label' => get_string('filter:locations', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['locations']),
+                ['Region'],
+                'u.city'
+            ),
+            'searchable' => false,
+        ];
+
+        $groups[] = [
+            'key' => 'sites',
+            'label' => get_string('filter:sites', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['sites']),
+                ['Site'],
+                ''
+            ),
+            'searchable' => false,
+        ];
+
+        $positions = $this->profile_field_options(
+            $this->filters_without_keys($scopefilters, ['positions']),
+            array_values(array_filter(['Job_Title', trim((string)get_config('block_dashboardanalytics', 'positionfield'))])),
+            ''
+        );
+        if ($positions) {
+            $groups[] = [
+                'key' => 'positions',
+                'label' => get_string('filter:positions', 'block_dashboardanalytics'),
+                'multiple' => true,
+                'options' => $positions,
+                'searchable' => false,
+            ];
+        }
+
+        $groups[] = [
+            'key' => 'personnelcategories',
+            'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['personnelcategories']),
+                ['PersonnelCategory'],
+                ''
+            ),
+            'searchable' => false,
+        ];
+
+        $groups[] = [
+            'key' => 'educations',
+            'label' => get_string('filter:educations', 'block_dashboardanalytics'),
+            'multiple' => true,
+            'options' => $this->profile_field_options(
+                $this->filters_without_keys($scopefilters, ['educations']),
+                ['edu'],
+                ''
+            ),
+            'searchable' => false,
+        ];
+
+        $courses = $this->courses($this->filters_without_keys($scopefilters, ['courseids']));
+        if ($courses) {
+            $groups[] = [
+                'key' => 'courseids',
+                'label' => get_string('filter:courses', 'block_dashboardanalytics'),
+                'multiple' => true,
+                'options' => $courses,
+                'searchable' => true,
+            ];
+        }
+
         return array_values(array_filter($groups, static function(array $group): bool {
             return !empty($group['options']);
         }));
+    }
+
+    private function filters_without_keys(array $filters, array $keys): array {
+        foreach ($keys as $key) {
+            unset($filters[$key]);
+        }
+        return $filters;
     }
 
     private function users(array $scopefilters): array {
@@ -192,15 +223,21 @@ class dimension_repository {
         global $DB;
 
         $analytics = new course_analytics_repository();
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($scopefilters, 'u', 'dimfltcourse');
         $join = $analytics->eligibility_join_sql('c', 'cfcoursefilter', 'cdcoursefilter');
-        $sql = "SELECT c.id, c.fullname
-                  FROM {course} c
+        $sql = "SELECT DISTINCT c.id, c.fullname
+                  FROM {user} u
+                  JOIN {user_enrolments} ue ON ue.userid = u.id AND ue.status = 0
+                  JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
+                  JOIN {course} c ON c.id = e.courseid
                   {$join}
-                 WHERE c.id > 1
+                 WHERE {$filter['sql']}
+                   AND c.id > 1
                    AND " . $analytics->eligibility_where_sql('c', 'cfcoursefilter', 'cdcoursefilter') . "
               ORDER BY c.fullname ASC";
 
-        $records = $DB->get_records_sql($sql);
+        $records = $DB->get_records_sql($sql, $filter['params']);
         $options = [];
         foreach ($records as $record) {
             $options[] = [

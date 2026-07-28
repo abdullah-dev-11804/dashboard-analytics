@@ -209,6 +209,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:courseanalyticsheaderanalytics', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'},
         {key: 'js:formulatooltip', component: 'block_dashboardanalytics'},
+        {key: 'js:exportcsv', component: 'block_dashboardanalytics'},
         {key: 'view:hidesidebar', component: 'block_dashboardanalytics'},
         {key: 'view:showsidebar', component: 'block_dashboardanalytics'}
     ];
@@ -319,6 +320,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'courseAnalyticsHeaderAnalytics',
         'courseAnalyticsHeaderToggle',
         'formulaTooltip',
+        'exportCsv',
         'hideSidebar',
         'showSidebar'
     ];
@@ -699,7 +701,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
     };
 
     var activeFilterDefaults = function(state) {
-        var defaults = [state.companyFilterKey, 'daterange', 'departments', 'locations', 'positions'];
+        var defaults = [state.companyFilterKey, 'daterange', 'departments', 'locations', 'sites', 'positions'];
         return defaults.filter(function(key) {
             return key && state.filterGroups[key];
         });
@@ -716,10 +718,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         active = active.filter(function(key) {
             return available.indexOf(key) !== -1;
         });
-
-        if (state.companyFilterKey && active.indexOf(state.companyFilterKey) === -1) {
-            active.unshift(state.companyFilterKey);
-        }
 
         return active.filter(function(key, index) {
             return active.indexOf(key) === index;
@@ -853,7 +851,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         groups.forEach(function(group) {
             state.filterGroups[group.key] = group;
         });
-        state.companyFilterKey = groups[0] ? groups[0].key : state.companyFilterKey;
+        state.companyFilterKey = ((groups || []).find(function(group) {
+            return group.key === 'companyids' || group.key === 'companies';
+        }) || {}).key || '';
         state.activeFilterKeys = normalizeActiveFilterKeys(state);
 
         container.innerHTML = state.activeFilterKeys.map(function(key) {
@@ -936,6 +936,31 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).join('');
     };
 
+    var drilldownExportUrl = function(root, state) {
+        var exportable = [
+            'company_compliance',
+            'company_expiring_documents',
+            'company_expired_documents',
+            'company_course_noncompliance',
+            'client_compliance',
+            'client_expiring_documents',
+            'client_expired_documents',
+            'employee_documents'
+        ];
+
+        if (!state.currentDrilldown || exportable.indexOf(state.currentDrilldown) === -1) {
+            return '';
+        }
+
+        var params = new URLSearchParams();
+        params.set('contextid', String(state.contextid));
+        params.set('dashboardkey', String(state.dashboardkey || ''));
+        params.set('drilldownkey', String(state.currentDrilldown || ''));
+        params.set('filters', JSON.stringify(readFilters(root, state, state.currentDrilldownOverrides || undefined)));
+        params.set('sesskey', M.cfg.sesskey);
+        return M.cfg.wwwroot + '/blocks/dashboardanalytics/export.php?' + params.toString();
+    };
+
     var renderDrilldown = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
@@ -996,6 +1021,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         var columns = data.columns || [];
+        var exporturl = data.exporturl || drilldownExportUrl(root, state);
         var head = columns.map(function(column) {
             return '<th scope="col">' + escapeHtml(column.label) + '</th>';
         }).join('');
@@ -1008,17 +1034,43 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 cellsMetaByKey[cell.key] = cell;
             });
 
-            return '<tr>' + columns.map(function(column) {
+            var rowtype = row.rowtype || '';
+            var groupid = row.groupid || '';
+            var classes = ['da-table-row'];
+            if (rowtype === 'summary') {
+                classes.push('da-matrix-summary-row');
+            } else if (rowtype === 'course') {
+                classes.push('da-matrix-course-row', 'is-collapsed');
+            }
+
+            return '<tr class="' + classes.join(' ') + '"'
+                + (groupid ? ' data-group-id="' + escapeHtml(groupid) + '"' : '')
+                + (rowtype ? ' data-rowtype="' + escapeHtml(rowtype) + '"' : '')
+                + '>' + columns.map(function(column) {
                 var value = escapeHtml(cellsByKey[column.key] || '');
                 var key = column.key;
                 if (key === 'status' || key === 'statusbadge') {
-                    return '<td><span class="da-badge da-badge-' + value.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '">' + value + '</span></td>';
+                    var statusclass = value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    if (cellsMetaByKey[key] && cellsMetaByKey[key].statuskey) {
+                        statusclass = cellsMetaByKey[key].statuskey;
+                    }
+                    return '<td><span class="da-badge da-badge-' + statusclass + '">' + value + '</span></td>';
                 }
                 if (key === 'action') {
                     return '<td><button type="button" class="da-row-action" data-action="company-report"'
                         + ' data-company="' + escapeHtml(cellsByKey.company || '') + '"'
                         + ' data-companyid="' + escapeHtml(cellsByKey.companyid || '') + '">'
                         + value + '</button></td>';
+                }
+                if (key === 'course' && rowtype === 'summary') {
+                    var togglelabel = cellsMetaByKey[key] && cellsMetaByKey[key].togglelabel
+                        ? cellsMetaByKey[key].togglelabel
+                        : text('details', 'Details');
+                    return '<td><button type="button" class="da-matrix-toggle" data-action="matrix-toggle"'
+                        + (groupid ? ' data-group-id="' + escapeHtml(groupid) + '"' : '')
+                        + ' aria-expanded="false" title="' + escapeHtml(togglelabel) + '">'
+                        + '<span class="da-matrix-toggle-icon">▾</span>'
+                        + '<span>' + value + '</span></button></td>';
                 }
                 if (key === 'employee' && cellsMetaByKey[key] && cellsMetaByKey[key].profileurl) {
                     return '<td><a class="da-table-link" href="' + escapeHtml(cellsMetaByKey[key].profileurl) + '">' + value + '</a></td>';
@@ -1029,6 +1081,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         var description = data.description
             ? '<div class="da-description">' + escapeHtml(data.description) + '</div>'
+            : '';
+        var actions = exporturl
+            ? '<div class="da-table-actions"><a class="da-row-action" href="' + escapeHtml(exporturl) + '">'
+                + escapeHtml(text('exportCsv', 'Export CSV')) + '</a></div>'
             : '';
 
         var pagination = totalcount ? '<div class="da-table-pagination">'
@@ -1046,7 +1102,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
             + '</div></div>' : '';
 
-        container.innerHTML = description + '<div class="da-table-wrap"><table class="da-table">'
+        container.innerHTML = description + actions + '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
             + '<thead><tr>' + head + '</tr></thead>'
             + '<tbody>' + body + '</tbody>'
             + '</table></div>' + pagination;
@@ -2933,12 +2989,19 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         updateReportsActPreview(root);
     };    
 
-    var loadFilters = function(root, state) {
+    var loadFilters = function(root, state, requestFilters) {
         var container = root.querySelector('[data-region="filter-bar"]');
         setLoading(container);
+        var payload = requestFilters;
+        if (!payload) {
+            payload = Object.keys(state.filterGroups || {}).length
+                ? readFilters(root, state)
+                : Object.assign({}, state.persistedFilters || {});
+        }
 
         return call('block_dashboardanalytics_get_filter_options', {
-            contextid: state.contextid
+            contextid: state.contextid,
+            filters: JSON.stringify(payload)
         }).then(function(response) {
             renderFilters(root, state, response.groups || []);
             persistState(root, state);
@@ -3047,17 +3110,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
     };
 
     var refresh = function(root, state, historyMode) {
-        persistState(root, state);
-        loadKpis(root, state);
-        if (state.currentTab === 'kpis') {
-            loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state), undefined, undefined, undefined, historyMode || 'push');
-            return;
-        }
-        if (state.currentDrilldown) {
-            loadDrilldown(root, state, state.currentDrilldown, undefined, undefined, undefined, historyMode || 'push');
-            return;
-        }
-        loadVisuals(root, state, state.currentTab || 'overview', undefined, historyMode || 'push');
+        var payload = Object.keys(state.filterGroups || {}).length
+            ? readFilters(root, state)
+            : Object.assign({}, state.persistedFilters || {});
+
+        return loadFilters(root, state, payload).then(function() {
+            persistState(root, state);
+            loadKpis(root, state);
+            if (state.currentTab === 'kpis') {
+                loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state), undefined, undefined, undefined, historyMode || 'push');
+                return;
+            }
+            if (state.currentDrilldown) {
+                loadDrilldown(root, state, state.currentDrilldown, undefined, undefined, undefined, historyMode || 'push');
+                return;
+            }
+            loadVisuals(root, state, state.currentTab || 'overview', undefined, historyMode || 'push');
+        });
     };
 
     var setActiveTab = function(root, tabkey) {
@@ -3483,6 +3552,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var matrixToggle = event.target.closest('[data-action="matrix-toggle"]');
+            if (matrixToggle && root.contains(matrixToggle)) {
+                var matrixGroupId = matrixToggle.getAttribute('data-group-id') || '';
+                var expanded = matrixToggle.getAttribute('aria-expanded') === 'true';
+                matrixToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                matrixToggle.classList.toggle('is-expanded', !expanded);
+                var icon = matrixToggle.querySelector('.da-matrix-toggle-icon');
+                if (icon) {
+                    icon.textContent = expanded ? '▾' : '▴';
+                }
+
+                Array.prototype.slice.call(root.querySelectorAll('.da-matrix-course-row[data-group-id="' + matrixGroupId + '"]')).forEach(function(row) {
+                    row.classList.toggle('is-collapsed', expanded);
+                });
+                return;
+            }
+
             var companySummaryModal = event.target.closest('[data-action="company-summary-modal"]');
             if (companySummaryModal && root.contains(companySummaryModal)) {
                 loadCompanySummaryModal(
@@ -3740,13 +3826,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             };
 
             bindEvents(root, state);
-            loadFilters(root, state).then(function() {
+            refresh(root, state, 'replace').then(function() {
                 updateFilterCounts(root, state);
                 if (matchesBrowserHistoryState(window.history.state, state)) {
                     restoreBrowserHistoryState(root, state, window.history.state);
-                    return;
                 }
-                refresh(root, state, 'replace');
             });
         }).catch(Notification.exception);
     };

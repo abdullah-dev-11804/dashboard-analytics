@@ -53,10 +53,9 @@ class compliance_service {
         }
 
         if ($drilldownkey === 'company_course_noncompliance') {
-            $overview = new overview_repository();
             return $this->result(
-                get_string('drilldown:title:coursenoncompliance', 'block_dashboardanalytics'),
-                $overview->compliance_gap_rows($filters, ['Expired', 'No document'], $page, $perpage, $showidentity)
+                get_string('complianceactiontable', 'block_dashboardanalytics'),
+                (new document_repository())->document_rows($filters, 'noncompliant', $page, $perpage, $showidentity)
             );
         }
 
@@ -125,6 +124,7 @@ class compliance_service {
             'totalcount' => (int)($result['totalcount'] ?? 0),
             'notice' => (string)($result['notice'] ?? ''),
             'description' => (string)($result['description'] ?? ''),
+            'exporturl' => (string)($result['exporturl'] ?? ''),
         ];
     }
 }

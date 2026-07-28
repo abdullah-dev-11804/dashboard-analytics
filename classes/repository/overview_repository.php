@@ -770,6 +770,26 @@ class overview_repository {
             $departmentselect = 'COALESCE(NULLIF(uiddep.data, \'\'), u.department) AS departmentname';
         }
 
+        $regionselect = 'u.city AS regionname';
+        $regionjoin = '';
+        $regionfield = $this->existing_user_profile_field_shortname(['Region']);
+        if ($regionfield !== '') {
+            $escapedregionfield = addslashes($regionfield);
+            $regionjoin = "LEFT JOIN {user_info_field} uifreg ON uifreg.shortname = '{$escapedregionfield}'
+                           LEFT JOIN {user_info_data} uidreg ON uidreg.fieldid = uifreg.id AND uidreg.userid = u.id";
+            $regionselect = 'COALESCE(NULLIF(uidreg.data, \'\'), u.city) AS regionname';
+        }
+
+        $siteselect = "'' AS sitename";
+        $sitejoin = '';
+        $sitefield = $this->existing_user_profile_field_shortname(['Site']);
+        if ($sitefield !== '') {
+            $escapedsitedfield = addslashes($sitefield);
+            $sitejoin = "LEFT JOIN {user_info_field} uifsite ON uifsite.shortname = '{$escapedsitedfield}'
+                         LEFT JOIN {user_info_data} uidsite ON uidsite.fieldid = uifsite.id AND uidsite.userid = u.id";
+            $siteselect = 'uidsite.data AS sitename';
+        }
+
         $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfanalyticsoverview', 'cdanalyticsoverview');
         $basewhere = [
             $userfilter['sql'],
@@ -789,8 +809,9 @@ class overview_repository {
                                 c.fullname AS coursename,
                                 u.firstname,
                                 u.lastname,
-                                u.city,
                                 {$departmentselect},
+                                {$regionselect},
+                                {$siteselect},
                                 {$positionselect},
                                 COALESCE({$companysql['idexpr']}, 0) AS companyid,
                                 {$companysql['select']}
@@ -801,6 +822,8 @@ class overview_repository {
                                 {$analyticsjoin}
                                 {$companysql['join']}
                                 {$departmentjoin}
+                                {$regionjoin}
+                                {$sitejoin}
                                 {$positionjoin}
                           WHERE " . implode(' AND ', array_merge($basewhere, [
                               'ue.status = 0',
@@ -846,7 +869,8 @@ class overview_repository {
                 'companyid' => (int)$record->companyid,
                 'company' => (string)$record->companyname,
                 'department' => (string)$record->departmentname,
-                'location' => (string)$record->city,
+                'location' => (string)$record->regionname,
+                'site' => (string)$record->sitename,
                 'position' => (string)$record->positionname,
                 'course' => format_string((string)$record->coursename),
                 'documentid' => $documentid,

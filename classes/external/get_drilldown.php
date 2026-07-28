@@ -71,15 +71,21 @@ class get_drilldown extends \external_api {
                 'label' => new \external_value(PARAM_TEXT, 'Column label'),
             ])),
             'rows' => new \external_multiple_structure(new \external_single_structure([
+                'rowtype' => new \external_value(PARAM_ALPHANUMEXT, 'Optional row type', VALUE_OPTIONAL),
+                'groupid' => new \external_value(PARAM_ALPHANUMEXT, 'Optional row group id', VALUE_OPTIONAL),
+                'expanded' => new \external_value(PARAM_BOOL, 'Whether the row is expanded by default', VALUE_OPTIONAL),
                 'cells' => new \external_multiple_structure(new \external_single_structure([
                     'key' => new \external_value(PARAM_ALPHANUMEXT, 'Cell key'),
                     'value' => new \external_value(PARAM_TEXT, 'Cell value'),
                     'profileurl' => new \external_value(PARAM_URL, 'Optional profile URL', VALUE_OPTIONAL),
+                    'statuskey' => new \external_value(PARAM_ALPHANUMEXT, 'Optional normalized status key', VALUE_OPTIONAL),
+                    'togglelabel' => new \external_value(PARAM_TEXT, 'Optional expand/collapse label', VALUE_OPTIONAL),
                 ])),
             ])),
             'totalcount' => new \external_value(PARAM_INT, 'Total matching rows'),
             'notice' => new \external_value(PARAM_TEXT, 'Optional notice'),
             'description' => new \external_value(PARAM_TEXT, 'Optional explanation'),
+            'exporturl' => new \external_value(PARAM_URL, 'Optional export URL', VALUE_OPTIONAL),
         ]);
     }
 }
