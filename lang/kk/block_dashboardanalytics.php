@@ -538,8 +538,8 @@ $string['js:courseanalyticsheadervisibility'] = 'Көріну';
 $string['js:courseanalyticsheaderanalytics'] = 'Аналитика';
 $string['js:courseanalyticsheadertoggle'] = 'Ауыстырғыш';
 $string['js:formulatooltip'] = 'Формула';
-$string['view:back'] = 'Артқа';
-$string['view:stretch'] = 'Stretch';
+$string['view:hidesidebar'] = 'Бүйір панельді жасыру';
+$string['view:showsidebar'] = 'Бүйір панельді көрсету';
 
 
 $string['panel:reportsact:title'] = 'Есептер (АВР)';

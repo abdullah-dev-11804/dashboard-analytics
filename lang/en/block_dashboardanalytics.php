@@ -538,8 +538,8 @@ $string['js:courseanalyticsheadervisibility'] = 'Visibility';
 $string['js:courseanalyticsheaderanalytics'] = 'Analytics';
 $string['js:courseanalyticsheadertoggle'] = 'Toggle';
 $string['js:formulatooltip'] = 'Formula';
-$string['view:back'] = 'Back';
-$string['view:stretch'] = 'Stretch';
+$string['view:hidesidebar'] = 'Hide sidebar';
+$string['view:showsidebar'] = 'Show sidebar';
 
 
 $string['panel:reportsact:title'] = 'Reports / Act';

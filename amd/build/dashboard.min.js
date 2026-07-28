@@ -98,7 +98,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         courseAnalyticsHeaderVisibility: 'Visibility',
         courseAnalyticsHeaderAnalytics: 'Analytics',
         courseAnalyticsHeaderToggle: 'Toggle',
-        formulaTooltip: 'Formula'
+        formulaTooltip: 'Formula',
+        hideSidebar: 'Hide sidebar',
+        showSidebar: 'Show sidebar'
     };
 
     var stringList = [
@@ -206,7 +208,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:courseanalyticsheadervisibility', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheaderanalytics', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'},
-        {key: 'js:formulatooltip', component: 'block_dashboardanalytics'}
+        {key: 'js:formulatooltip', component: 'block_dashboardanalytics'},
+        {key: 'view:hidesidebar', component: 'block_dashboardanalytics'},
+        {key: 'view:showsidebar', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -314,7 +318,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'courseAnalyticsHeaderVisibility',
         'courseAnalyticsHeaderAnalytics',
         'courseAnalyticsHeaderToggle',
-        'formulaTooltip'
+        'formulaTooltip',
+        'hideSidebar',
+        'showSidebar'
     ];
 
     var call = function(methodname, args) {
@@ -413,13 +419,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return JSON.stringify(a || {}) === JSON.stringify(b || {});
     };
 
-    var updateBackButtonState = function(state) {
-        var button = document.querySelector('[data-action="view-back"]');
-        if (!button) {
-            return;
-        }
-        button.disabled = false;
-    };
+    var updateBackButtonState = function() {};
 
     var rememberCurrentState = function(root, state) {
         var history = readActionHistory(state);
@@ -583,7 +583,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var initViewStretchToggle = function(root, state) {
         var button = document.querySelector('[data-action="view-stretch-toggle"]');
-        var backButton = document.querySelector('[data-action="view-back"]');
         if (!document.body.classList.contains('path-block-dashboardanalytics-view')) {
             return;
         }
@@ -593,6 +592,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             if (button) {
                 document.body.classList.toggle('da-view-stretched', !!enabled);
                 button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+                button.textContent = enabled
+                    ? text('showSidebar', 'Show sidebar')
+                    : text('hideSidebar', 'Hide sidebar');
             }
         };
 
@@ -608,13 +610,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 } catch (error) {
                     // Ignore storage write issues.
                 }
-            });
-        }
-
-        if (backButton && backButton.getAttribute('data-bound') !== '1') {
-            backButton.setAttribute('data-bound', '1');
-            backButton.addEventListener('click', function() {
-                window.history.back();
             });
         }
     };

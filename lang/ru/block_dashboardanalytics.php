@@ -538,8 +538,8 @@ $string['js:courseanalyticsheadervisibility'] = 'Видимость';
 $string['js:courseanalyticsheaderanalytics'] = 'Аналитика';
 $string['js:courseanalyticsheadertoggle'] = 'Переключатель';
 $string['js:formulatooltip'] = 'Формула';
-$string['view:back'] = 'Назад';
-$string['view:stretch'] = 'Stretch';
+$string['view:hidesidebar'] = 'Скрыть боковую панель';
+$string['view:showsidebar'] = 'Показать боковую панель';
 
 
 $string['panel:reportsact:title'] = 'Отчёты (АВР)';
