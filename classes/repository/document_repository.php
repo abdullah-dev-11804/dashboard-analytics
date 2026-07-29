@@ -1160,6 +1160,9 @@ class document_repository {
         $rows = [];
         foreach ($groups as $group) {
             $coursecount = count($group['courses']);
+            $summaryrecord = $coursecount === 1 ? $group['courses'][0] : null;
+            $summarystatus = $this->matrix_user_status($group['courses']);
+            [$summaryexpiry, $summarydays] = $summaryrecord ? $this->document_date_cells($summaryrecord) : ['', ''];
             $summarycourse = $coursecount === 1
                 ? (string)($group['courses'][0]['course'] ?? '')
                 : get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
@@ -1184,11 +1187,19 @@ class document_repository {
                         'coursecount' => $coursecount,
                         'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
                     ],
-                    ['key' => 'expiry', 'value' => ''],
-                    ['key' => 'days', 'value' => ''],
-                    ['key' => 'status', 'value' => ''],
+                    ['key' => 'expiry', 'value' => $summaryexpiry],
+                    ['key' => 'days', 'value' => $summarydays],
+                    [
+                        'key' => 'status',
+                        'value' => $this->status_display($summarystatus),
+                        'statuskey' => $this->status_badge_key($summarystatus),
+                    ],
                 ],
             ];
+
+            if ($coursecount <= 1) {
+                continue;
+            }
 
             foreach ($group['courses'] as $record) {
                 [$expirytext, $daystext] = $this->document_date_cells($record);
@@ -1218,6 +1229,37 @@ class document_repository {
         }
 
         return $rows;
+    }
+
+    private function matrix_user_status(array $courses): string {
+        $hasactive = false;
+        $hasother = false;
+
+        foreach ($courses as $course) {
+            $status = (string)($course['status'] ?? '');
+            if ($status === 'Expired') {
+                return 'Expired';
+            }
+            if ($status === 'Expiring') {
+                $hasother = true;
+                continue;
+            }
+            if ($status === 'Active') {
+                $hasactive = true;
+                continue;
+            }
+            $hasother = true;
+        }
+
+        if ($hasother) {
+            return 'Expiring';
+        }
+
+        if ($hasactive) {
+            return 'Active';
+        }
+
+        return 'No document';
     }
 
     private function document_date_cells(array $record): array {

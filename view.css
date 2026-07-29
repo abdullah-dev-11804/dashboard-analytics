@@ -477,3 +477,9 @@
     max-width: 100% !important;
     background: transparent !important;
 }
+@media (min-width: 768px) {
+    #page.drawers {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+}
