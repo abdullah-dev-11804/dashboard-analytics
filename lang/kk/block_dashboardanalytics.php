@@ -312,6 +312,7 @@ $string['panel:forecast:description'] = 'NCASign құжаттарының бол
 $string['panel:expirywindows:title'] = '30/60/90 күндік жүктеме';
 $string['panel:expirywindows:description'] = 'Келесі үш кезеңдегі қайта оқыту жүктемесіне қысқаша шолу.';
 $string['panel:forecastworkload:title'] = 'Курстар бойынша алдағы мерзім аяқталуы';
+$string['panel:forecastworkload:description'] = 'Сертификаттау жүктемесінің болжамы — әр кезеңде ұзартуға қанша қызметкер түсетінін көрсетеді';
 $string['panel:forecastcompany:title'] = 'Компаниялар бойынша алдағы тәуекел';
 $string['panel:forecastcompany:description'] = 'Мерзімі өткен немесе жақында аяқталатын құжаттары ең көп компаниялар.';
 $string['forecast:documents_expiring'] = 'мерзімі аяқталатын құжаттар';

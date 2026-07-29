@@ -312,6 +312,7 @@ $string['panel:forecast:description'] = 'Нагрузка на расписан�
 $string['panel:expirywindows:title'] = 'Нагрузка 30/60/90 дней';
 $string['panel:expirywindows:description'] = 'Быстрый обзор нагрузки на переобучение в следующих трех окнах.';
 $string['panel:forecastworkload:title'] = 'Предстоящие истечения по курсам';
+$string['panel:forecastworkload:description'] = 'Прогноз нагрузки по сертификации — сколько сотрудников подлежит продлению в каждом периоде';
 $string['panel:forecastcompany:title'] = 'Предстоящий риск по компаниям';
 $string['panel:forecastcompany:description'] = 'Компании с наибольшим количеством просроченных или скоро истекающих документов.';
 $string['forecast:documents_expiring'] = 'документов истекает';

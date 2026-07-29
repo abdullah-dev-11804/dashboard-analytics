@@ -186,7 +186,7 @@ class visual_service {
                     'forecastworkload',
                     get_string('panel:forecastworkload:title', 'block_dashboardanalytics'),
                     'forecastworkload',
-                    '',
+                    get_string('panel:forecastworkload:description', 'block_dashboardanalytics'),
                     $documents->forecast_stacked_items($filters),
                     ['tabs' => $documents->forecast_scope_tabs($filters, 8)]
                 ),

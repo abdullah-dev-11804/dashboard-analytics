@@ -1083,6 +1083,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + value + '</button></td>';
                 }
                 if (key === 'course' && rowtype === 'summary') {
+                    var coursecount = cellsMetaByKey[key] && cellsMetaByKey[key].coursecount
+                        ? Number(cellsMetaByKey[key].coursecount)
+                        : 0;
+                    if (coursecount <= 1) {
+                        return '<td>' + value + '</td>';
+                    }
                     var togglelabel = cellsMetaByKey[key] && cellsMetaByKey[key].togglelabel
                         ? cellsMetaByKey[key].togglelabel
                         : text('details', 'Details');
@@ -3621,15 +3627,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var courseNode = tooltip.querySelector('.da-forecast-tooltip-course span');
             var swatchNode = tooltip.querySelector('.da-forecast-tooltip-course i');
             var metaNode = tooltip.querySelector('.da-forecast-tooltip-meta');
+            var courseLabel = target.getAttribute('data-tooltip-course')
+                || target.getAttribute('data-label')
+                || '';
+            var countLabel = target.getAttribute('data-tooltip-count')
+                || formatString(text('forecastUsersLabel', '{$a} users'), String(target.getAttribute('data-value') || '0'));
+            var windowLabel = target.getAttribute('data-tooltip-window')
+                || ((target.closest('.da-forecast-bar-group') || {}).querySelector
+                    ? (((target.closest('.da-forecast-bar-group') || {}).querySelector('.da-forecast-bar-label') || {}).textContent || '')
+                    : '');
             if (courseNode) {
-                courseNode.textContent = target.getAttribute('data-tooltip-course') || '';
+                courseNode.textContent = courseLabel;
             }
             if (swatchNode) {
                 swatchNode.style.background = target.getAttribute('data-colour') || '#3b82f6';
             }
             if (metaNode) {
-                metaNode.textContent = (target.getAttribute('data-tooltip-count') || '')
-                    + ((target.getAttribute('data-tooltip-window') || '') ? ' · ' + target.getAttribute('data-tooltip-window') : '');
+                metaNode.textContent = countLabel + (windowLabel ? ' · ' + windowLabel : '');
             }
             tooltip.hidden = false;
             tooltip.classList.add('is-visible');

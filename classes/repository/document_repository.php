@@ -1178,6 +1178,7 @@ class document_repository {
                     [
                         'key' => 'course',
                         'value' => get_string('label:coursecount', 'block_dashboardanalytics', $coursecount),
+                        'coursecount' => $coursecount,
                         'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
                     ],
                     ['key' => 'expiry', 'value' => ''],
