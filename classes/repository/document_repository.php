@@ -1160,6 +1160,9 @@ class document_repository {
         $rows = [];
         foreach ($groups as $group) {
             $coursecount = count($group['courses']);
+            $summarycourse = $coursecount === 1
+                ? (string)($group['courses'][0]['course'] ?? '')
+                : get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
             $rows[] = [
                 'rowtype' => 'summary',
                 'groupid' => (string)$group['groupid'],
@@ -1177,7 +1180,7 @@ class document_repository {
                     ['key' => 'site', 'value' => (string)$group['site']],
                     [
                         'key' => 'course',
-                        'value' => get_string('label:coursecount', 'block_dashboardanalytics', $coursecount),
+                        'value' => $summarycourse,
                         'coursecount' => $coursecount,
                         'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
                     ],

@@ -3226,7 +3226,7 @@ body.da-modal-open {
 
 .block-dashboardanalytics .da-visual-panel[data-panel-key="forecastworkload"] > .da-visual-panel-headline h5 {
     margin: 0;
-    color: #fff;
+    color: #fff !important;
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: -.01em;

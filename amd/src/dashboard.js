@@ -3568,7 +3568,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
             tooltip.hidden = true;
             tooltip.classList.remove('is-visible');
-            tooltip.textContent = '';
+            var courseNode = tooltip.querySelector('.da-forecast-tooltip-course span');
+            var metaNode = tooltip.querySelector('.da-forecast-tooltip-meta');
+            if (courseNode) {
+                courseNode.textContent = '';
+            }
+            if (metaNode) {
+                metaNode.textContent = '';
+            }
         };
         var showComplianceHover = function(target) {
             if (!target) {
