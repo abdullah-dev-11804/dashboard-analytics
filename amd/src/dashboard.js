@@ -109,6 +109,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         forecastTableEmpty: 'Click a bar or a course segment to open The Learning Matrix.',
         forecastTableLoading: 'Loading Learning Matrix...',
         forecastUsersLabel: '{$a} users',
+        forecastInWindowLabel: 'In this window',
+        forecastRenewalsLabel: '{$a} renewals',
+        forecastClearCourseLabel: 'Clear course filter',
         learningMatrixTitle: 'The Learning Matrix'
     };
 
@@ -229,6 +232,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'forecast:table:empty', component: 'block_dashboardanalytics'},
         {key: 'forecast:table:loading', component: 'block_dashboardanalytics'},
         {key: 'forecast:tooltip:count', component: 'block_dashboardanalytics'},
+        {key: 'forecast:toolbar:window', component: 'block_dashboardanalytics'},
+        {key: 'forecast:toolbar:renewals', component: 'block_dashboardanalytics'},
+        {key: 'forecast:table:clearcourse', component: 'block_dashboardanalytics'},
         {key: 'complianceactiontable', component: 'block_dashboardanalytics'}
     ];
 
@@ -349,6 +355,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'forecastTableEmpty',
         'forecastTableLoading',
         'forecastUsersLabel',
+        'forecastInWindowLabel',
+        'forecastRenewalsLabel',
+        'forecastClearCourseLabel',
         'learningMatrixTitle'
     ];
 
@@ -1453,6 +1462,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var overrides = ((state || {}).currentVisualOverrides) || {};
         var periodOverrideKey = 'forecastperiod_' + panel.key;
         var periodOptions = forecastPeriodOptions(panel.items || []);
+        var companyTabs = panel.tabs || [];
         var selectedPeriod = overrides[periodOverrideKey] || ((periodOptions[0] || {}).key) || '90days';
         var periodItems = visibleItems.filter(function(item) {
             return (item.periodkey || '') === selectedPeriod;
@@ -1474,13 +1484,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return Math.max(max, Number(item.value) || 0);
         }, 1);
 
-        var periodButtons = '<div class="da-forecast-periods">' + periodOptions.map(function(option) {
+        var periodButtons = '<div class="da-forecast-segmented da-forecast-periods">' + periodOptions.map(function(option) {
             return '<button type="button" class="da-forecast-period'
                 + (selectedPeriod === option.key ? ' is-active' : '')
                 + '" data-action="forecast-period" data-panel="' + escapeHtml(panel.key)
                 + '" data-period="' + escapeHtml(option.key) + '">'
                 + escapeHtml(option.label) + '</button>';
         }).join('') + '</div>';
+
+        var companyButtons = companyTabs.length
+            ? '<div class="da-forecast-segmented da-forecast-companies">' + companyTabs.map(function(tab) {
+                return '<button type="button" class="da-forecast-company'
+                    + (tab.key === selectedPanelTab ? ' is-active' : '')
+                    + '" data-action="panel-tab" data-panel="' + escapeHtml(panel.key)
+                    + '" data-tabkey="' + escapeHtml(tab.key) + '">'
+                    + escapeHtml(tab.label) + '</button>';
+            }).join('') + '</div>'
+            : '';
 
         var chartBars = periodItems.map(function(item) {
             var total = Number(item.value) || 0;
@@ -1508,7 +1528,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + ' data-tots="' + escapeHtml(String(segment.tots || item.tots || 0)) + '"'
                         + ' data-label="' + escapeHtml(segment.label || '') + '"'
                         + ' data-value="' + escapeHtml(String(segment.value || '0')) + '"'
-                        + ' data-tooltip="' + escapeHtml((segment.label || '') + ' — ' + tooltipCount) + '"'
+                        + ' data-colour="' + escapeHtml(segment.colour || '#3b82f6') + '"'
+                        + ' data-tooltip-course="' + escapeHtml(segment.label || '') + '"'
+                        + ' data-tooltip-count="' + escapeHtml(tooltipCount) + '"'
+                        + ' data-tooltip-window="' + escapeHtml(item.label || '') + '"'
                         + ' style="height:' + segmentHeight + '%; background:' + escapeHtml(segment.colour || '#3b82f6') + '"></button>';
                 }).join('')
                 + '</div>'
@@ -1534,34 +1557,57 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             ? summarySegments.map(function(segment) {
                 var total = Number(selectedBar.value) || 0;
                 var width = total > 0 ? Math.max(2, Math.min(100, ((Number(segment.value) || 0) / total) * 100)) : 0;
-                return '<div class="da-forecast-summary-row' + (selectedCourseId && Number(segment.courseid || 0) === selectedCourseId ? ' is-selected' : '') + '">'
-                    + '<div class="da-forecast-summary-head"><span class="da-forecast-summary-swatch" style="background:'
+                return '<button type="button" class="da-forecast-summary-row'
+                    + (selectedCourseId && Number(segment.courseid || 0) === selectedCourseId ? ' is-selected' : '')
+                    + '" data-action="forecast-summary-course"'
+                    + ' data-panel="' + escapeHtml(panel.key) + '"'
+                    + ' data-tabkey="' + escapeHtml(selectedPanelTab || '') + '"'
+                    + ' data-period="' + escapeHtml(selectedPeriod) + '"'
+                    + ' data-fromts="' + escapeHtml(String(selectedBar.fromts || 0)) + '"'
+                    + ' data-tots="' + escapeHtml(String(selectedBar.tots || 0)) + '"'
+                    + ' data-courseid="' + escapeHtml(String(segment.courseid || 0)) + '"'
+                    + ' data-label="' + escapeHtml(segment.label || '') + '"'
+                    + ' data-barlabel="' + escapeHtml(selectedBar.label || '') + '">'
+                    + '<span class="da-forecast-summary-head"><span class="da-forecast-summary-swatch" style="background:'
                     + escapeHtml(segment.colour || '#3b82f6') + '"></span><span class="da-forecast-summary-name">'
-                    + escapeHtml(segment.label || '') + '</span><strong>' + escapeHtml(String(segment.value || '0')) + '</strong></div>'
-                    + '<div class="da-forecast-summary-track"><span style="width:' + width + '%; background:'
-                    + escapeHtml(segment.colour || '#3b82f6') + '"></span></div></div>';
+                    + escapeHtml(segment.label || '') + '</span><strong>' + escapeHtml(String(segment.value || '0')) + '</strong></span>'
+                    + '<span class="da-forecast-summary-track"><span style="width:' + width + '%; background:'
+                    + escapeHtml(segment.colour || '#3b82f6') + '"></span></span></button>';
             }).join('')
             : '<div class="da-empty">' + escapeHtml(text('forecastSummaryEmpty',
                 'Click a bar label to see the course breakdown.')) + '</div>';
 
         var selectedMeta = selectedBar ? selectedBar.meta : '';
-        var tableHeadline = selectedBar
-            ? escapeHtml(text('details', 'Details')) + ': ' + escapeHtml(selectedBar.label || '')
-            : escapeHtml(text('forecastTableEmpty', 'Click a bar or a course segment to open The Learning Matrix.'));
+        var tableHeadline = selectedBar ? escapeHtml(selectedBar.label || '') : '';
+        var tableCourse = selection && selection.course ? escapeHtml(selection.course) : '';
+        var totalInWindow = periodItems.reduce(function(sum, item) {
+            return sum + (Number(item.value) || 0);
+        }, 0);
 
         return '<div class="da-forecast-workload" data-region="forecast-workload" data-panel-key="' + escapeHtml(panel.key) + '">'
-            + periodButtons
+            + '<div class="da-forecast-toolbar">'
+            + '<div class="da-forecast-toolbar-group"><span class="da-forecast-toolbar-label">'
+            + escapeHtml(text('filter:daterange', 'Period')) + '</span>' + periodButtons + '</div>'
+            + (companyButtons ? '<div class="da-forecast-toolbar-group"><span class="da-forecast-toolbar-label">'
+                + escapeHtml(text('filter:companies', 'Company')) + '</span>' + companyButtons + '</div>' : '')
+            + '<div class="da-forecast-toolbar-spacer"></div>'
+            + '<div class="da-forecast-toolbar-stat"><span>' + escapeHtml(text('forecastInWindowLabel', 'In this window')) + '</span><strong>'
+            + escapeHtml(formatString(text('forecastRenewalsLabel', '{$a} renewals'), String(totalInWindow || 0))) + '</strong></div>'
+            + '</div>'
             + '<div class="da-forecast-layout">'
             + '<section class="da-forecast-chart-card">'
             + '<div class="da-forecast-chart-wrap">'
             + '<div class="da-forecast-y-axis">' + yAxisSteps + '</div>'
             + '<div class="da-forecast-chart-area">'
             + '<div class="da-forecast-bars">' + chartBars + '</div>'
-            + '<div class="da-forecast-tooltip" data-region="forecast-tooltip" hidden></div>'
+            + '<div class="da-forecast-tooltip" data-region="forecast-tooltip" hidden>'
+            + '<div class="da-forecast-tooltip-course"><i></i><span></span></div>'
+            + '<div class="da-forecast-tooltip-meta"></div>'
+            + '</div>'
             + '</div></div>'
             + '</section>'
             + '<aside class="da-forecast-summary-card">'
-            + '<h6>' + escapeHtml(text('forecastSummaryTitle', 'Course summary')) + '</h6>'
+            + '<h6>' + escapeHtml(selectedBar ? (selectedBar.label || text('forecastSummaryTitle', 'Course summary')) : text('forecastSummaryTitle', 'Course summary')) + '</h6>'
             + '<p>' + escapeHtml(selectedMeta || '') + '</p>'
             + '<div class="da-forecast-summary-list">' + summaryBody + '</div>'
             + '<div class="da-forecast-summary-total"><span>' + escapeHtml(text('forecastSummaryTotal', 'Total')) + '</span><strong>'
@@ -1570,7 +1616,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '</div>'
             + '<section class="da-forecast-table-card">'
             + '<div class="da-forecast-table-head"><h6>' + escapeHtml(text('learningMatrixTitle', 'The Learning Matrix')) + '</h6>'
-            + '<span class="da-forecast-table-selection" data-region="forecast-selection">' + tableHeadline + '</span></div>'
+            + '<span class="da-forecast-table-count" data-region="forecast-row-count"></span></div>'
+            + '<div class="da-forecast-table-filters">'
+            + '<span class="da-forecast-filterchip" data-region="forecast-selection">' + tableHeadline + '</span>'
+            + '<span class="da-forecast-filterchip da-forecast-filterchip-course" data-region="forecast-course-chip"'
+            + (tableCourse ? '' : ' hidden') + '>' + tableCourse + '</span>'
+            + '<button type="button" class="da-forecast-clear" data-action="forecast-clear-course" data-panel="'
+            + escapeHtml(panel.key) + '"' + (tableCourse ? '' : ' hidden') + '>'
+            + escapeHtml(text('forecastClearCourseLabel', 'Clear course filter')) + '</button></div>'
             + '<div class="da-forecast-table-body" data-region="forecast-table-body">'
             + '<div class="da-empty">' + escapeHtml(text('forecastTableEmpty',
                 'Click a bar or a course segment to open The Learning Matrix.')) + '</div>'
@@ -1583,7 +1636,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var panel = root.querySelector('.da-visual-panel[data-panel-key="' + panelKey + '"]');
         var tableBody = panel ? panel.querySelector('[data-region="forecast-table-body"]') : null;
         var selectionNode = panel ? panel.querySelector('[data-region="forecast-selection"]') : null;
+        var courseChipNode = panel ? panel.querySelector('[data-region="forecast-course-chip"]') : null;
+        var clearCourseButton = panel ? panel.querySelector('[data-action="forecast-clear-course"]') : null;
+        var countNode = panel ? panel.querySelector('[data-region="forecast-row-count"]') : null;
         var activePanelTab = panel ? panel.querySelector('.da-panel-tab.is-active') : null;
+        if (!activePanelTab) {
+            activePanelTab = panel ? panel.querySelector('.da-forecast-company.is-active') : null;
+        }
         var currentPanelTab = activePanelTab ? (activePanelTab.getAttribute('data-tabkey') || '') : '';
         var activePeriod = panel ? panel.querySelector('.da-forecast-period.is-active') : null;
         var currentPeriod = activePeriod ? (activePeriod.getAttribute('data-period') || '') : (overrides['forecastperiod_' + panelKey] || '');
@@ -1595,8 +1654,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 || (selection.tabkey || '') !== currentPanelTab
                 || (selection.periodkey || '') !== currentPeriod) {
             if (selectionNode) {
-                selectionNode.textContent = text('forecastTableEmpty',
-                    'Click a bar or a course segment to open The Learning Matrix.');
+                selectionNode.textContent = '';
+            }
+            if (courseChipNode) {
+                courseChipNode.textContent = '';
+                courseChipNode.hidden = true;
+            }
+            if (clearCourseButton) {
+                clearCourseButton.hidden = true;
+            }
+            if (countNode) {
+                countNode.textContent = '';
             }
             tableBody.innerHTML = '<div class="da-empty">' + escapeHtml(text('forecastTableEmpty',
                 'Click a bar or a course segment to open The Learning Matrix.')) + '</div>';
@@ -1618,9 +1686,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         tableBody.innerHTML = '<div class="da-loading">' + escapeHtml(text('forecastTableLoading', 'Loading Learning Matrix...')) + '</div>';
 
         if (selectionNode) {
-            selectionNode.textContent = selection.course
-                ? selection.label + ' — ' + selection.course
-                : selection.label;
+            selectionNode.textContent = selection.label || '';
+        }
+        if (courseChipNode) {
+            courseChipNode.textContent = selection.course || '';
+            courseChipNode.hidden = !selection.course;
+        }
+        if (clearCourseButton) {
+            clearCourseButton.hidden = !selection.course;
         }
 
         return call('block_dashboardanalytics_get_drilldown', {
@@ -1631,6 +1704,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             page: currentPage,
             perpage: perpage
         }).then(function(response) {
+            if (countNode) {
+                countNode.textContent = formatString(text('rows', '{$a} rows'), String(response.totalcount || 0));
+            }
             tableBody.innerHTML = buildDrilldownTableMarkup(root, response, state, {
                 page: currentPage,
                 perpage: perpage,
@@ -3542,7 +3618,19 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
-            tooltip.textContent = target.getAttribute('data-tooltip') || '';
+            var courseNode = tooltip.querySelector('.da-forecast-tooltip-course span');
+            var swatchNode = tooltip.querySelector('.da-forecast-tooltip-course i');
+            var metaNode = tooltip.querySelector('.da-forecast-tooltip-meta');
+            if (courseNode) {
+                courseNode.textContent = target.getAttribute('data-tooltip-course') || '';
+            }
+            if (swatchNode) {
+                swatchNode.style.background = target.getAttribute('data-colour') || '#3b82f6';
+            }
+            if (metaNode) {
+                metaNode.textContent = (target.getAttribute('data-tooltip-count') || '')
+                    + ((target.getAttribute('data-tooltip-window') || '') ? ' · ' + target.getAttribute('data-tooltip-window') : '');
+            }
             tooltip.hidden = false;
             tooltip.classList.add('is-visible');
 
@@ -4022,6 +4110,31 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var forecastSummaryCourse = event.target.closest('[data-action="forecast-summary-course"]');
+            if (forecastSummaryCourse && root.contains(forecastSummaryCourse)) {
+                rememberCurrentState(root, state);
+                var forecastSummaryPanelKey = forecastSummaryCourse.getAttribute('data-panel') || 'forecastworkload';
+                var currentSelection = (((state.currentVisualOverrides || {})['forecastselection_' + forecastSummaryPanelKey]) || {});
+                var nextCourseId = Number(forecastSummaryCourse.getAttribute('data-courseid')) || 0;
+                if (Number(currentSelection.courseid || 0) === nextCourseId) {
+                    nextCourseId = 0;
+                }
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastselection_' + forecastSummaryPanelKey]: {
+                        tabkey: forecastSummaryCourse.getAttribute('data-tabkey') || '',
+                        periodkey: forecastSummaryCourse.getAttribute('data-period') || '',
+                        fromts: Number(forecastSummaryCourse.getAttribute('data-fromts')) || 0,
+                        tots: Number(forecastSummaryCourse.getAttribute('data-tots')) || 0,
+                        courseid: nextCourseId,
+                        course: nextCourseId ? (forecastSummaryCourse.getAttribute('data-label') || '') : '',
+                        label: forecastSummaryCourse.getAttribute('data-barlabel') || ''
+                    },
+                    ['forecastpage_' + forecastSummaryPanelKey]: 0
+                });
+                loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
+                return;
+            }
+
             var forecastBar = event.target.closest('[data-action="forecast-bar"]');
             if (forecastBar && root.contains(forecastBar)) {
                 rememberCurrentState(root, state);
@@ -4037,6 +4150,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         label: forecastBar.textContent || ''
                     },
                     ['forecastpage_' + forecastBarPanelKey]: 0
+                });
+                loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
+                return;
+            }
+
+            var forecastClearCourse = event.target.closest('[data-action="forecast-clear-course"]');
+            if (forecastClearCourse && root.contains(forecastClearCourse)) {
+                rememberCurrentState(root, state);
+                var forecastClearPanelKey = forecastClearCourse.getAttribute('data-panel') || 'forecastworkload';
+                var clearSelection = (((state.currentVisualOverrides || {})['forecastselection_' + forecastClearPanelKey]) || {});
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastselection_' + forecastClearPanelKey]: Object.assign({}, clearSelection, {
+                        courseid: 0,
+                        course: ''
+                    }),
+                    ['forecastpage_' + forecastClearPanelKey]: 0
                 });
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;
