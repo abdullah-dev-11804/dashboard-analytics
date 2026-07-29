@@ -3,25 +3,30 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\permissions;
+
 defined('MOODLE_INTERNAL') || die();
 
 class dimension_repository {
 
     public function get_filter_groups(array $scopefilters = []): array {
         $companyrepo = new company_repository();
+        $iscompanyowner = permissions::is_company_owner(\context_system::instance());
 
         $groups = [];
 
-        $companykey = $companyrepo->company_filter_key($scopefilters);
-        $companyoptions = $companyrepo->get_company_options($this->filters_without_keys($scopefilters, [$companykey, 'companies']));
-        if (count($companyoptions) > 1) {
-            $groups[] = [
-                'key' => $companykey,
-                'label' => get_string('filter:companies', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'options' => $companyoptions,
-                'searchable' => false,
-            ];
+        if (!$iscompanyowner) {
+            $companykey = $companyrepo->company_filter_key($scopefilters);
+            $companyoptions = $companyrepo->get_company_options($this->filters_without_keys($scopefilters, [$companykey, 'companies']));
+            if (count($companyoptions) > 1) {
+                $groups[] = [
+                    'key' => $companykey,
+                    'label' => get_string('filter:companies', 'block_dashboardanalytics'),
+                    'multiple' => true,
+                    'options' => $companyoptions,
+                    'searchable' => false,
+                ];
+            }
         }
 
         $groups[] = [

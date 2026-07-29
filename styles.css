@@ -1362,7 +1362,7 @@
 
 .block-dashboardanalytics .da-turnover-zero-line {
     stroke: #d8e2f1;
-    stroke-width: .8;
+    stroke-width: .55;
 }
 
 .block-dashboardanalytics .da-turnover-bar-positive {
@@ -1376,8 +1376,8 @@
 .block-dashboardanalytics .da-turnover-net-line {
     fill: none;
     stroke: #1aa26b;
-    stroke-width: 1.1;
-    stroke-dasharray: 3 2;
+    stroke-width: .8;
+    stroke-dasharray: 2.4 2;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
