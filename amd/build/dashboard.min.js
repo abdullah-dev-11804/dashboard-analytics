@@ -1710,6 +1710,30 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             page: currentPage,
             perpage: perpage
         }).then(function(response) {
+            var expiryBoundaries = (function() {
+                var expiries = (response.rows || []).map(function(row) {
+                    var expiryCell = (row.cells || []).find(function(cell) {
+                        return cell.key === 'expiry';
+                    });
+                    return expiryCell ? String(expiryCell.value || '').trim() : '';
+                }).filter(function(value) {
+                    return value !== '';
+                });
+
+                if (!expiries.length) {
+                    return '';
+                }
+
+                if (expiries.length === 1 || expiries[0] === expiries[expiries.length - 1]) {
+                    return expiries[0];
+                }
+
+                return expiries[0] + ' - ' + expiries[expiries.length - 1];
+            })();
+
+            if (selectionNode) {
+                selectionNode.textContent = expiryBoundaries || selection.label || '';
+            }
             if (countNode) {
                 countNode.textContent = formatString(text('rows', '{$a} rows'), String(response.totalcount || 0));
             }

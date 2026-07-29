@@ -371,6 +371,7 @@ class server_repository {
         global $DB, $CFG;
 
         $since = time() - WEEKSECS;
+        $logsignals = $this->error_log_signals($since);
 
         $qrfailcount = 0;
         $qrlatest = 0;
@@ -391,8 +392,12 @@ class server_repository {
                 $qrlatest = 0;
             }
         }
+        $qrfailcount = max($qrfailcount, (int)($logsignals['qr']['count'] ?? 0));
+        $qrlatest = max($qrlatest, (int)($logsignals['qr']['latest'] ?? 0));
 
         $smtpconfigured = !empty($CFG->smtphosts);
+        $emailfailcount = (int)($logsignals['email']['count'] ?? 0);
+        $emaillatest = (int)($logsignals['email']['latest'] ?? 0);
 
         $edsrejectcount = 0;
         $edsrejectlatest = 0;
@@ -415,8 +420,12 @@ class server_repository {
                 $edsrejectlatest = 0;
             }
         }
+        $edsrejectcount = max($edsrejectcount, (int)($logsignals['edsreject']['count'] ?? 0));
+        $edsrejectlatest = max($edsrejectlatest, (int)($logsignals['edsreject']['latest'] ?? 0));
 
         $cronoverruns = $this->overdue_task_count();
+        $cronlatest = (int)($logsignals['cron']['latest'] ?? 0);
+        $cronoverruns = max($cronoverruns, (int)($logsignals['cron']['count'] ?? 0));
 
         $quilgotimeouts = 0;
         if ($this->table_exists('quizaccess_quilgo_reports')) {
@@ -429,6 +438,8 @@ class server_repository {
                 $quilgotimeouts = 0;
             }
         }
+        $quilgotimeouts = max($quilgotimeouts, (int)($logsignals['quilgo']['count'] ?? 0));
+        $quilgolatest = (int)($logsignals['quilgo']['latest'] ?? 0);
 
         $storageerrors = 0;
         if ($this->table_exists('local_ncasign_jobs')) {
@@ -450,6 +461,8 @@ class server_repository {
                 $storageerrors = 0;
             }
         }
+        $storageerrors = max($storageerrors, (int)($logsignals['storage']['count'] ?? 0));
+        $storagelatest = (int)($logsignals['storage']['latest'] ?? 0);
 
         return [
             $this->visual_item(
@@ -461,10 +474,12 @@ class server_repository {
             ),
             $this->visual_item(
                 get_string('server:error:email', 'block_dashboardanalytics'),
-                $smtpconfigured ? '0' : '1',
-                $smtpconfigured ? 0.0 : 100.0,
-                $smtpconfigured ? 'ok' : 'warning',
-                $smtpconfigured ? get_string('server:error:clear', 'block_dashboardanalytics') : get_string('server:error:smtpmissing', 'block_dashboardanalytics')
+                (string)$emailfailcount,
+                $emailfailcount > 0 ? 100.0 : 0.0,
+                $emailfailcount > 0 ? 'danger' : ($smtpconfigured ? 'ok' : 'warning'),
+                $emailfailcount > 0
+                    ? $this->latest_age_text($emaillatest)
+                    : ($smtpconfigured ? get_string('server:error:clear', 'block_dashboardanalytics') : get_string('server:error:smtpmissing', 'block_dashboardanalytics'))
             ),
             $this->visual_item(
                 get_string('server:error:edsreject', 'block_dashboardanalytics'),
@@ -478,21 +493,27 @@ class server_repository {
                 (string)$cronoverruns,
                 min(100, $cronoverruns * 20),
                 $cronoverruns > 3 ? 'danger' : ($cronoverruns > 0 ? 'warning' : 'ok'),
-                $cronoverruns > 0 ? $this->cron_meta_text() : get_string('server:error:clear', 'block_dashboardanalytics')
+                $cronoverruns > 0
+                    ? ($cronlatest > 0 ? $this->latest_age_text($cronlatest) : $this->cron_meta_text())
+                    : get_string('server:error:clear', 'block_dashboardanalytics')
             ),
             $this->visual_item(
                 get_string('server:error:quilgo', 'block_dashboardanalytics'),
                 (string)$quilgotimeouts,
                 $quilgotimeouts > 0 ? 100.0 : 0.0,
                 $quilgotimeouts > 0 ? 'warning' : 'ok',
-                $quilgotimeouts > 0 ? get_string('server:error:quilgotimeoutmeta', 'block_dashboardanalytics') : get_string('server:error:clear', 'block_dashboardanalytics')
+                $quilgotimeouts > 0
+                    ? ($quilgolatest > 0 ? $this->latest_age_text($quilgolatest) : get_string('server:error:quilgotimeoutmeta', 'block_dashboardanalytics'))
+                    : get_string('server:error:clear', 'block_dashboardanalytics')
             ),
             $this->visual_item(
                 get_string('server:error:storage', 'block_dashboardanalytics'),
                 (string)$storageerrors,
                 $storageerrors > 0 ? 100.0 : 0.0,
                 $storageerrors > 0 ? 'warning' : 'ok',
-                $storageerrors > 0 ? get_string('server:error:storagemeta', 'block_dashboardanalytics') : get_string('server:error:clear', 'block_dashboardanalytics')
+                $storageerrors > 0
+                    ? ($storagelatest > 0 ? $this->latest_age_text($storagelatest) : get_string('server:error:storagemeta', 'block_dashboardanalytics'))
+                    : get_string('server:error:clear', 'block_dashboardanalytics')
             ),
         ];
     }
@@ -917,5 +938,142 @@ class server_repository {
         } catch (\Throwable $e) {
             return 0;
         }
+    }
+
+    private function error_log_signals(int $since): array {
+        $signals = [
+            'qr' => ['count' => 0, 'latest' => 0],
+            'email' => ['count' => 0, 'latest' => 0],
+            'edsreject' => ['count' => 0, 'latest' => 0],
+            'cron' => ['count' => 0, 'latest' => 0],
+            'quilgo' => ['count' => 0, 'latest' => 0],
+            'storage' => ['count' => 0, 'latest' => 0],
+        ];
+
+        $path = $this->resolve_error_log_path();
+        if ($path === '' || !is_readable($path)) {
+            return $signals;
+        }
+
+        $handle = @fopen($path, 'rb');
+        $filesize = @filesize($path);
+        if (!$handle || $filesize === false || $filesize <= 0) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            return $signals;
+        }
+
+        $chunksize = 1024 * 1024;
+        $maxbytes = 64 * 1024 * 1024;
+        $position = (int)$filesize;
+        $buffer = '';
+        $processed = 0;
+
+        while ($position > 0 && $processed < $maxbytes) {
+            $read = min($chunksize, $position);
+            $position -= $read;
+            if (@fseek($handle, $position) !== 0) {
+                break;
+            }
+
+            $chunk = (string)@fread($handle, $read);
+            if ($chunk === '') {
+                break;
+            }
+
+            $processed += strlen($chunk);
+            $buffer = $chunk . $buffer;
+        }
+
+        fclose($handle);
+
+        $lines = preg_split("/\r\n|\n|\r/", $buffer) ?: [];
+        foreach ($lines as $line) {
+            $line = trim((string)$line);
+            if ($line === '') {
+                continue;
+            }
+
+            $timestamp = $this->log_line_timestamp($line);
+            if ($timestamp !== null && $timestamp < $since) {
+                continue;
+            }
+
+            $category = $this->match_error_log_category($line);
+            if ($category === '') {
+                continue;
+            }
+
+            $signals[$category]['count']++;
+            if ($timestamp !== null) {
+                $signals[$category]['latest'] = max($signals[$category]['latest'], $timestamp);
+            }
+        }
+
+        return $signals;
+    }
+
+    private function resolve_error_log_path(): string {
+        global $CFG;
+
+        $host = (string)(parse_url((string)($CFG->wwwroot ?? ''), PHP_URL_HOST) ?: 'sental.kz');
+        $candidates = [
+            '/www/wwwlogs/' . $host . '-error_log',
+            'www/wwwlogs/' . $host . '-error_log',
+            '/www/wwwlogs/sental.kz-error_log',
+            'www/wwwlogs/sental.kz-error_log',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && @is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    private function log_line_timestamp(string $line): ?int {
+        if (preg_match('/\[(\d{2}-[A-Za-z]{3}-\d{4}\s+\d{2}:\d{2}:\d{2})(?:\s+[^\]]+)?\]/', $line, $matches)) {
+            $timestamp = strtotime($matches[1]);
+            return $timestamp !== false ? (int)$timestamp : null;
+        }
+
+        if (preg_match('/\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})(?:\s+[^\]]+)?\]/', $line, $matches)) {
+            $timestamp = strtotime($matches[1]);
+            return $timestamp !== false ? (int)$timestamp : null;
+        }
+
+        return null;
+    }
+
+    private function match_error_log_category(string $line): string {
+        if (preg_match('/\b(?:qr|qrcode)\b.*\b(?:fail|failed|failure|error|exception)\b/i', $line)) {
+            return 'qr';
+        }
+
+        if (preg_match('/\b(?:email|smtp|mail)\b.*\b(?:fail|failed|failure|error|exception|timeout|timed out|rejected|could not|invalid)\b/i', $line)
+            || preg_match('/\b(?:Could not instantiate mail function|Failed to send email|error sending email)\b/i', $line)) {
+            return 'email';
+        }
+
+        if (preg_match('/\b(?:eds|signature|ncasign)\b.*\b(?:reject|rejected|declin|invalid|fail|failed|error)\b/i', $line)) {
+            return 'edsreject';
+        }
+
+        if (preg_match('/\bcron\b.*?\b(\d+(?:\.\d+)?)\s*(?:s|sec|secs|second|seconds)\b/i', $line, $matches)) {
+            return ((float)$matches[1] > 120.0) ? 'cron' : '';
+        }
+
+        if (preg_match('/\bquilgo\b.*\b(?:timeout|timed out|error|exception|cURL error 28|gateway timeout)\b/i', $line)) {
+            return 'quilgo';
+        }
+
+        if (preg_match('/\b(?:storage|stored_file|pluginfile|file system|file storage|disk full|failed to open stream|cannot create file)\b.*\b(?:error|exception|fail|failed|missing)\b/i', $line)) {
+            return 'storage';
+        }
+
+        return '';
     }
 }
