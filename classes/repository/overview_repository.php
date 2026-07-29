@@ -879,7 +879,7 @@ class overview_repository {
             ];
         }
 
-        return $rows;
+        return $this->apply_status_mode($rows, $filters);
     }
 
     private function status_for_row(int $documentid, ?int $expirytime, int $reportdate, bool $nullExpiryMeansActive = false): string {
@@ -1140,6 +1140,71 @@ class overview_repository {
 
     private function current_report_date(): int {
         return (new \DateTimeImmutable('today 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
+    }
+
+    private function apply_status_mode(array $rows, array $filters): array {
+        if (($filters['statusmode'] ?? 'course') !== 'employee' || !$rows) {
+            return $rows;
+        }
+
+        $statusesbyuser = [];
+        foreach ($rows as $row) {
+            $userid = (int)($row['userid'] ?? 0);
+            if ($userid <= 0) {
+                continue;
+            }
+
+            if (!isset($statusesbyuser[$userid])) {
+                $statusesbyuser[$userid] = [];
+            }
+            $statusesbyuser[$userid][] = (string)($row['status'] ?? 'No document');
+        }
+
+        $effectivestatusbyuser = [];
+        foreach ($statusesbyuser as $userid => $statuses) {
+            $effectivestatusbyuser[$userid] = $this->employee_status_from_statuses($statuses);
+        }
+
+        foreach ($rows as $index => $row) {
+            $userid = (int)($row['userid'] ?? 0);
+            if ($userid > 0 && isset($effectivestatusbyuser[$userid])) {
+                $rows[$index]['documentstatus'] = (string)$row['status'];
+                $rows[$index]['status'] = $effectivestatusbyuser[$userid];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function employee_status_from_statuses(array $statuses): string {
+        $hasnodocument = false;
+        $hasactive = false;
+
+        foreach ($statuses as $status) {
+            if ($status === 'Expired') {
+                return 'Expired';
+            }
+            if ($status === 'Expiring') {
+                return 'Expiring';
+            }
+            if ($status === 'No document') {
+                $hasnodocument = true;
+                continue;
+            }
+            if ($status === 'Active') {
+                $hasactive = true;
+            }
+        }
+
+        if ($hasnodocument) {
+            return 'No document';
+        }
+
+        if ($hasactive) {
+            return 'Active';
+        }
+
+        return 'No document';
     }
 
     private function status_item(string $label, int $count, int $total, string $status): array {

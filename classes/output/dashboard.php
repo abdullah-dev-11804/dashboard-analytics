@@ -36,6 +36,7 @@ class dashboard implements \renderable, \templatable {
             'dashboardkey' => $dashboardkey,
             'dashboardname' => permissions::dashboard_name($dashboardkey),
             'fullpage' => $this->fullpage,
+            'showstatusmode' => $dashboardkey !== permissions::DASHBOARD_EMPLOYEE,
             'tabs' => permissions::dashboard_tabs($dashboardkey, $this->context),
         ];
     }

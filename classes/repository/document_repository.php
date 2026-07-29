@@ -1233,7 +1233,7 @@ class document_repository {
 
     private function matrix_user_status(array $courses): string {
         $hasactive = false;
-        $hasother = false;
+        $hasnodocument = false;
 
         foreach ($courses as $course) {
             $status = (string)($course['status'] ?? '');
@@ -1241,18 +1241,17 @@ class document_repository {
                 return 'Expired';
             }
             if ($status === 'Expiring') {
-                $hasother = true;
-                continue;
+                return 'Expiring';
             }
             if ($status === 'Active') {
                 $hasactive = true;
                 continue;
             }
-            $hasother = true;
+            $hasnodocument = true;
         }
 
-        if ($hasother) {
-            return 'Expiring';
+        if ($hasnodocument) {
+            return 'No document';
         }
 
         if ($hasactive) {
@@ -1282,10 +1281,13 @@ class document_repository {
         if ($status === 'Expiring') {
             return 2;
         }
-        if ($status === 'Active') {
+        if ($status === 'No document') {
             return 3;
         }
-        return 4;
+        if ($status === 'Active') {
+            return 4;
+        }
+        return 5;
     }
 
     private function status_display(string $status): string {

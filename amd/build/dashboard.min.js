@@ -496,6 +496,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         writeActionHistory(state, history);
         applySnapshotToState(state, snapshot);
+        syncStatusModeUi(root, state);
         setActiveTab(root, state.currentTab);
 
         if (Object.keys(state.filterGroups || {}).length) {
@@ -580,6 +581,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         applySnapshotToState(state, payload.snapshot);
+        syncStatusModeUi(root, state);
         setActiveTab(root, state.currentTab);
 
         if (Object.keys(state.filterGroups || {}).length) {
@@ -687,6 +689,63 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return 'employee_documents';
     };
 
+    var getStatusModeInput = function(root) {
+        return root.querySelector('input[type="hidden"][data-filter-group="statusmode"]');
+    };
+
+    var currentStatusMode = function(root, state) {
+        var input = getStatusModeInput(root);
+        if (input && input.value) {
+            return input.value === 'employee' ? 'employee' : 'course';
+        }
+
+        return (((state || {}).persistedFilters || {}).statusmode === 'employee') ? 'employee' : 'course';
+    };
+
+    var syncStatusModeUi = function(root, state) {
+        var mode = currentStatusMode(root, state);
+        var input = getStatusModeInput(root);
+        if (input) {
+            input.value = mode;
+        }
+
+        Array.prototype.slice.call(document.querySelectorAll('[data-action="statusmode-toggle"]')).forEach(function(button) {
+            var active = (button.getAttribute('data-statusmode') || 'course') === mode;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    };
+
+    var initStatusModeToggle = function(root, state) {
+        syncStatusModeUi(root, state);
+
+        Array.prototype.slice.call(document.querySelectorAll('[data-action="statusmode-toggle"]')).forEach(function(button) {
+            if (button.getAttribute('data-bound') === '1') {
+                return;
+            }
+
+            button.setAttribute('data-bound', '1');
+            button.addEventListener('click', function() {
+                var nextMode = button.getAttribute('data-statusmode') === 'employee' ? 'employee' : 'course';
+                if (nextMode === currentStatusMode(root, state)) {
+                    return;
+                }
+
+                rememberCurrentState(root, state);
+                var input = getStatusModeInput(root);
+                if (input) {
+                    input.value = nextMode;
+                }
+                state.persistedFilters = Object.assign({}, state.persistedFilters || {}, {
+                    statusmode: nextMode
+                });
+                state.currentDrilldownPage = 0;
+                syncStatusModeUi(root, state);
+                refresh(root, state);
+            });
+        });
+    };
+
     var readFilters = function(root, state, overrides) {
         var filters = {};
         Array.prototype.slice.call(root.querySelectorAll('[data-filter-group]')).forEach(function(field) {
@@ -701,6 +760,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             if (field.type === 'hidden') {
+                if (key === 'statusmode') {
+                    filters[key] = field.value === 'employee' ? 'employee' : 'course';
+                    return;
+                }
                 filters[key] = field.value ? [field.value] : [];
             }
         });
@@ -4426,6 +4489,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
         setActiveTab(root, state.currentTab);
         initViewStretchToggle(root, state);
+        initStatusModeToggle(root, state);
         updateBackButtonState(state);
         if (root.getAttribute('data-history-bound') !== '1') {
             root.setAttribute('data-history-bound', '1');

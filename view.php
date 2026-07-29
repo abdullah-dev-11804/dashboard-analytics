@@ -38,6 +38,41 @@ $renderer = $PAGE->get_renderer('block_dashboardanalytics');
 echo $OUTPUT->header();
 echo html_writer::start_div('dashboardanalytics-page');
 echo html_writer::start_div('dashboardanalytics-page-toolbar');
+if ($dashboardkey !== permissions::DASHBOARD_EMPLOYEE) {
+    echo html_writer::start_div('dashboardanalytics-page-toolbar-statusmode', [
+        'data-region' => 'statusmode-toolbar',
+        'role' => 'group',
+        'aria-label' => get_string('statusmode:label', 'block_dashboardanalytics'),
+    ]);
+    echo html_writer::tag('span', get_string('statusmode:label', 'block_dashboardanalytics'), [
+        'class' => 'dashboardanalytics-page-toolbar-statusmode-label',
+    ]);
+    echo html_writer::start_div('dashboardanalytics-page-toolbar-statusmode-buttons');
+    echo html_writer::tag(
+        'button',
+        get_string('statusmode:course', 'block_dashboardanalytics'),
+        [
+            'type' => 'button',
+            'class' => 'dashboardanalytics-page-toolbar-button dashboardanalytics-page-toolbar-button-secondary is-active',
+            'data-action' => 'statusmode-toggle',
+            'data-statusmode' => 'course',
+            'aria-pressed' => 'true',
+        ]
+    );
+    echo html_writer::tag(
+        'button',
+        get_string('statusmode:employee', 'block_dashboardanalytics'),
+        [
+            'type' => 'button',
+            'class' => 'dashboardanalytics-page-toolbar-button dashboardanalytics-page-toolbar-button-secondary',
+            'data-action' => 'statusmode-toggle',
+            'data-statusmode' => 'employee',
+            'aria-pressed' => 'false',
+        ]
+    );
+    echo html_writer::end_div();
+    echo html_writer::end_div();
+}
 echo html_writer::tag(
     'button',
     get_string('view:hidesidebar', 'block_dashboardanalytics'),

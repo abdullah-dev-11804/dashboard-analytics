@@ -6,6 +6,9 @@
      data-contextid="{{contextid}}"
      data-dashboardkey="{{dashboardkey}}"
      aria-label="{{#str}}aria:dashboard, block_dashboardanalytics{{/str}}">
+    {{#showstatusmode}}
+        <input type="hidden" data-filter-group="statusmode" value="course">
+    {{/showstatusmode}}
     {{#hasaccess}}
         <div class="da-header">
             <div>

@@ -31,6 +31,7 @@ class filters {
             'customend' => self::date_input($decoded['customend'] ?? ''),
             'platformgrowthperiod' => self::platform_growth_period($decoded['platformgrowthperiod'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
+            'statusmode' => self::status_mode($decoded['statusmode'] ?? ''),
             'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),
             'expiryendts' => self::timestamp($decoded['expiryendts'] ?? 0),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
@@ -119,6 +120,11 @@ class filters {
     private static function status($value): string {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
         return in_array($value, ['expired', 'expiring', 'active', 'nodocument'], true) ? $value : '';
+    }
+
+    private static function status_mode($value): string {
+        $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
+        return $value === 'employee' ? 'employee' : 'course';
     }
 
     private static function date_range($value): string {
