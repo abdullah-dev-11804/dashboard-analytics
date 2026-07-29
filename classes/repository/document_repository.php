@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\permissions;
+
 defined('MOODLE_INTERNAL') || die();
 
 class document_repository {
@@ -406,7 +408,8 @@ class document_repository {
     public function compliance_heatmap_tabs(array $filters, int $limit = 8): array {
         $employee = new employee_repository();
         $tabs = [];
-        if ($employee->count_active_users($filters) > 0) {
+        $iscompanyowner = permissions::is_company_owner(\context_system::instance());
+        if (!$iscompanyowner && $employee->count_active_users($filters) > 0) {
             $tabs[] = [
                 'key' => 'all',
                 'label' => get_string('filter:allcompanieslabel', 'block_dashboardanalytics'),
@@ -436,7 +439,7 @@ class document_repository {
             $tabs[] = [
                 'key' => $companyid > 0 ? 'companyid_' . $companyid : 'company_' . md5($label),
                 'label' => $label,
-                'active' => false,
+                'active' => !$tabs,
                 'companyid' => $companyid,
                 'companyname' => $companyid > 0 ? '' : $label,
             ];

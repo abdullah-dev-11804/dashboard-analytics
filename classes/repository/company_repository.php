@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\permissions;
+
 defined('MOODLE_INTERNAL') || die();
 
 class company_repository {
@@ -79,6 +81,10 @@ class company_repository {
 
             $companyids = array_values(array_unique($companyids));
             if ($companyids) {
+                sort($companyids);
+                if (permissions::is_company_owner(\context_system::instance(), $userid)) {
+                    return ['companyids' => [(int)$companyids[0]]];
+                }
                 return ['companyids' => $companyids];
             }
 

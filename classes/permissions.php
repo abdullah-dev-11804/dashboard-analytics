@@ -91,15 +91,14 @@ class permissions {
 
         $userid = $userid ?? (int)$USER->id;
         $issuperadmin = is_siteadmin($userid);
+        $context = $context ?? \context_system::instance();
+        $iscompanyowner = self::is_company_owner($context, $userid);
 
         $tabs = [
             self::DASHBOARD_COMPANY => [
                 ['key' => 'kpis', 'label' => get_string('tab:kpis', 'block_dashboardanalytics')],
-                ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
                 ['key' => 'compliance', 'label' => get_string('tab:compliance', 'block_dashboardanalytics')],
                 ['key' => 'turnover', 'label' => get_string('tab:turnover', 'block_dashboardanalytics')],
-                ['key' => 'quality', 'label' => get_string('tab:quality', 'block_dashboardanalytics')],
-                ['key' => 'proctoring', 'label' => get_string('tab:proctoring', 'block_dashboardanalytics')],
                 ['key' => 'forecast', 'label' => get_string('tab:forecast', 'block_dashboardanalytics')],
             ],
             self::DASHBOARD_CLIENT => [
@@ -113,6 +112,16 @@ class permissions {
                 ['key' => 'courses', 'label' => get_string('tab:courses', 'block_dashboardanalytics')],
             ],
         ];
+
+        if ($dashboardkey === self::DASHBOARD_COMPANY && !$iscompanyowner) {
+            array_splice($tabs[self::DASHBOARD_COMPANY], 1, 0, [
+                ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],
+            ]);
+            array_splice($tabs[self::DASHBOARD_COMPANY], 4, 0, [
+                ['key' => 'quality', 'label' => get_string('tab:quality', 'block_dashboardanalytics')],
+                ['key' => 'proctoring', 'label' => get_string('tab:proctoring', 'block_dashboardanalytics')],
+            ]);
+        }
 
         if ($dashboardkey === self::DASHBOARD_COMPANY && $issuperadmin) {
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'server', 'label' => get_string('tab:server', 'block_dashboardanalytics')];
@@ -145,6 +154,19 @@ class permissions {
         }
 
         return $resolved;
+    }
+
+    public static function is_company_owner(?\context $context = null, ?int $userid = null): bool {
+        global $USER;
+
+        $userid = $userid ?? (int)$USER->id;
+        if (is_siteadmin($userid)) {
+            return false;
+        }
+
+        $context = $context ?? \context_system::instance();
+        $roles = self::role_shortnames_for_user($context, $userid);
+        return self::has_configured_role($roles, 'companyownerroles');
     }
 
     private static function has_configured_role(array $assignedroles, string $settingname): bool {

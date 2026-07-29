@@ -20,6 +20,7 @@ class kpi_service {
         $eds = new eds_repository();
         $overview = new overview_repository();
         $server = new server_repository();
+        $iscompanyowner = permissions::is_company_owner(\context_system::instance(), $userid);
 
         $totalstaff = $employees->count_active_users($filters);
         $documentcounts = $documents->status_counts($filters);
@@ -142,17 +143,19 @@ class kpi_service {
                 'drilldownkey' => 'company_expired_documents',
                 'help' => '',
             ];
-            $cards[] = [
-                'key' => 'edsqueue',
-                'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
-                'value' => (string)$edsqueue['count'],
-                'unit' => '',
-                'status' => $edsqueue['status'],
-                'railpercent' => $edsqueue['count'] > 0 ? 100 : 0,
-                'trend' => $edsqueue['count'] > 0 ? $edsqueue['badge'] : '',
-                'drilldownkey' => 'company_eds_queue',
-                'help' => '',
-            ];
+            if (!$iscompanyowner) {
+                $cards[] = [
+                    'key' => 'edsqueue',
+                    'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
+                    'value' => (string)$edsqueue['count'],
+                    'unit' => '',
+                    'status' => $edsqueue['status'],
+                    'railpercent' => $edsqueue['count'] > 0 ? 100 : 0,
+                    'trend' => $edsqueue['count'] > 0 ? $edsqueue['badge'] : '',
+                    'drilldownkey' => 'company_eds_queue',
+                    'help' => '',
+                ];
+            }
 
             if (is_siteadmin($userid)) {
                 $disk = $server->disk_card();
