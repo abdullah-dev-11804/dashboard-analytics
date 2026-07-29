@@ -29,6 +29,10 @@
     padding: 0;
 }
 
+.path-block-dashboardanalytics-view .dashboardanalytics-page .block-dashboardanalytics table {
+    margin-bottom: 0;
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-header {
     display: none !important;
 }

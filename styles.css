@@ -614,6 +614,10 @@
     overflow-x: auto;
 }
 
+.block-dashboardanalytics table {
+    margin-bottom: 0;
+}
+
 .block-dashboardanalytics .da-table-actions {
     display: flex;
     justify-content: flex-end;
