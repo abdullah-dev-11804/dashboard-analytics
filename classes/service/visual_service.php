@@ -249,19 +249,26 @@ class visual_service {
 
     private function turnover(array $filters): array {
         $turnover = new turnover_repository();
+        $iscompanyowner = permissions::is_company_owner(\context_system::instance());
+
+        $panels = [
+            $this->panel('staffdynamics', get_string('panel:staffdynamics:title', 'block_dashboardanalytics'), 'turnovercombo', get_string('panel:staffdynamics:description', 'block_dashboardanalytics'), $turnover->staff_dynamics_items($filters)),
+        ];
+
+        if (!$iscompanyowner) {
+            $panels[] = $this->panel('turnovercompany', get_string('panel:turnovercompany:title', 'block_dashboardanalytics'), 'turnoverbars', get_string('panel:turnovercompany:description', 'block_dashboardanalytics'), $turnover->turnover_rate_by_company_items($filters), [
+                'formula' => get_string('js:turnoverformula', 'block_dashboardanalytics'),
+            ]);
+        }
+
+        $panels[] = $this->panel('newhirerisk', get_string('panel:newhirerisk:title', 'block_dashboardanalytics'), 'bar', get_string('panel:newhirerisk:description', 'block_dashboardanalytics'), $turnover->new_hires_without_documents_items($filters), [
+            'formula' => get_string('js:newhireriskformula', 'block_dashboardanalytics'),
+        ]);
 
         return [
             'title' => get_string('panel:turnover:title', 'block_dashboardanalytics'),
             'description' => get_string('panel:turnover:description', 'block_dashboardanalytics'),
-            'panels' => [
-                $this->panel('staffdynamics', get_string('panel:staffdynamics:title', 'block_dashboardanalytics'), 'turnovercombo', get_string('panel:staffdynamics:description', 'block_dashboardanalytics'), $turnover->staff_dynamics_items($filters)),
-                $this->panel('turnovercompany', get_string('panel:turnovercompany:title', 'block_dashboardanalytics'), 'turnoverbars', get_string('panel:turnovercompany:description', 'block_dashboardanalytics'), $turnover->turnover_rate_by_company_items($filters), [
-                    'formula' => get_string('js:turnoverformula', 'block_dashboardanalytics'),
-                ]),
-                $this->panel('newhirerisk', get_string('panel:newhirerisk:title', 'block_dashboardanalytics'), 'bar', get_string('panel:newhirerisk:description', 'block_dashboardanalytics'), $turnover->new_hires_without_documents_items($filters), [
-                    'formula' => get_string('js:newhireriskformula', 'block_dashboardanalytics'),
-                ]),
-            ],
+            'panels' => $panels,
         ];
     }
 
