@@ -1,3 +1,9 @@
+.path-block-dashboardanalytics-view header,
+.path-block-dashboardanalytics-view #page-content,
+.path-block-dashboardanalytics-view .page-content {
+    margin-top: 1.5rem;
+}
+
 /* .path-block-dashboardanalytics-view .main-inner,
 .path-block-dashboardanalytics-view #page.drawers .main-inner {
     max-width: 1680px !important; 
