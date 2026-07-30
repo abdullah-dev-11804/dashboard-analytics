@@ -3988,6 +3988,32 @@ body.da-modal-open {
         flex-direction: column;
         align-items: stretch;
     }
+
+    .block-dashboardanalytics .da-table-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .block-dashboardanalytics .da-table {
+        min-width: 920px;
+        font-size: .78rem;
+    }
+
+    .block-dashboardanalytics .da-table th,
+    .block-dashboardanalytics .da-table td {
+        padding: .42rem;
+        font-size: .76rem;
+    }
+
+    .block-dashboardanalytics .da-table-course-cell {
+        max-width: 16rem;
+    }
+
+    .block-dashboardanalytics .da-matrix-toggle {
+        font-size: .76rem;
+    }
 }
 
 @media (max-width: 1200px) {

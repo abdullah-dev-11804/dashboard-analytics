@@ -387,6 +387,31 @@
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-panel-head h4 {
         font-size: 1.45rem;
     }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table {
+        min-width: 920px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table th,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table td {
+        padding: .58rem .62rem;
+        font-size: .76rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-course-cell {
+        max-width: 16rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-matrix-toggle {
+        font-size: .76rem;
+    }
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-bars {
