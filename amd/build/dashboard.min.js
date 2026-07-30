@@ -3489,6 +3489,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 : Object.assign({}, state.persistedFilters || {});
         }
 
+        state.persistedFilters = Object.assign({}, payload);
+
         return call('block_dashboardanalytics_get_filter_options', {
             contextid: state.contextid,
             filters: JSON.stringify(payload)
