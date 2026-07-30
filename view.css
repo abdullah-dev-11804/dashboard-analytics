@@ -201,7 +201,25 @@
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-trend {
+    display: inline-flex;
+    align-self: auto;
+    padding: .45em .6em;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .22);
+    color: #fff;
     font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-trend-plain {
+    padding: .45em .6em;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .22);
+    color: #fff;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-panel {
