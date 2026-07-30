@@ -1180,6 +1180,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var value = escapeHtml(cellsByKey[column.key] || '');
                 var key = column.key;
                 if (key === 'status' || key === 'statusbadge') {
+                    if (rowtype === 'summary' && getStatusMode(state) !== 'employee') {
+                        return '<td></td>';
+                    }
                     var statusclass = value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
                     if (cellsMetaByKey[key] && cellsMetaByKey[key].statuskey) {
                         statusclass = cellsMetaByKey[key].statuskey;
