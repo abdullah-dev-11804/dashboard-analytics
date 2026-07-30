@@ -1694,6 +1694,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + ' data-tots="' + escapeHtml(String(selectedBar.tots || 0)) + '"'
                     + ' data-courseid="' + escapeHtml(String(segment.courseid || 0)) + '"'
                     + ' data-label="' + escapeHtml(segment.label || '') + '"'
+                    + ' data-colour="' + escapeHtml(segment.colour || '#3b82f6') + '"'
                     + ' data-barlabel="' + escapeHtml(selectedBar.label || '') + '">'
                     + '<span class="da-forecast-summary-head"><span class="da-forecast-summary-swatch" style="background:'
                     + escapeHtml(segment.colour || '#3b82f6') + '"></span><span class="da-forecast-summary-name">'
@@ -1818,6 +1819,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         if (courseChipNode) {
             courseChipNode.textContent = selection.course || '';
             courseChipNode.hidden = !selection.course;
+            courseChipNode.style.background = selection.course ? String(selection.coursecolour || '#e08900') : '';
         }
         if (clearCourseButton) {
             clearCourseButton.hidden = !selection.course;
@@ -1831,29 +1833,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             page: currentPage,
             perpage: perpage
         }).then(function(response) {
-            var expiryBoundaries = (function() {
-                var expiries = (response.rows || []).map(function(row) {
-                    var expiryCell = (row.cells || []).find(function(cell) {
-                        return cell.key === 'expiry';
-                    });
-                    return expiryCell ? String(expiryCell.value || '').trim() : '';
-                }).filter(function(value) {
-                    return value !== '';
-                });
-
-                if (!expiries.length) {
-                    return '';
-                }
-
-                if (expiries.length === 1 || expiries[0] === expiries[expiries.length - 1]) {
-                    return expiries[0];
-                }
-
-                return expiries[0] + ' - ' + expiries[expiries.length - 1];
-            })();
-
             if (selectionNode) {
-                selectionNode.textContent = expiryBoundaries || selection.label || '';
+                selectionNode.textContent = selection.label || '';
             }
             if (countNode) {
                 countNode.textContent = formatString(text('rows', '{$a} rows'), String(response.totalcount || 0));
@@ -4409,6 +4390,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         tots: Number(forecastSegment.getAttribute('data-tots')) || 0,
                         courseid: Number(forecastSegment.getAttribute('data-courseid')) || 0,
                         course: forecastSegment.getAttribute('data-label') || '',
+                        coursecolour: forecastSegment.style.background || '',
                         label: forecastSegment.closest('.da-forecast-bar-group')
                             ? (forecastSegment.closest('.da-forecast-bar-group').querySelector('.da-forecast-bar-label') || {}).textContent || ''
                             : ''
@@ -4436,6 +4418,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         tots: Number(forecastSummaryCourse.getAttribute('data-tots')) || 0,
                         courseid: nextCourseId,
                         course: nextCourseId ? (forecastSummaryCourse.getAttribute('data-label') || '') : '',
+                        coursecolour: nextCourseId ? (forecastSummaryCourse.getAttribute('data-colour') || '') : '',
                         label: forecastSummaryCourse.getAttribute('data-barlabel') || ''
                     },
                     ['forecastpage_' + forecastSummaryPanelKey]: 0
@@ -4456,6 +4439,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         tots: Number(forecastBar.getAttribute('data-tots')) || 0,
                         courseid: 0,
                         course: '',
+                        coursecolour: '',
                         label: forecastBar.textContent || ''
                     },
                     ['forecastpage_' + forecastBarPanelKey]: 0
@@ -4472,7 +4456,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     ['forecastselection_' + forecastClearPanelKey]: Object.assign({}, clearSelection, {
                         courseid: 0,
-                        course: ''
+                        course: '',
+                        coursecolour: ''
                     }),
                     ['forecastpage_' + forecastClearPanelKey]: 0
                 });
