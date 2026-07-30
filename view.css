@@ -407,7 +407,11 @@
         align-items: stretch;
     }
 
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .7rem;
+    }
+
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-grid {
         grid-template-columns: 1fr;
     }
@@ -423,20 +427,21 @@
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-wrap {
-        overflow-x: auto;
+        overflow-x: auto !important;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-gutter: stable both-edges;
+        touch-action: pan-x;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table {
-        min-width: 920px;
+        min-width: 980px;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table th,
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table td {
-        padding: .58rem .62rem;
-        font-size: .76rem;
+        padding: .48rem .52rem;
+        font-size: .72rem;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-course-cell {
@@ -501,8 +506,19 @@
         min-height: 280px;
     }
 
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-area {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+    }
+
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-bars {
-        grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+        width: max-content;
+        min-width: 100%;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(56px, 56px);
+        grid-template-columns: none;
         gap: .35rem;
     }
 
