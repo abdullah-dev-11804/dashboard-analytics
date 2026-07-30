@@ -3162,6 +3162,76 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return node;
     };
 
+    var edgeAutoScrollTimers = new WeakMap();
+
+    var stopEdgeAutoScroll = function(container) {
+        var timer = edgeAutoScrollTimers.get(container);
+        if (timer) {
+            window.cancelAnimationFrame(timer);
+            edgeAutoScrollTimers.delete(container);
+        }
+    };
+
+    var startEdgeAutoScroll = function(container, velocity) {
+        if (!container || !velocity) {
+            return;
+        }
+
+        stopEdgeAutoScroll(container);
+
+        var step = function() {
+            if (!container || !container.isConnected) {
+                stopEdgeAutoScroll(container);
+                return;
+            }
+
+            if (container.scrollWidth <= container.clientWidth + 2) {
+                stopEdgeAutoScroll(container);
+                return;
+            }
+
+            var maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+            var nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, container.scrollLeft + velocity));
+
+            if (nextScrollLeft === container.scrollLeft) {
+                stopEdgeAutoScroll(container);
+                return;
+            }
+
+            container.scrollLeft = nextScrollLeft;
+            edgeAutoScrollTimers.set(container, window.requestAnimationFrame(step));
+        };
+
+        edgeAutoScrollTimers.set(container, window.requestAnimationFrame(step));
+    };
+
+    var updateEdgeAutoScroll = function(container, clientX) {
+        if (!container || container.scrollWidth <= container.clientWidth + 2) {
+            stopEdgeAutoScroll(container);
+            return;
+        }
+
+        var bounds = container.getBoundingClientRect();
+        var threshold = Math.max(28, Math.min(64, bounds.width * 0.08));
+        var leftDistance = clientX - bounds.left;
+        var rightDistance = bounds.right - clientX;
+        var velocity = 0;
+
+        if (leftDistance >= 0 && leftDistance < threshold && container.scrollLeft > 0) {
+            velocity = -1 * Math.max(6, ((threshold - leftDistance) / threshold) * 18);
+        } else if (rightDistance >= 0 && rightDistance < threshold
+                && container.scrollLeft < (container.scrollWidth - container.clientWidth)) {
+            velocity = Math.max(6, ((threshold - rightDistance) / threshold) * 18);
+        }
+
+        if (!velocity) {
+            stopEdgeAutoScroll(container);
+            return;
+        }
+
+        startEdgeAutoScroll(container, velocity);
+    };
+
     var closeCompanySummaryModal = function() {
         var root = modalRoot();
         root.hidden = true;
@@ -3944,11 +4014,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
 
         root.addEventListener('mousemove', function(event) {
+            var edgeScrollTarget = event.target.closest('.da-table-wrap, .block-dashboardanalytics');
+            if (edgeScrollTarget && root.contains(edgeScrollTarget)) {
+                updateEdgeAutoScroll(edgeScrollTarget, event.clientX || 0);
+            }
+
             var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
             if (forecastSegmentHover && root.contains(forecastSegmentHover)) {
                 showForecastTooltip(forecastSegmentHover, event);
             }
         });
+
+        root.addEventListener('mouseleave', function(event) {
+            var edgeScrollTarget = event.target.closest('.da-table-wrap, .block-dashboardanalytics');
+            if (edgeScrollTarget && root.contains(edgeScrollTarget)) {
+                stopEdgeAutoScroll(edgeScrollTarget);
+            }
+        }, true);
 
         root.addEventListener('click', function(event) {
             var reportsActLoad = event.target.closest('[data-action="reports-act-load"]');
