@@ -1066,6 +1066,7 @@ class overview_repository {
         } else if ($daterange === 'alltime') {
             $count = 24;
         }
+        $labelformat = $count > 12 ? '%b %y' : '%b';
 
         if ($daterange === 'customrange' && !empty($filters['customstart']) && !empty($filters['customend'])) {
             $start = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $filters['customstart'] . ' 00:00:00', new \DateTimeZone('Asia/Almaty'));
@@ -1074,11 +1075,14 @@ class overview_repository {
                 $months = [];
                 $cursor = $start->modify('first day of this month 00:00:00');
                 $limit = 0;
+                $spanmonths = (((int)$end->format('Y') - (int)$cursor->format('Y')) * 12)
+                    + ((int)$end->format('n') - (int)$cursor->format('n')) + 1;
+                $customlabelformat = $spanmonths > 12 ? '%b %y' : '%b';
                 while ($cursor <= $end && $limit < 24) {
                     $windowend = $cursor->modify('last day of this month 23:59:59');
                     $months[] = [
                         'key' => $cursor->format('Y-m'),
-                        'label' => userdate($windowend->getTimestamp(), '%b %y'),
+                        'label' => userdate($windowend->getTimestamp(), $customlabelformat),
                         'end' => min($windowend->getTimestamp(), $end->getTimestamp()),
                     ];
                     $cursor = $cursor->modify('+1 month');
@@ -1097,7 +1101,7 @@ class overview_repository {
             $end = $start->modify('last day of this month 23:59:59');
             $months[] = [
                 'key' => $start->format('Y-m'),
-                'label' => userdate($end->getTimestamp(), '%b %y'),
+                'label' => userdate($end->getTimestamp(), $labelformat),
                 'end' => $end->getTimestamp(),
             ];
         }

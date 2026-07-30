@@ -3827,6 +3827,28 @@ body.da-modal-open {
     padding: .78rem .15rem .88rem 0;
 }
 
+.block-dashboardanalytics .da-donut-card-row-button {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.block-dashboardanalytics .da-donut-card-row-button:hover .da-donut-card-name,
+.block-dashboardanalytics .da-donut-card-row-button:focus-visible .da-donut-card-name {
+    color: #0f5fd7;
+}
+
+.block-dashboardanalytics .da-donut-card-row-button:focus-visible {
+    outline: 2px solid rgba(15, 95, 215, .22);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
 .block-dashboardanalytics .da-donut-card-row-head {
     display: grid;
     grid-template-columns: auto 1fr auto auto;

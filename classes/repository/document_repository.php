@@ -927,11 +927,12 @@ class document_repository {
         if (($definition['interval'] ?? '') === 'month') {
             $count = max(1, (int)($definition['count'] ?? 1));
             $cursor = $today->modify('first day of this month');
+            $labelformat = $count > 12 ? '%b %y' : '%b';
             for ($index = 0; $index < $count; $index++) {
                 $start = $cursor->modify('+' . $index . ' months');
                 $end = $start->modify('last day of this month');
                 $intervals[] = [
-                    'label' => userdate($start->getTimestamp(), '%b %y'),
+                    'label' => userdate($start->getTimestamp(), $labelformat),
                     'meta' => userdate($start->getTimestamp(), '%B %Y'),
                     'fromts' => $start->setTime(0, 0, 0)->getTimestamp(),
                     'tots' => $end->setTime(23, 59, 59)->getTimestamp(),

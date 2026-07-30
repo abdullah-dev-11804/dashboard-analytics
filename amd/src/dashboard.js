@@ -2903,6 +2903,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var donutTotal = visibleItems.reduce(function(sum, item) {
                         return sum + Math.max(0, Number(item.value) || 0);
                     }, 0);
+                    var donutDrilldown = donutDrilldownKey(panel.key);
                     body = '<div class="da-donut-card">'
                         + '<div class="da-donut-card-chart">'
                         + '<canvas class="da-donut-canvas da-donut-canvas-lg" width="250" height="250" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
@@ -2912,7 +2913,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>'
                         + '</div>'
                         + '<div class="da-donut-card-list">' + visibleItems.map(function(item) {
-                            return '<div class="da-donut-card-row" data-donut-row="' + escapeHtml(panel.key + ':' + item.status) + '" style="--da-donut-color:' + escapeHtml(colorForStatus(item.status)) + '">'
+                            var statusFilter = donutStatusFilter(item.status);
+                            var isClickable = !!(donutDrilldown && statusFilter);
+                            var rowTag = isClickable ? 'button' : 'div';
+                            var rowAttrs = isClickable
+                                ? ' type="button" data-action="donut-status-drilldown" data-drilldown="' + escapeHtml(donutDrilldown)
+                                    + '" data-status="' + escapeHtml(statusFilter) + '"'
+                                : '';
+                            return '<' + rowTag + ' class="da-donut-card-row' + (isClickable ? ' da-donut-card-row-button' : '') + '" data-donut-row="' + escapeHtml(panel.key + ':' + item.status) + '" style="--da-donut-color:' + escapeHtml(colorForStatus(item.status)) + '"' + rowAttrs + '>'
                                 + '<div class="da-donut-card-row-head">'
                                 + '<span class="da-donut-card-swatch"></span>'
                                 + '<span class="da-donut-card-name">' + escapeHtml(item.label) + '</span>'
@@ -2920,7 +2928,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 + '<span class="da-donut-card-badge">' + escapeHtml((Number(item.percent) || 0).toFixed(1) + '%') + '</span>'
                                 + '</div>'
                                 + '<span class="da-donut-card-bar"><i data-width="' + escapeHtml(String(Math.max(0, Number(item.percent) || 0))) + '"></i></span>'
-                                + '</div>';
+                                + '</' + rowTag + '>';
                         }).join('') + '</div>'
                         + '</div>';
                 } else {
@@ -3065,6 +3073,35 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             info: '#378ADD'
         };
         return map[status] || '#378ADD';
+    };
+
+    var donutDrilldownKey = function(panelKey) {
+        if (panelKey === 'documentstatus') {
+            return 'company_compliance';
+        }
+        if (panelKey === 'clientdocumentstatus') {
+            return 'client_compliance';
+        }
+        if (panelKey === 'employeedocumentstatus') {
+            return 'employee_documents';
+        }
+        return '';
+    };
+
+    var donutStatusFilter = function(statusKey) {
+        if (statusKey === 'ok') {
+            return 'active';
+        }
+        if (statusKey === 'warning') {
+            return 'expiring';
+        }
+        if (statusKey === 'danger') {
+            return 'expired';
+        }
+        if (statusKey === 'muted') {
+            return 'nodocument';
+        }
+        return '';
     };
 
     var drawDoughnuts = function(root, panels) {
@@ -4520,6 +4557,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 state.currentDrilldown = groupedDrilldown.getAttribute('data-drilldown') || 'company_compliance';
                 state.currentDrilldownPage = 0;
                 loadDrilldown(root, state, state.currentDrilldown, groupedOverrides, 0, state.currentDrilldownPerPage || 20);
+                return;
+            }
+
+            var donutStatusDrilldown = event.target.closest('[data-action="donut-status-drilldown"]');
+            if (donutStatusDrilldown && root.contains(donutStatusDrilldown)) {
+                rememberCurrentState(root, state);
+                var donutOverrides = {
+                    status: donutStatusDrilldown.getAttribute('data-status') || ''
+                };
+                state.currentDrilldown = donutStatusDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                state.currentDrilldownPage = 0;
+                loadDrilldown(root, state, state.currentDrilldown, donutOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
             }
 
