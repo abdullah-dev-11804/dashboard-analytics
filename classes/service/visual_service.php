@@ -3,6 +3,7 @@
 
 namespace block_dashboardanalytics\service;
 
+use block_dashboardanalytics\filters;
 use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\service\kpi_service;
 use block_dashboardanalytics\service\training_quality_service;
@@ -115,17 +116,22 @@ class visual_service {
         $overview = new overview_repository();
         $documents = new document_repository();
         $iscompanyowner = permissions::is_company_owner(\context_system::instance());
+        $thresholds = filters::compliance_thresholds($filters);
 
         $panels = [
             $this->panel('compliancetrend', get_string('panel:compliancetrendchart:title', 'block_dashboardanalytics'), 'compliancetrendline', '', $overview->compliance_trend_items($filters), [
-                'threshold' => 80.0,
-                'secondarythreshold' => 70.0,
+                'threshold' => $thresholds['compliant'],
+                'secondarythreshold' => $thresholds['critical'],
             ]),
             $this->panel('complianceheatmap', get_string('panel:complianceheatmap:title', 'block_dashboardanalytics'), 'heatmap', get_string('panel:complianceheatmap:description', 'block_dashboardanalytics'), $documents->compliance_heatmap_items($filters, 6), [
                 'tabs' => $documents->compliance_heatmap_tabs($filters, 8),
+                'threshold' => $thresholds['compliant'],
+                'secondarythreshold' => $thresholds['critical'],
             ]),
             $this->panel('riskcourse', get_string('panel:riskcourse:title', 'block_dashboardanalytics'), 'bar', get_string('panel:riskcourse:description', 'block_dashboardanalytics'), $documents->noncompliance_by_course_items($filters), [
                 'tabs' => $documents->company_tabs($filters, 8),
+                'threshold' => $thresholds['compliant'],
+                'secondarythreshold' => $thresholds['critical'],
             ]),
             $this->panel('documentstatus', get_string('panel:documentstatus:title', 'block_dashboardanalytics'), 'donut', get_string('panel:documentstatus:description', 'block_dashboardanalytics'), $overview->status_distribution_items($filters)),
         ];

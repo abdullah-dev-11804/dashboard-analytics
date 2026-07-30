@@ -92,7 +92,7 @@ class document_repository {
             'totalactiveusers' => (int)$summary['total'],
             'validusers' => (int)$summary['compliant'],
             'compliance' => $compliance,
-            'status' => $this->compliance_status($compliance),
+            'status' => $this->compliance_status($compliance, $filters),
         ];
     }
 
@@ -243,7 +243,7 @@ class document_repository {
                     'label' => (string)$course['label'],
                     'value' => $percent . '%',
                     'percent' => $percent,
-                    'status' => $this->visual_status_for_percent($percent, true),
+                    'status' => $this->visual_status_for_percent($percent, $filters, true),
                     'meta' => get_string('meta:coursewithvaliddoc', 'block_dashboardanalytics', (object)[
                         'valid' => $course['valid'],
                         'total' => $course['total'],
@@ -1409,12 +1409,13 @@ class document_repository {
                       AND cfdash.instanceid = {$alias}.{$source['courseid']}";
     }
 
-    private function compliance_status(float $compliance): string {
-        if ($compliance >= 80) {
+    private function compliance_status(float $compliance, array $filters): string {
+        $thresholds = \block_dashboardanalytics\filters::compliance_thresholds($filters);
+        if ($compliance >= $thresholds['compliant']) {
             return get_string('label:green', 'block_dashboardanalytics');
         }
 
-        if ($compliance >= 70) {
+        if ($compliance >= $thresholds['critical']) {
             return get_string('label:amber', 'block_dashboardanalytics');
         }
 
@@ -1459,7 +1460,7 @@ class document_repository {
                     'label' => $personnelcategory . ' / ' . $site,
                     'value' => $hasstaff ? $compliance . '%' : '—',
                     'percent' => $compliance,
-                    'status' => $this->visual_status_for_percent($compliance, $hasstaff),
+                    'status' => $this->visual_status_for_percent($compliance, $filters, $hasstaff),
                     'meta' => $hasstaff
                         ? get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
                             'compliant' => $summary['validusers'],
@@ -1494,14 +1495,15 @@ class document_repository {
         return $filters;
     }
 
-    private function visual_status_for_percent(float $percent, bool $hasstaff = true): string {
+    private function visual_status_for_percent(float $percent, array $filters, bool $hasstaff = true): string {
         if (!$hasstaff) {
             return 'muted';
         }
-        if ($percent >= 80) {
+        $thresholds = \block_dashboardanalytics\filters::compliance_thresholds($filters);
+        if ($percent >= $thresholds['compliant']) {
             return 'ok';
         }
-        if ($percent >= 70) {
+        if ($percent >= $thresholds['critical']) {
             return 'warning';
         }
         return 'danger';

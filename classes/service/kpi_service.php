@@ -3,6 +3,7 @@
 
 namespace block_dashboardanalytics\service;
 
+use block_dashboardanalytics\filters;
 use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
@@ -26,12 +27,15 @@ class kpi_service {
         $documentcounts = $documents->status_counts($filters);
         $compliancesummary = $documents->compliance_summary($filters);
         $edsqueue = $eds->queue_summary($filters);
+        $thresholds = filters::compliance_thresholds($filters);
 
         $compliancevalue = $compliancesummary['compliance'] . '%';
         $compliancestatus = 'muted';
         if ($compliancesummary['configured']) {
             $compliance = $compliancesummary['compliance'];
-            $compliancestatus = $compliance >= 80 ? 'ok' : ($compliance >= 70 ? 'warning' : 'danger');
+            $compliancestatus = $compliance >= $thresholds['compliant']
+                ? 'ok'
+                : ($compliance >= $thresholds['critical'] ? 'warning' : 'danger');
         }
 
         if ($dashboardkey === permissions::DASHBOARD_EMPLOYEE) {
@@ -114,7 +118,7 @@ class kpi_service {
                 'trendstyle' => 'plain',
                 'drilldownkey' => 'company_compliance',
                 'filterstatus' => 'active',
-                'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < 80
+                'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < $thresholds['compliant']
                     ? get_string('kpi:belowthreshold', 'block_dashboardanalytics')
                     : '',
                 'help' => '',
@@ -207,7 +211,7 @@ class kpi_service {
                 'trendstyle' => 'plain',
                 'drilldownkey' => 'client_compliance',
                 'filterstatus' => 'active',
-                'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < 80
+                'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < $thresholds['compliant']
                     ? get_string('kpi:belowthreshold', 'block_dashboardanalytics')
                     : '',
                 'help' => '',

@@ -391,6 +391,41 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return rounded.toFixed(1);
     };
 
+    var normalizeComplianceThresholds = function(compliant, critical) {
+        var safeCompliant = Number(compliant);
+        var safeCritical = Number(critical);
+
+        if (isNaN(safeCompliant)) {
+            safeCompliant = 80;
+        }
+        if (isNaN(safeCritical)) {
+            safeCritical = 70;
+        }
+
+        safeCompliant = Math.max(1, Math.min(100, safeCompliant));
+        safeCritical = Math.max(0, Math.min(99, safeCritical));
+
+        if (safeCritical >= safeCompliant) {
+            safeCritical = Math.max(0, safeCompliant - 1);
+        }
+
+        return {
+            compliant: safeCompliant,
+            critical: safeCritical
+        };
+    };
+
+    var complianceLegendLabels = function(compliant, critical) {
+        var thresholds = normalizeComplianceThresholds(compliant, critical);
+        var atriskUpper = Math.max(thresholds.critical, thresholds.compliant - 1);
+
+        return {
+            compliant: '>=' + formatPercent(thresholds.compliant) + '% Compliant',
+            risk: formatPercent(thresholds.critical) + '–' + formatPercent(atriskUpper) + '% At risk',
+            critical: '<' + formatPercent(thresholds.critical) + '% Critical'
+        };
+    };
+
     var defaultOptionLabel = function(group) {
         var natural = strings.allLabels || {};
         if (group && group.key && natural[group.key]) {
@@ -774,9 +809,21 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         filters.customend = end ? end.value : '';
         filters.status = '';
         filters.search = '';
+        filters.compliancenorm = Number((((state || {}).persistedFilters || {}).compliancenorm));
+        filters.compliancecritical = Number((((state || {}).persistedFilters || {}).compliancecritical));
+
+        if (isNaN(filters.compliancenorm) || filters.compliancenorm <= 0) {
+            filters.compliancenorm = 80;
+        }
+        if (isNaN(filters.compliancecritical) || filters.compliancecritical < 0) {
+            filters.compliancecritical = 70;
+        }
 
         if (overrides) {
             Object.keys(overrides).forEach(function(key) {
+                if (key === 'compliancenorm' || key === 'compliancecritical') {
+                    return;
+                }
                 filters[key] = overrides[key];
             });
         }
@@ -2175,20 +2222,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             } else if (panel.type === 'compliancetrendline') {
                 var trendOverrides = (((state || {}).currentVisualOverrides) || {});
                 var selectedRange = Math.max(3, Math.min(12, Number(trendOverrides.compliancetrendperiod) || 12));
-                var compliantThreshold = Number(trendOverrides.compliancenorm);
-                if (isNaN(compliantThreshold)) {
-                    compliantThreshold = Number(panel.threshold) || 80;
-                }
-                var criticalThreshold = Number(trendOverrides.compliancecritical);
-                if (isNaN(criticalThreshold)) {
-                    criticalThreshold = Number(panel.secondarythreshold) || 70;
-                }
-
-                compliantThreshold = Math.max(1, Math.min(100, compliantThreshold));
-                criticalThreshold = Math.max(0, Math.min(99, criticalThreshold));
-                if (criticalThreshold >= compliantThreshold) {
-                    criticalThreshold = Math.max(0, compliantThreshold - 1);
-                }
+                var trendThresholds = normalizeComplianceThresholds(panel.threshold, panel.secondarythreshold);
+                var compliantThreshold = trendThresholds.compliant;
+                var criticalThreshold = trendThresholds.critical;
+                var trendLegends = complianceLegendLabels(compliantThreshold, criticalThreshold);
 
                 var aggregateSegments = [];
                 var sourceSeries = visibleItems.filter(function(item) {
@@ -2348,9 +2385,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '</div>'
                         + '</div>'
                         + '<div class="da-compliance-trendline-legend">'
-                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
-                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(text('heatmapRiskLegend', '70–79% At risk')) + '</span>'
-                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('heatmapCriticalLegend', '<70% Critical')) + '</span>'
+                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(trendLegends.compliant) + '</span>'
+                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(trendLegends.risk) + '</span>'
+                        + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(trendLegends.critical) + '</span>'
                         + '</div>'
                         + '<div class="da-compliance-trendline-footer">'
                         + '<span class="da-compliance-trendline-footer-chip"><span class="da-compliance-trendline-footer-line"></span>Compliance line</span>'
@@ -2457,13 +2494,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>'
                     + '</div>';
             } else if (panel.type === 'compliancesnapshot') {
+                var snapshotThresholds = normalizeComplianceThresholds(panel.threshold, panel.secondarythreshold);
+                var snapshotLegends = complianceLegendLabels(snapshotThresholds.compliant, snapshotThresholds.critical);
                 body = '<div class="da-compliance-snapshot-wrap">'
                     + '<div class="da-compliance-snapshot-list">' + visibleItems.map(function(item) {
                         var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                         return '<div class="da-compliance-snapshot-row">'
                             + '<div class="da-compliance-snapshot-label">' + escapeHtml(item.label) + '</div>'
                             + '<div class="da-compliance-snapshot-track">'
-                            + '<span class="da-compliance-snapshot-reference" style="left:80%"></span>'
+                            + '<span class="da-compliance-snapshot-reference" style="left:' + snapshotThresholds.compliant + '%"></span>'
                             + '<span class="da-compliance-snapshot-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%">'
                             + '<span class="da-compliance-snapshot-fill-value">' + escapeHtml(item.value) + '</span>'
                             + '</span>'
@@ -2472,9 +2511,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '</div>';
                     }).join('') + '</div>'
                     + '<div class="da-compliance-snapshot-legend">'
-                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>&ge;80% Compliant</span>'
-                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>70-79% At risk</span>'
-                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>&lt;70% Critical</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(snapshotLegends.compliant) + '</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(snapshotLegends.risk) + '</span>'
+                    + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(snapshotLegends.critical) + '</span>'
                     + '</div>'
                     + '</div>';
             } else if (panel.type === 'heatmap') {
@@ -2495,6 +2534,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var selectedHeatmapMeta = heatmapTabs.filter(function(tab) {
                     return tab.key === selectedHeatmapTab;
                 })[0] || {};
+                var heatmapThresholds = normalizeComplianceThresholds(panel.threshold, panel.secondarythreshold);
+                var heatmapLegends = complianceLegendLabels(heatmapThresholds.compliant, heatmapThresholds.critical);
                 var heatmapTone = function(percent, hasValue) {
                     if (!hasValue) {
                         return {
@@ -2508,10 +2549,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     if (safe >= 90) {
                         return {background: '#0f8a55', color: '#ffffff', ring: '#0a6b41'};
                     }
-                    if (safe >= 80) {
+                    if (safe >= heatmapThresholds.compliant) {
                         return {background: '#4cc38a', color: '#06371f', ring: '#2fa76f'};
                     }
-                    if (safe >= 70) {
+                    if (safe >= heatmapThresholds.critical) {
                         return {background: '#f5a623', color: '#4a2c00', ring: '#cc8408'};
                     }
                     if (safe >= 60) {
@@ -2598,9 +2639,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }).join('')
                     + '</tbody></table></div>'
                     + '<div class="da-heatmap-legend">'
-                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#4cc38a', '#0f8a55']) + escapeHtml(text('heatmapCompliantLegend', '>=80% Compliant')) + '</span>'
-                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#f5a623']) + escapeHtml(text('heatmapRiskLegend', '70–79% At risk')) + '</span>'
-                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#ff8566', '#fa5a3d', '#e13a1e', '#c22412', '#a11a0c', '#7f1207', '#5e0c04']) + escapeHtml(text('heatmapCriticalLegend', '<70% Critical')) + '</span>'
+                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#4cc38a', '#0f8a55']) + escapeHtml(heatmapLegends.compliant) + '</span>'
+                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#f5a623']) + escapeHtml(heatmapLegends.risk) + '</span>'
+                    + '<span class="da-turnover-legend-item">' + heatmapLegendRamp(['#ff8566', '#fa5a3d', '#e13a1e', '#c22412', '#a11a0c', '#7f1207', '#5e0c04']) + escapeHtml(heatmapLegends.critical) + '</span>'
                     + '</div>'
                     + '</div>';
             } else if (panel.type === 'servererrors') {
@@ -3882,13 +3923,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             if (event.target.matches('[data-action="compliance-threshold"]')) {
                 rememberCurrentState(root, state);
-                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {});
-                state.currentVisualOverrides[event.target.getAttribute('data-threshold-key') || ''] = Number(event.target.value) || 0;
-                if (state.currentVisualResponse) {
-                    renderVisuals(root, state.currentVisualResponse, state);
-                    persistState(root, state);
-                    commitBrowserHistoryState(root, state, 'push');
+                state.persistedFilters = Object.assign({}, state.persistedFilters || {});
+                state.persistedFilters[event.target.getAttribute('data-threshold-key') || ''] = Number(event.target.value) || 0;
+                if (state.currentVisualOverrides) {
+                    delete state.currentVisualOverrides.compliancenorm;
+                    delete state.currentVisualOverrides.compliancecritical;
                 }
+                state.currentDrilldownPage = 0;
+                refresh(root, state);
                 return;
             }
 

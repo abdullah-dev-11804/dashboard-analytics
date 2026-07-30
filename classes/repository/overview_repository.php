@@ -173,7 +173,7 @@ class overview_repository {
                 'label' => $summary['label'],
                 'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
                 'percent' => (float)$summary['percent'],
-                'status' => $summary['total'] > 0 ? $this->status_for_percent((float)$summary['percent']) : 'muted',
+                'status' => $summary['total'] > 0 ? $this->status_for_percent((float)$summary['percent'], $filters) : 'muted',
                 'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
                     'compliant' => $summary['compliant'],
                     'total' => $summary['total'],
@@ -514,7 +514,7 @@ class overview_repository {
             $completion = $this->completion_rate_summary($companyfilters, $this->current_report_date() - (30 * DAYSECS) + 1, $this->current_report_date());
             $companyname = $company['name'];
             $trustscore = $trustmap[$companyname] ?? null;
-            $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent']);
+            $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent'], $filters);
 
             $items[] = [
                 'label' => $companyname,
@@ -523,8 +523,8 @@ class overview_repository {
                 'status' => $statuskey,
                 'meta' => $activeusers > 0 ? round($turnoverpercent, 1) . '%' : '—',
                 'segments' => [
-                    ['label' => get_string('label:compliancepercent', 'block_dashboardanalytics'), 'value' => $activeusers > 0 ? round((float)$compliancesummary['percent'], 1) . '%' : '—', 'percent' => (float)$compliancesummary['percent'], 'status' => $this->status_for_percent((float)$compliancesummary['percent'])],
-                    ['label' => get_string('overview:trustscore', 'block_dashboardanalytics'), 'value' => $trustscore !== null ? (string)round($trustscore) : '—', 'percent' => $trustscore !== null ? (float)$trustscore : 0.0, 'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore) : 'muted'],
+                    ['label' => get_string('label:compliancepercent', 'block_dashboardanalytics'), 'value' => $activeusers > 0 ? round((float)$compliancesummary['percent'], 1) . '%' : '—', 'percent' => (float)$compliancesummary['percent'], 'status' => $this->status_for_percent((float)$compliancesummary['percent'], $filters)],
+                    ['label' => get_string('overview:trustscore', 'block_dashboardanalytics'), 'value' => $trustscore !== null ? (string)round($trustscore) : '—', 'percent' => $trustscore !== null ? (float)$trustscore : 0.0, 'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore, $filters) : 'muted'],
                     ['label' => get_string('overview:completion', 'block_dashboardanalytics'), 'value' => $completion['value'], 'percent' => $completion['percent'], 'status' => $completion['status']],
                     ['label' => get_string('label:action', 'block_dashboardanalytics'), 'value' => get_string('overview:report', 'block_dashboardanalytics'), 'percent' => 0.0, 'status' => 'info'],
                     ['label' => 'companyid', 'value' => (string)$company['id'], 'percent' => 0.0, 'status' => 'muted'],
@@ -544,7 +544,7 @@ class overview_repository {
         $turnoverpercent = $this->recent_staff_change_percent($companyfilters, 90, $activeusers);
         $trustscore = $this->company_trust_score($companyfilters, $companyname);
         $edspending = (new eds_repository())->count_pending_manual($companyfilters);
-        $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent']);
+        $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent'], $filters);
         $subtitle = $this->company_health_modal_subtitle($companyfilters);
 
         return [
@@ -561,7 +561,7 @@ class overview_repository {
                 [
                     'label' => get_string('label:compliancepercent', 'block_dashboardanalytics'),
                     'value' => round((float)$compliancesummary['percent'], 1) . '%',
-                    'status' => $this->status_for_percent((float)$compliancesummary['percent']),
+                    'status' => $this->status_for_percent((float)$compliancesummary['percent'], $filters),
                 ],
                 [
                     'label' => get_string('kpi:expiring30long', 'block_dashboardanalytics'),
@@ -584,7 +584,7 @@ class overview_repository {
                 [
                     'label' => get_string('overview:trustscore', 'block_dashboardanalytics'),
                     'value' => $trustscore !== null ? round($trustscore, 1) . ' / 100' : '—',
-                    'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore) : 'muted',
+                    'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore, $filters) : 'muted',
                 ],
                 [
                     'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
@@ -1224,11 +1224,12 @@ class overview_repository {
         ];
     }
 
-    private function status_for_percent(float $percent): string {
-        if ($percent >= 80) {
+    private function status_for_percent(float $percent, array $filters): string {
+        $thresholds = \block_dashboardanalytics\filters::compliance_thresholds($filters);
+        if ($percent >= $thresholds['compliant']) {
             return 'ok';
         }
-        if ($percent >= 70) {
+        if ($percent >= $thresholds['critical']) {
             return 'warning';
         }
         return 'danger';
@@ -1273,8 +1274,10 @@ class overview_repository {
         return [
             'value' => $average . '%',
             'percent' => $average,
-            'status' => $this->status_for_percent($average),
-            'meta' => $average < 80 ? get_string('overview:belowtarget', 'block_dashboardanalytics') : get_string('label:ok', 'block_dashboardanalytics'),
+            'status' => $this->status_for_percent($average, $filters),
+            'meta' => $average < \block_dashboardanalytics\filters::compliance_thresholds($filters)['compliant']
+                ? get_string('overview:belowtarget', 'block_dashboardanalytics')
+                : get_string('label:ok', 'block_dashboardanalytics'),
         ];
     }
 
@@ -1431,7 +1434,7 @@ class overview_repository {
         return [
             'value' => $percent . '%',
             'percent' => $percent,
-            'status' => $this->status_for_percent($percent),
+            'status' => $this->status_for_percent($percent, $filters),
             'completed' => $completed,
             'total' => $total,
         ];
@@ -1534,14 +1537,15 @@ class overview_repository {
         return '↓ ' . abs($delta) . ' ' . $suffix;
     }
 
-    private function company_health_status_key(int $activeusers, float $compliance): string {
+    private function company_health_status_key(int $activeusers, float $compliance, array $filters): string {
         if ($activeusers <= 0) {
             return 'onboarding';
         }
-        if ($compliance >= 80) {
+        $thresholds = \block_dashboardanalytics\filters::compliance_thresholds($filters);
+        if ($compliance >= $thresholds['compliant']) {
             return 'healthy';
         }
-        if ($compliance >= 70) {
+        if ($compliance >= $thresholds['critical']) {
             return 'atrisk';
         }
         return 'critical';
@@ -1608,7 +1612,7 @@ class overview_repository {
                 'label' => $course,
                 'value' => round($compliance, 1) . '%',
                 'percent' => $compliance,
-                'status' => $this->status_for_percent($compliance),
+                'status' => $this->status_for_percent($compliance, $filters),
             ];
         }
 

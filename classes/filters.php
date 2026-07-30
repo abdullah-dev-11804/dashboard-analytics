@@ -34,7 +34,23 @@ class filters {
             'statusmode' => self::status_mode($decoded['statusmode'] ?? ''),
             'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),
             'expiryendts' => self::timestamp($decoded['expiryendts'] ?? 0),
+            'compliancenorm' => self::percentage($decoded['compliancenorm'] ?? 80, 80.0),
+            'compliancecritical' => self::percentage($decoded['compliancecritical'] ?? 70, 70.0),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
+        ];
+    }
+
+    public static function compliance_thresholds(array $filters): array {
+        $compliant = self::percentage($filters['compliancenorm'] ?? 80, 80.0);
+        $critical = self::percentage($filters['compliancecritical'] ?? 70, 70.0);
+
+        if ($critical >= $compliant) {
+            $critical = max(0.0, $compliant - 1.0);
+        }
+
+        return [
+            'compliant' => $compliant,
+            'critical' => $critical,
         ];
     }
 
@@ -159,5 +175,21 @@ class filters {
     private static function timestamp($value): int {
         $value = (int)$value;
         return $value > 0 ? $value : 0;
+    }
+
+    private static function percentage($value, float $default): float {
+        if (!is_numeric($value)) {
+            return $default;
+        }
+
+        $value = (float)$value;
+        if ($value < 0) {
+            return 0.0;
+        }
+        if ($value > 100) {
+            return 100.0;
+        }
+
+        return round($value, 1);
     }
 }
