@@ -200,34 +200,8 @@
     line-height: .95;
 }
 
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-figure {
-    gap: 8px;
-}
-
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-meta {
-    gap: 4px;
-    max-width: 42%;
-}
-
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-trend {
-    padding: .38em .52em;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, .22);
-    color: #fff;
-    font-size: clamp(10px, .72vw, 12px);
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-.path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-trend-plain {
-    padding: .38em .52em;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, .22);
-    color: #fff;
-    font-size: clamp(10px, .72vw, 12px);
-    font-weight: 600;
-    line-height: 1;
+    font-size: 12px;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-panel {
