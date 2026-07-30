@@ -3164,12 +3164,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var edgeAutoScrollTimers = new WeakMap();
 
+    var clearEdgeScrollClasses = function(container) {
+        if (!container || !container.classList) {
+            return;
+        }
+        container.classList.remove('da-edge-scroll-left', 'da-edge-scroll-right');
+    };
+
     var stopEdgeAutoScroll = function(container) {
         var timer = edgeAutoScrollTimers.get(container);
         if (timer) {
             window.cancelAnimationFrame(timer);
             edgeAutoScrollTimers.delete(container);
         }
+        clearEdgeScrollClasses(container);
     };
 
     var startEdgeAutoScroll = function(container, velocity) {
@@ -3205,6 +3213,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         edgeAutoScrollTimers.set(container, window.requestAnimationFrame(step));
     };
 
+    var edgeScrollContainerFor = function(target, root) {
+        var selectors = ['.da-table-wrap', '.da-forecast-chart-wrap', '.block-dashboardanalytics'];
+        for (var i = 0; i < selectors.length; i++) {
+            var candidate = target.closest(selectors[i]);
+            if (candidate && root.contains(candidate) && candidate.scrollWidth > candidate.clientWidth + 2) {
+                return candidate;
+            }
+        }
+        return null;
+    };
+
     var updateEdgeAutoScroll = function(container, clientX) {
         if (!container || container.scrollWidth <= container.clientWidth + 2) {
             stopEdgeAutoScroll(container);
@@ -3217,11 +3236,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var rightDistance = bounds.right - clientX;
         var velocity = 0;
 
+        clearEdgeScrollClasses(container);
+
         if (leftDistance >= 0 && leftDistance < threshold && container.scrollLeft > 0) {
             velocity = -1 * Math.max(6, ((threshold - leftDistance) / threshold) * 18);
+            container.classList.add('da-edge-scroll-left');
         } else if (rightDistance >= 0 && rightDistance < threshold
                 && container.scrollLeft < (container.scrollWidth - container.clientWidth)) {
             velocity = Math.max(6, ((threshold - rightDistance) / threshold) * 18);
+            container.classList.add('da-edge-scroll-right');
         }
 
         if (!velocity) {
@@ -4014,9 +4037,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
 
         root.addEventListener('mousemove', function(event) {
-            var edgeScrollTarget = event.target.closest('.da-table-wrap, .block-dashboardanalytics');
-            if (edgeScrollTarget && root.contains(edgeScrollTarget)) {
+            var edgeScrollTarget = edgeScrollContainerFor(event.target, root);
+            if (edgeScrollTarget) {
                 updateEdgeAutoScroll(edgeScrollTarget, event.clientX || 0);
+            } else {
+                Array.prototype.slice.call(root.querySelectorAll('.da-table-wrap, .da-forecast-chart-wrap, .block-dashboardanalytics')).forEach(function(container) {
+                    stopEdgeAutoScroll(container);
+                });
             }
 
             var forecastSegmentHover = event.target.closest('[data-action="forecast-segment"]');
@@ -4026,8 +4053,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
 
         root.addEventListener('mouseleave', function(event) {
-            var edgeScrollTarget = event.target.closest('.da-table-wrap, .block-dashboardanalytics');
-            if (edgeScrollTarget && root.contains(edgeScrollTarget)) {
+            var edgeScrollTarget = edgeScrollContainerFor(event.target, root);
+            if (edgeScrollTarget) {
                 stopEdgeAutoScroll(edgeScrollTarget);
             }
         }, true);

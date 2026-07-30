@@ -282,6 +282,18 @@
     border-radius: 14px;
 }
 
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-wrap.da-edge-scroll-left,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-wrap.da-edge-scroll-left,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .block-dashboardanalytics.da-edge-scroll-left {
+    cursor: w-resize;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-wrap.da-edge-scroll-right,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-wrap.da-edge-scroll-right,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .block-dashboardanalytics.da-edge-scroll-right {
+    cursor: e-resize;
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-actions {
     display: flex;
     justify-content: flex-end;
@@ -415,6 +427,84 @@
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-matrix-toggle {
         font-size: .76rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-toolbar {
+        align-items: stretch;
+        gap: .85rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-toolbar-group,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-toolbar-spacer,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-toolbar-stat {
+        width: 100%;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-toolbar-spacer {
+        display: none;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-toolbar-stat {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-segmented {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-card,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-card,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-card {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-card {
+        border-left: 0;
+        border-top: 1px solid #e4e9ef;
+        padding: 18px 16px 16px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-card {
+        padding: 18px 12px 14px 16px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-wrap,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-area {
+        min-height: 280px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-bars {
+        grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+        gap: .35rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-bar-label {
+        font-size: .68rem;
+        padding-inline: .05rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-name {
+        font-size: .86rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-head strong {
+        font-size: 1.05rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-head,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-filters {
+        padding-left: 16px;
+        padding-right: 16px;
     }
 }
 
