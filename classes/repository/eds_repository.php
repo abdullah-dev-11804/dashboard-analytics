@@ -116,7 +116,13 @@ class eds_repository {
                 'cells' => [
                     ['key' => 'docid', 'value' => '#EDS-' . $record->id],
                     ['key' => 'company', 'value' => (string)$record->companyname],
-                    ['key' => 'course', 'value' => format_string((string)$record->coursename)],
+                    [
+                        'key' => 'course',
+                        'value' => format_string((string)$record->coursename),
+                        'courseurl' => !empty($record->courseid)
+                            ? (new \moodle_url('/course/view.php', ['id' => (int)$record->courseid]))->out(false)
+                            : '',
+                    ],
                     ['key' => 'expectedsigner', 'value' => (string)$record->expectedsigner],
                     ['key' => 'dayswaiting', 'value' => (string)$dayswaiting],
                     ['key' => 'statusbadge', 'value' => $this->status_badge($dayswaiting)],

@@ -48,7 +48,13 @@ class overview_repository {
                     ['key' => 'department', 'value' => (string)$row['department']],
                     ['key' => 'location', 'value' => (string)$row['location']],
                     ['key' => 'position', 'value' => (string)$row['position']],
-                    ['key' => 'course', 'value' => (string)$row['course']],
+                    [
+                        'key' => 'course',
+                        'value' => (string)$row['course'],
+                        'courseurl' => !empty($row['courseid'])
+                            ? (new \moodle_url('/course/view.php', ['id' => (int)$row['courseid']]))->out(false)
+                            : '',
+                    ],
                     ['key' => 'expiry', 'value' => $expirytime !== null ? userdate($expirytime, get_string('strftimedate')) : '-'],
                     ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
                     ['key' => 'status', 'value' => (string)$row['status']],

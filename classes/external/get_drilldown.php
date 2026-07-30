@@ -78,6 +78,7 @@ class get_drilldown extends \external_api {
                     'key' => new \external_value(PARAM_ALPHANUMEXT, 'Cell key'),
                     'value' => new \external_value(PARAM_TEXT, 'Cell value'),
                     'profileurl' => new \external_value(PARAM_URL, 'Optional profile URL', VALUE_OPTIONAL),
+                    'courseurl' => new \external_value(PARAM_URL, 'Optional course URL', VALUE_OPTIONAL),
                     'statuskey' => new \external_value(PARAM_ALPHANUMEXT, 'Optional normalized status key', VALUE_OPTIONAL),
                     'togglelabel' => new \external_value(PARAM_TEXT, 'Optional expand/collapse label', VALUE_OPTIONAL),
                     'coursecount' => new \external_value(PARAM_INT, 'Optional course count for matrix rows', VALUE_OPTIONAL),

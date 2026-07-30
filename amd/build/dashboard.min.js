@@ -1150,7 +1150,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         ? Number(cellsMetaByKey[key].coursecount)
                         : 0;
                     if (coursecount <= 1) {
-                        return '<td>' + value + '</td>';
+                        if (cellsMetaByKey[key] && cellsMetaByKey[key].courseurl) {
+                            return '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="'
+                                + escapeHtml(cellsMetaByKey[key].courseurl) + '" title="' + value + '">' + value + '</a></td>';
+                        }
+                        return '<td class="da-table-course-cell"><span class="da-table-course-text" title="' + value + '">' + value + '</span></td>';
                     }
                     var togglelabel = cellsMetaByKey[key] && cellsMetaByKey[key].togglelabel
                         ? cellsMetaByKey[key].togglelabel
@@ -1163,6 +1167,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }
                 if (key === 'employee' && cellsMetaByKey[key] && cellsMetaByKey[key].profileurl) {
                     return '<td><a class="da-table-link" href="' + escapeHtml(cellsMetaByKey[key].profileurl) + '">' + value + '</a></td>';
+                }
+                if (key === 'course') {
+                    if (cellsMetaByKey[key] && cellsMetaByKey[key].courseurl) {
+                        return '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="'
+                            + escapeHtml(cellsMetaByKey[key].courseurl) + '" title="' + value + '">' + value + '</a></td>';
+                    }
+                    return '<td class="da-table-course-cell"><span class="da-table-course-text" title="' + value + '">' + value + '</span></td>';
                 }
                 return '<td>' + value + '</td>';
             }).join('') + '</tr>';
@@ -1406,7 +1417,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var toggleLabel = row.analyticsenabled ? text('courseAnalyticsToggleOn', 'On') : text('courseAnalyticsToggleOff', 'Off');
 
             return '<tr>'
-                + '<td><a class="da-table-link" href="/course/view.php?id=' + escapeHtml(String(row.courseid)) + '">'
+                + '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="/course/view.php?id=' + escapeHtml(String(row.courseid)) + '" title="' + escapeHtml(row.fullname) + '">'
                     + escapeHtml(row.fullname) + '</a><div class="da-course-analytics-shortname">' + escapeHtml(row.shortname || '') + '</div></td>'
                 + '<td><span class="da-badge da-badge-' + (row.visible ? 'ok' : 'muted') + '">' + escapeHtml(visibilityLabel) + '</span></td>'
                 + '<td><span class="da-badge da-badge-' + (row.analyticsenabled ? 'ok' : 'muted') + '">' + escapeHtml(analyticsLabel) + '</span></td>'

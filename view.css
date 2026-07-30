@@ -298,6 +298,10 @@
     font-size: .84rem;
 }
 
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-course-cell {
+    max-width: 22rem;
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-matrix-toggle {
     display: inline-flex;
     align-items: center;

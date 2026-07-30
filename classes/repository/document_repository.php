@@ -1189,6 +1189,9 @@ class document_repository {
                         'value' => $summarycourse,
                         'coursecount' => $coursecount,
                         'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
+                        'courseurl' => ($coursecount === 1 && !empty($summaryrecord['courseid']))
+                            ? (new \moodle_url('/course/view.php', ['id' => (int)$summaryrecord['courseid']]))->out(false)
+                            : '',
                     ],
                     ['key' => 'expiry', 'value' => $summaryexpiry],
                     ['key' => 'days', 'value' => $summarydays],
@@ -1218,7 +1221,13 @@ class document_repository {
                         ['key' => 'location', 'value' => ''],
                         ['key' => 'department', 'value' => ''],
                         ['key' => 'site', 'value' => ''],
-                        ['key' => 'course', 'value' => (string)$record['course']],
+                        [
+                            'key' => 'course',
+                            'value' => (string)$record['course'],
+                            'courseurl' => !empty($record['courseid'])
+                                ? (new \moodle_url('/course/view.php', ['id' => (int)$record['courseid']]))->out(false)
+                                : '',
+                        ],
                         ['key' => 'expiry', 'value' => $expirytext],
                         ['key' => 'days', 'value' => $daystext],
                         [

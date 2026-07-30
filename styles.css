@@ -638,6 +638,10 @@
     vertical-align: top;
 }
 
+.block-dashboardanalytics .da-table-course-cell {
+    max-width: 22rem;
+}
+
 .block-dashboardanalytics .da-table th {
     background: #f9fafc;
     color: var(--da-muted);
@@ -2261,6 +2265,15 @@
 .block-dashboardanalytics .da-table-link:hover,
 .block-dashboardanalytics .da-table-link:focus {
     text-decoration: underline;
+}
+
+.block-dashboardanalytics .da-table-course-link,
+.block-dashboardanalytics .da-table-course-text {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .block-dashboardanalytics .da-course-analytics-toolbar {
