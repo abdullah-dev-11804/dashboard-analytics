@@ -64,7 +64,43 @@ class filters {
 
         if ($dashboardkey === permissions::DASHBOARD_COMPANY && !is_siteadmin($userid)) {
             $companies = new company_repository();
-            $scope = $companies->scope_filters_for_user($userid);
+            $scope = $companies->scope_details_for_user($userid);
+            if (permissions::is_company_owner(\context_system::instance(), $userid)) {
+                if (!empty($scope['companyids'])) {
+                    $allowedcompanyids = array_values(array_unique(array_map('intval', $scope['companyids'])));
+                    $selectedcompanyids = array_values(array_intersect(
+                        array_map('intval', $filters['companyids'] ?? []),
+                        $allowedcompanyids
+                    ));
+
+                    if (!$selectedcompanyids) {
+                        $selectedcompanyids = [(int)$allowedcompanyids[0]];
+                    }
+
+                    $filters['allowedcompanyids'] = $allowedcompanyids;
+                    $filters['companyids'] = [reset($selectedcompanyids)];
+                    $filters['companies'] = [];
+                    return $filters;
+                }
+
+                if (!empty($scope['companies'])) {
+                    $allowedcompanies = array_values(array_unique(array_map('strval', $scope['companies'])));
+                    $selectedcompanies = array_values(array_intersect(
+                        array_map('strval', $filters['companies'] ?? []),
+                        $allowedcompanies
+                    ));
+
+                    if (!$selectedcompanies) {
+                        $selectedcompanies = [(string)$allowedcompanies[0]];
+                    }
+
+                    $filters['allowedcompanies'] = $allowedcompanies;
+                    $filters['companies'] = [reset($selectedcompanies)];
+                    $filters['companyids'] = [];
+                    return $filters;
+                }
+            }
+
             if (!empty($scope['companyids'])) {
                 $filters['companyids'] = $scope['companyids'];
                 $filters['companies'] = [];

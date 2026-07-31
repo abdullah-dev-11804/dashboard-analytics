@@ -906,12 +906,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var selectedValueForGroup = function(state, key) {
         var saved = state.persistedFilters || {};
+        var group = (state.filterGroups || {})[key] || {};
         if (key === 'daterange') {
             return saved.daterange || defaultDateRange(state);
         }
         var values = saved[key];
         if (Array.isArray(values) && values.length) {
             return String(values[0]);
+        }
+        if (group.allowblank === false && Array.isArray(group.options) && group.options.length) {
+            return String(group.options[0].value || '');
         }
         return '';
     };
@@ -939,7 +943,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var selected = selectedValueForGroup(state, key);
         var selectedLabel = selectedLabelForGroup(state, key);
         var options = group.options || [];
-        var includeBlank = key !== 'daterange' && !isSearchableGroup(group);
+        var includeBlank = !isSearchableGroup(group) && group.allowblank !== false && key !== 'daterange';
         var allLabel = defaultOptionLabel(group);
         var optionHtml = '';
 

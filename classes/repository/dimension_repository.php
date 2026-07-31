@@ -10,19 +10,29 @@ defined('MOODLE_INTERNAL') || die();
 class dimension_repository {
 
     public function get_filter_groups(array $scopefilters = []): array {
+        global $USER;
+
         $companyrepo = new company_repository();
         $iscompanyowner = permissions::is_company_owner(\context_system::instance());
+        $companyownerscope = $iscompanyowner ? $companyrepo->scope_details_for_user((int)$USER->id) : [];
 
         $groups = [];
 
-        if (!$iscompanyowner) {
+        if (!$iscompanyowner || !empty($companyownerscope['selectorvisible'])) {
             $companykey = $companyrepo->company_filter_key($scopefilters);
             $companyoptions = $companyrepo->get_company_options($this->filters_without_keys($scopefilters, [$companykey, 'companies']));
+            if ($iscompanyowner && !empty($companyownerscope['companyids'])) {
+                $companyoptions = array_values(array_filter($companyoptions, static function(array $option) use ($companyownerscope): bool {
+                    return in_array((int)($option['value'] ?? 0), array_map('intval', $companyownerscope['companyids']), true);
+                }));
+            }
+
             if (count($companyoptions) > 1) {
                 $groups[] = [
                     'key' => $companykey,
                     'label' => get_string('filter:companies', 'block_dashboardanalytics'),
-                    'multiple' => true,
+                    'multiple' => !$iscompanyowner,
+                    'allowblank' => !$iscompanyowner,
                     'options' => $companyoptions,
                     'searchable' => false,
                 ];
@@ -33,6 +43,7 @@ class dimension_repository {
             'key' => 'locations',
             'label' => get_string('filter:locations', 'block_dashboardanalytics'),
             'multiple' => true,
+            'allowblank' => true,
             'options' => $this->profile_field_options(
                 $this->filters_without_keys($scopefilters, ['locations']),
                 ['Region'],
@@ -45,6 +56,7 @@ class dimension_repository {
             'key' => 'sites',
             'label' => get_string('filter:sites', 'block_dashboardanalytics'),
             'multiple' => true,
+            'allowblank' => true,
             'options' => $this->profile_field_options(
                 $this->filters_without_keys($scopefilters, ['sites']),
                 ['Site'],
@@ -57,6 +69,7 @@ class dimension_repository {
             'key' => 'departments',
             'label' => get_string('filter:departments', 'block_dashboardanalytics'),
             'multiple' => true,
+            'allowblank' => true,
             'options' => $this->profile_field_options(
                 $this->filters_without_keys($scopefilters, ['departments']),
                 ['Department', 'department'],
@@ -69,6 +82,7 @@ class dimension_repository {
             'key' => 'personnelcategories',
             'label' => get_string('filter:personnelcategories', 'block_dashboardanalytics'),
             'multiple' => true,
+            'allowblank' => true,
             'options' => $this->profile_field_options(
                 $this->filters_without_keys($scopefilters, ['personnelcategories']),
                 ['PersonnelCategory'],
@@ -87,6 +101,7 @@ class dimension_repository {
                 'key' => 'positions',
                 'label' => get_string('filter:positions', 'block_dashboardanalytics'),
                 'multiple' => true,
+                'allowblank' => true,
                 'options' => $positions,
                 'searchable' => false,
             ];
@@ -98,6 +113,7 @@ class dimension_repository {
                 'key' => 'userids',
                 'label' => get_string('filter:employees', 'block_dashboardanalytics'),
                 'multiple' => true,
+                'allowblank' => true,
                 'options' => $users,
                 'searchable' => true,
             ];
@@ -107,6 +123,7 @@ class dimension_repository {
             'key' => 'daterange',
             'label' => get_string('filter:daterange', 'block_dashboardanalytics'),
             'multiple' => false,
+            'allowblank' => false,
             'searchable' => false,
             'options' => [
                 ['value' => 'day', 'label' => get_string('filter:day', 'block_dashboardanalytics')],
@@ -123,6 +140,7 @@ class dimension_repository {
             'key' => 'educations',
             'label' => get_string('filter:educations', 'block_dashboardanalytics'),
             'multiple' => true,
+            'allowblank' => true,
             'options' => $this->profile_field_options(
                 $this->filters_without_keys($scopefilters, ['educations']),
                 ['edu'],
@@ -137,6 +155,7 @@ class dimension_repository {
                 'key' => 'courseids',
                 'label' => get_string('filter:courses', 'block_dashboardanalytics'),
                 'multiple' => true,
+                'allowblank' => true,
                 'options' => $courses,
                 'searchable' => true,
             ];

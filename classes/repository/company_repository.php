@@ -22,6 +22,9 @@ class company_repository {
             if (!empty($filters['companyids'])) {
                 [$insql, $params] = $DB->get_in_or_equal($filters['companyids'], SQL_PARAMS_NAMED, 'companyoption');
                 $where = "id {$insql}";
+            } else if (!empty($filters['allowedcompanyids'])) {
+                [$insql, $params] = $DB->get_in_or_equal($filters['allowedcompanyids'], SQL_PARAMS_NAMED, 'companyoptionallowed');
+                $where = "id {$insql}";
             }
 
             $records = $where === ''
@@ -67,6 +70,19 @@ class company_repository {
     }
 
     public function scope_filters_for_user(int $userid): array {
+        $details = $this->scope_details_for_user($userid);
+        if (!empty($details['companyids'])) {
+            return ['companyids' => $details['companyids']];
+        }
+
+        if (!empty($details['companies'])) {
+            return ['companies' => $details['companies']];
+        }
+
+        return [];
+    }
+
+    public function scope_details_for_user(int $userid): array {
         global $DB;
 
         if ($this->has_iomad_tables()) {
@@ -82,28 +98,40 @@ class company_repository {
             $companyids = array_values(array_unique($companyids));
             if ($companyids) {
                 sort($companyids);
-                if (permissions::is_company_owner(\context_system::instance(), $userid)) {
-                    return ['companyids' => [(int)$companyids[0]]];
-                }
-                return ['companyids' => $companyids];
+                return [
+                    'companyids' => $companyids,
+                    'selectorvisible' => count($companyids) > 1,
+                ];
             }
 
-            return [];
+            return [
+                'companyids' => [],
+                'selectorvisible' => false,
+            ];
         }
 
         $companyname = $this->profile_company_for_user($userid);
         if ($companyname === '') {
-            return [];
+            return [
+                'companies' => [],
+                'selectorvisible' => false,
+            ];
         }
 
         if ($this->has_iomad_tables()) {
             $mappedid = (int)$DB->get_field('company', 'id', ['name' => $companyname], IGNORE_MISSING);
             if ($mappedid > 0) {
-                return ['companyids' => [$mappedid]];
+                return [
+                    'companyids' => [$mappedid],
+                    'selectorvisible' => false,
+                ];
             }
         }
 
-        return ['companies' => [$companyname]];
+        return [
+            'companies' => [$companyname],
+            'selectorvisible' => false,
+        ];
     }
 
     public function company_name_sql(string $useralias, string $prefix): array {
