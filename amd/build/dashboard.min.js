@@ -2505,7 +2505,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + yGridTrend
                         + '<line x1="' + chartLeftTrend + '" y1="' + thresholdNormY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdNormY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-ok"></line>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + thresholdCriticalY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdCriticalY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-danger"></line>'
-                        + lineSegments.join('')
+                        + lineSegments
                         + '<line x1="' + chartLeftTrend + '" y1="' + (chartTopTrend + chartHeightTrend) + '" x2="' + (100 - chartRightTrend) + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + chartTopTrend + '" x2="' + chartLeftTrend + '" y2="' + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-axis"></line>'
                         + '</svg>'
