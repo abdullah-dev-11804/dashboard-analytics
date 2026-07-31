@@ -395,8 +395,8 @@
 @media (max-width: 1080px) {
     .path-block-dashboardanalytics-view .main-inner,
     .path-block-dashboardanalytics-view #page.drawers .main-inner {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-left: 0;
+        padding-right: 0;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip {
@@ -409,6 +409,19 @@
 }
 
 @media (max-width: 720px) {
+    .path-block-dashboardanalytics-view #page-content,
+    .path-block-dashboardanalytics-view .page-content {
+        margin-top: 0 !important;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page {
+        margin-top: 0;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page-toolbar {
+        margin-top: 0;
+    }
+
     .path-block-dashboardanalytics-view .dashboardanalytics-page-toolbar {
         flex-direction: column;
         align-items: stretch;
@@ -512,6 +525,7 @@
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-grid {
+        flex: 0 0 auto;
         width: 100%;
         gap: .55rem;
     }
@@ -549,10 +563,14 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: .55rem;
         width: 100%;
+        flex: 0 0 auto;
+        margin-top: 0;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-filter-add,
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-active-filter-chip {
+        display: inline-flex;
+        align-items: center;
         width: 100%;
         justify-content: center;
         text-align: center;
@@ -722,6 +740,16 @@
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix .da-kpi-label {
         font-size: 9.5px;
+    }
+}
+
+@media (max-width: 720px) {
+    .sental-content-shell {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-top: 0 !important;
     }
 }
 
