@@ -224,6 +224,8 @@
     margin: 0;
     /* padding: 1.35rem;
     border: 1px solid #dbe4ef; */
+    min-width: 0;
+    max-width: 100%;
     border-radius: 22px;
     background: #fff;
     /* box-shadow: 0 18px 42px rgba(15, 23, 42, .06); */
@@ -252,6 +254,8 @@
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-drilldown {
     padding: 0;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-grid {
