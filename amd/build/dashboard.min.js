@@ -73,6 +73,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         months3Short: '3M',
         months6Short: '6M',
         months12Short: '12M',
+        trendModeAverage: 'Average',
+        trendModeCompanies: 'Companies',
+        trendModeBoth: 'Both',
+        trendAverageLabel: 'Average',
         sortWorstBest: 'Worst to best',
         sortBestWorst: 'Best to worst',
         qualityCourseHeader: 'Course',
@@ -195,6 +199,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:months3short', component: 'block_dashboardanalytics'},
         {key: 'js:months6short', component: 'block_dashboardanalytics'},
         {key: 'js:months12short', component: 'block_dashboardanalytics'},
+        {key: 'js:trendmodeaverage', component: 'block_dashboardanalytics'},
+        {key: 'js:trendmodecompanies', component: 'block_dashboardanalytics'},
+        {key: 'js:trendmodeboth', component: 'block_dashboardanalytics'},
+        {key: 'js:trendaveragelabel', component: 'block_dashboardanalytics'},
         {key: 'js:sortworstbest', component: 'block_dashboardanalytics'},
         {key: 'js:sortbestworst', component: 'block_dashboardanalytics'},
         {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
@@ -318,6 +326,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'months3Short',
         'months6Short',
         'months12Short',
+        'trendModeAverage',
+        'trendModeCompanies',
+        'trendModeBoth',
+        'trendAverageLabel',
         'sortWorstBest',
         'sortBestWorst',
         'qualityCourseHeader',
@@ -2228,6 +2240,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             } else if (panel.type === 'compliancetrendline') {
                 var trendOverrides = (((state || {}).currentVisualOverrides) || {});
                 var selectedRange = Math.max(3, Math.min(12, Number(trendOverrides.compliancetrendperiod) || 12));
+                var trendModeOverride = String(trendOverrides.compliancetrendmode || '').toLowerCase();
                 var trendThresholds = normalizeComplianceThresholds(panel.threshold, panel.secondarythreshold);
                 var compliantThreshold = trendThresholds.compliant;
                 var criticalThreshold = trendThresholds.critical;
@@ -2237,6 +2250,21 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var sourceSeries = visibleItems.filter(function(item) {
                     return Array.isArray(item.segments) && item.segments.length;
                 });
+
+                var seriesColourForStatus = function(status) {
+                    switch ((status || '').toLowerCase()) {
+                        case 'danger':
+                            return '#d13438';
+                        case 'warning':
+                            return '#d9822b';
+                        case 'ok':
+                            return '#107c10';
+                        case 'info':
+                            return '#2563eb';
+                        default:
+                            return '#64748b';
+                    }
+                };
 
                 if (sourceSeries.length) {
                     var segmentCount = sourceSeries.reduce(function(max, item) {
@@ -2268,7 +2296,53 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (!aggregateSegments.length) {
                     body = '<div class="da-empty">' + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
                 } else {
-                    var displayedSegments = aggregateSegments.slice(Math.max(0, aggregateSegments.length - Math.min(selectedRange, aggregateSegments.length)));
+                    var averageSeries = {
+                        label: text('trendAverageLabel', 'Average'),
+                        value: aggregateSegments.length ? (formatPercent((aggregateSegments[aggregateSegments.length - 1] || {}).percent || 0) + '%') : '0%',
+                        percent: Number((aggregateSegments[aggregateSegments.length - 1] || {}).percent) || 0,
+                        status: 'ok',
+                        colour: '#107c10',
+                        isaggregate: true,
+                        segments: aggregateSegments
+                    };
+                    var hasMultipleCompanies = sourceSeries.length > 1;
+                    var selectedTrendMode = hasMultipleCompanies
+                        ? (['average', 'companies', 'both'].indexOf(trendModeOverride) !== -1 ? trendModeOverride : 'average')
+                        : 'companies';
+
+                    var visibleSeries = [];
+                    if (selectedTrendMode === 'average') {
+                        visibleSeries = [averageSeries];
+                    } else if (selectedTrendMode === 'both') {
+                        visibleSeries = [averageSeries].concat(sourceSeries.map(function(series) {
+                            return Object.assign({}, series, {
+                                colour: seriesColourForStatus(series.status),
+                                isaggregate: false
+                            });
+                        }));
+                    } else {
+                        visibleSeries = sourceSeries.map(function(series) {
+                            return Object.assign({}, series, {
+                                colour: seriesColourForStatus(series.status),
+                                isaggregate: false
+                            });
+                        });
+                    }
+
+                    visibleSeries = visibleSeries.map(function(series) {
+                        var segments = (series.segments || []).slice(Math.max(0, (series.segments || []).length - Math.min(selectedRange, (series.segments || []).length)));
+                        var currentsegment = segments[segments.length - 1] || {percent: 0, label: ''};
+                        return Object.assign({}, series, {
+                            segments: segments,
+                            currentpercent: Number(currentsegment.percent) || 0,
+                            currentlabel: currentsegment.label || ''
+                        });
+                    }).filter(function(series) {
+                        return (series.segments || []).length > 0;
+                    });
+
+                    var summarySeries = averageSeries.segments.length ? averageSeries : (visibleSeries[0] || averageSeries);
+                    var displayedSegments = summarySeries.segments || [];
                     var lastSegment = displayedSegments[displayedSegments.length - 1] || {percent: 0, label: ''};
                     var previousSegment = displayedSegments.length > 1 ? displayedSegments[displayedSegments.length - 2] : null;
                     var currentPercent = Number(lastSegment.percent) || 0;
@@ -2300,26 +2374,37 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         }
                         return '#d13438';
                     };
-                    var lineSegments = [];
-                    for (var trendIndex = 1; trendIndex < displayedSegments.length; trendIndex++) {
-                        var previousPoint = displayedSegments[trendIndex - 1];
-                        var currentPoint = displayedSegments[trendIndex];
-                        lineSegments.push('<line x1="' + xForTrend(trendIndex - 1, displayedSegments.length).toFixed(2)
-                            + '" y1="' + yForTrend(previousPoint.percent).toFixed(2)
-                            + '" x2="' + xForTrend(trendIndex, displayedSegments.length).toFixed(2)
-                            + '" y2="' + yForTrend(currentPoint.percent).toFixed(2)
-                            + '" class="da-compliance-trendline-path" style="stroke:' + zoneColorForValue(currentPoint.percent) + '"></line>');
-                    }
+                    var lineSegments = visibleSeries.map(function(series) {
+                        var points = (series.segments || []).map(function(segment, index) {
+                            return xForTrend(index, displayedSegments.length).toFixed(2) + ',' + yForTrend(segment.percent).toFixed(2);
+                        }).join(' ');
+                        var seriesColour = series.colour || zoneColorForValue(series.currentpercent || 0);
+                        var strokeWidth = series.isaggregate ? 1.9 : 1.2;
+                        var dashArray = series.isaggregate && visibleSeries.length > 1 ? '4 1.8' : 'none';
+                        return '<polyline points="' + escapeHtml(points) + '" class="da-compliance-trendline-path'
+                            + (series.isaggregate ? ' da-compliance-trendline-path-average' : '')
+                            + '" style="stroke:' + escapeHtml(seriesColour) + ';stroke-width:' + strokeWidth + ';stroke-dasharray:' + dashArray + '"></polyline>';
+                    }).join('');
                     var xLabelsTrend = displayedSegments.map(function(segment, index) {
                         return '<span class="da-compliance-trendline-x-label" style="left:' + xForTrend(index, displayedSegments.length).toFixed(2) + '%">'
                             + escapeHtml(segment.label || '') + '</span>';
                     }).join('');
+                    var hoverPayloadsTrend = displayedSegments.map(function(segment, index) {
+                        return (visibleSeries || []).map(function(series) {
+                            var point = (series.segments || [])[index] || null;
+                            return {
+                                label: series.label || text('currentCompliance', 'Current compliance'),
+                                value: formatPercent(point ? point.percent : 0) + '%'
+                            };
+                        });
+                    });
                     var hoverTargetsTrend = displayedSegments.map(function(segment, index) {
                         return '<button type="button" class="da-compliance-trendline-hover-target"'
                             + ' data-action="compliance-hover"'
                             + ' data-index="' + index + '"'
                             + ' data-label="' + escapeHtml(segment.label || '') + '"'
                             + ' data-value="' + escapeHtml(formatPercent(segment.percent) + '%') + '"'
+                            + ' data-tooltip="' + escapeHtml(JSON.stringify(hoverPayloadsTrend[index] || [])) + '"'
                             + ' style="left:' + xForTrend(index, displayedSegments.length).toFixed(2) + '%"'
                             + ' aria-label="' + escapeHtml((segment.label || '') + ' ' + formatPercent(segment.percent) + '%') + '"></button>';
                     }).join('');
@@ -2338,6 +2423,31 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var currentX = xForTrend(displayedSegments.length - 1, displayedSegments.length).toFixed(2);
                     var currentY = yForTrend(currentPercent).toFixed(2);
                     var currentValueLabelY = Math.max(chartTopTrend + 2, Number(currentY) - 4).toFixed(2);
+                    var endMarkers = visibleSeries.map(function(series) {
+                        var seriesCurrent = Number(series.currentpercent || 0);
+                        return {
+                            label: series.label || '',
+                            percent: seriesCurrent,
+                            x: xForTrend(displayedSegments.length - 1, displayedSegments.length),
+                            y: yForTrend(seriesCurrent),
+                            colour: series.colour || zoneColorForValue(seriesCurrent),
+                            isaggregate: !!series.isaggregate
+                        };
+                    }).sort(function(a, b) {
+                        return a.y - b.y;
+                    });
+
+                    endMarkers.forEach(function(marker, markerIndex) {
+                        if (markerIndex === 0) {
+                            marker.labely = marker.y;
+                            return;
+                        }
+                        var previousMarker = endMarkers[markerIndex - 1];
+                        marker.labely = Math.abs(marker.y - previousMarker.labely) < 4.5
+                            ? previousMarker.labely + 4.5
+                            : marker.y;
+                    });
+
                     var deltaText = '';
                     var deltaClass = 'muted';
                     if (previousSegment) {
@@ -2353,12 +2463,33 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         }
                     }
 
+                    var modeButtons = hasMultipleCompanies
+                        ? '<div class="da-compliance-trendline-modes">'
+                            + '<button type="button" class="da-compliance-trendline-mode' + (selectedTrendMode === 'average' ? ' is-active' : '') + '" data-action="compliance-trend-mode" data-mode="average">' + escapeHtml(text('trendModeAverage', 'Average')) + '</button>'
+                            + '<button type="button" class="da-compliance-trendline-mode' + (selectedTrendMode === 'companies' ? ' is-active' : '') + '" data-action="compliance-trend-mode" data-mode="companies">' + escapeHtml(text('trendModeCompanies', 'Companies')) + '</button>'
+                            + '<button type="button" class="da-compliance-trendline-mode' + (selectedTrendMode === 'both' ? ' is-active' : '') + '" data-action="compliance-trend-mode" data-mode="both">' + escapeHtml(text('trendModeBoth', 'Both')) + '</button>'
+                        + '</div>'
+                        : '';
+
+                    var seriesLegend = visibleSeries.map(function(series) {
+                        return '<span class="da-compliance-trendline-series-chip"><span class="da-compliance-trendline-series-line' + (series.isaggregate ? ' is-aggregate' : '') + '" style="background:' + escapeHtml(series.colour || '#107c10') + ';border-color:' + escapeHtml(series.colour || '#107c10') + '"></span>' + escapeHtml(series.label || '') + '</span>';
+                    }).join('');
+
+                    var currentMarkers = endMarkers.map(function(marker) {
+                        var labely = Math.max(chartTopTrend + 2, Math.min(chartTopTrend + chartHeightTrend - 1, Number(marker.labely || marker.y)));
+                        return '<span class="da-compliance-trendline-current-dot' + (marker.isaggregate ? ' is-aggregate' : '') + '" style="left:' + marker.x.toFixed(2) + '%; top:' + marker.y.toFixed(2) + '%; background:' + escapeHtml(marker.colour) + '"></span>'
+                            + '<span class="da-compliance-trendline-current-label" style="left:' + marker.x.toFixed(2) + '%; top:' + labely.toFixed(2) + '%; color:' + escapeHtml(marker.colour) + '">' + escapeHtml(formatPercent(marker.percent) + '%') + '</span>';
+                    }).join('');
+
                     body = '<div class="da-compliance-trendline">'
                         + '<div class="da-compliance-trendline-head">'
+                        + '<div class="da-compliance-trendline-head-controls">'
                         + '<div class="da-compliance-trendline-periods">'
                         + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 3 ? ' is-active' : '') + '" data-action="compliance-period" data-period="3">' + escapeHtml(text('months3Short', '3M')) + '</button>'
                         + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 6 ? ' is-active' : '') + '" data-action="compliance-period" data-period="6">' + escapeHtml(text('months6Short', '6M')) + '</button>'
                         + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 12 ? ' is-active' : '') + '" data-action="compliance-period" data-period="12">' + escapeHtml(text('months12Short', '12M')) + '</button>'
+                        + '</div>'
+                        + modeButtons
                         + '</div>'
                         + '<div class="da-compliance-trendline-kpi da-compliance-trendline-kpi-' + escapeHtml(currentStatus) + '">'
                         + '<span class="da-compliance-trendline-kpi-label">' + escapeHtml(text('currentCompliance', 'Current compliance')) + '</span>'
@@ -2386,14 +2517,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + hoverTargetsTrend
                         + '<span class="da-compliance-trendline-threshold-label da-text-ok" style="top:' + thresholdNormY + '%">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</span>'
                         + '<span class="da-compliance-trendline-threshold-label da-text-danger" style="top:' + thresholdCriticalY + '%">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</span>'
-                        + '<span class="da-compliance-trendline-current-dot" style="left:' + currentX + '%; top:' + currentY + '%; background:' + zoneColorForValue(currentPercent) + '"></span>'
-                        + '<span class="da-compliance-trendline-current-label" style="left:' + currentX + '%; top:' + currentValueLabelY + '%">' + escapeHtml(formatPercent(currentPercent) + '%') + '</span>'
+                        + currentMarkers
                         + '</div>'
                         + '</div>'
                         + '<div class="da-compliance-trendline-legend">'
                         + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-ok"></span>' + escapeHtml(trendLegends.compliant) + '</span>'
                         + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-warning"></span>' + escapeHtml(trendLegends.risk) + '</span>'
                         + '<span class="da-turnover-legend-item"><span class="da-dot da-dot-danger"></span>' + escapeHtml(trendLegends.critical) + '</span>'
+                        + seriesLegend
                         + '</div>'
                         + '<div class="da-compliance-trendline-footer">'
                         + '<span class="da-compliance-trendline-footer-chip"><span class="da-compliance-trendline-footer-line"></span>Compliance line</span>'
@@ -3871,15 +4002,28 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }
 
             var left = target.style.left || '0%';
+            var tooltipPayload = [];
             var monthLabel = target.getAttribute('data-label') || '';
-            var complianceValue = target.getAttribute('data-value') || '';
+
+            try {
+                tooltipPayload = JSON.parse(target.getAttribute('data-tooltip') || '[]');
+            } catch (e) {
+                tooltipPayload = [];
+            }
+
+            if (!tooltipPayload.length) {
+                var complianceValue = target.getAttribute('data-value') || '';
+                tooltipPayload = [{label: 'Compliance', value: complianceValue}];
+            }
 
             crosshair.style.left = left;
             crosshair.hidden = false;
             crosshair.classList.add('is-visible');
 
             tooltip.innerHTML = '<strong>' + escapeHtml('Month ' + monthLabel) + '</strong>'
-                + '<span>' + escapeHtml('Compliance: ' + complianceValue) + '</span>';
+                + tooltipPayload.map(function(line) {
+                    return '<span>' + escapeHtml((line.label || 'Compliance') + ': ' + (line.value || '0%')) + '</span>';
+                }).join('');
             tooltip.hidden = false;
             tooltip.style.left = left;
             window.requestAnimationFrame(function() {
@@ -4198,6 +4342,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (state.currentVisualResponse) {
                     renderVisuals(root, state.currentVisualResponse, state);
                     persistState(root, state);
+                }
+                return;
+            }
+
+            var complianceTrendMode = event.target.closest('[data-action="compliance-trend-mode"]');
+            if (complianceTrendMode && root.contains(complianceTrendMode)) {
+                rememberCurrentState(root, state);
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    compliancetrendmode: String(complianceTrendMode.getAttribute('data-mode') || 'average').toLowerCase()
+                });
+                if (state.currentVisualResponse) {
+                    renderVisuals(root, state.currentVisualResponse, state);
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
                 }
                 return;
             }

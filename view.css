@@ -875,6 +875,12 @@
     }
 }
 
+@media (min-width: 721px) {
+    .sental-content-shell {
+        margin-top: 20px !important;
+    }
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-quality-bars {
     gap: 1rem;
 }
