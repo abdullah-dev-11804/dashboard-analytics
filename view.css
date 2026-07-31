@@ -3,6 +3,11 @@
     margin-top: 1.5rem;
 }
 
+.path-block-dashboardanalytics-view #page,
+.path-block-dashboardanalytics-view #page.drawers {
+    padding-top: 0 !important;
+}
+
 /* .path-block-dashboardanalytics-view .main-inner,
 .path-block-dashboardanalytics-view #page.drawers .main-inner {
     max-width: 1680px !important; 
@@ -586,7 +591,7 @@
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-gutter: stable both-edges;
-        touch-action: pan-x;
+        touch-action: auto;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table {
@@ -686,7 +691,7 @@
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
-        touch-action: pan-x;
+        touch-action: auto;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-bars {
