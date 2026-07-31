@@ -413,6 +413,54 @@
     }
 }
 
+@media (max-width: 1180px) {
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-card,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-card,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-card {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-card {
+        border-left: 0;
+        border-top: 1px solid #e4e9ef;
+        padding: 18px 18px 16px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-chart-card {
+        padding: 18px 14px 14px 18px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-summary-name {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.3;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-card {
+        min-width: 0;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-card-head {
+        flex-wrap: wrap;
+    }
+}
+
 @media (max-width: 720px) {
     .path-block-dashboardanalytics-view #page-content,
     .path-block-dashboardanalytics-view .page-content {
@@ -720,6 +768,75 @@
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-filters {
         padding-left: 16px;
         padding-right: 16px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-layout {
+        gap: 12px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-card {
+        padding: 12px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-card-head {
+        margin-bottom: 12px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-head-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-form {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-table-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .7rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-table-head .da-row-action,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-footer .da-row-action {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .7rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-footer > div:first-child {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: .55rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-document {
+        padding: 14px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-document li {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 3px;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-document li span {
+        white-space: normal;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-document li em,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-document li strong {
+        text-align: left;
     }
 }
 

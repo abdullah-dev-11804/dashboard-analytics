@@ -846,6 +846,28 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
     };
 
+    var scrollToMainPanel = function(root) {
+        if (!root) {
+            return;
+        }
+
+        var panel = root.querySelector('[data-region="main-panel"]');
+        if (!panel || typeof panel.getBoundingClientRect !== 'function') {
+            return;
+        }
+
+        var rect = panel.getBoundingClientRect();
+        var absoluteTop = rect.top + (window.pageYOffset || document.documentElement.scrollTop || 0);
+        var targetTop = Math.max(0, absoluteTop - 16);
+
+        if (typeof window.scrollTo === 'function') {
+            window.scrollTo({
+                top: targetTop,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     var activeFilterDefaults = function(state) {
         var defaults = [state.companyFilterKey, 'locations', 'sites', 'departments', 'personnelcategories', 'positions', 'userids'];
         return defaults.filter(function(key) {
@@ -4616,6 +4638,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 setActiveTab(root, tabkey);
                 state.currentTab = tabkey;
                 state.currentDrilldownPage = 0;
+                scrollToMainPanel(root);
                 if (tabkey === 'kpis') {
                     state.currentDrilldown = defaultDrilldownKey(state);
                     loadDrilldown(root, state, state.currentDrilldown, undefined, 0, state.currentDrilldownPerPage || 20);
