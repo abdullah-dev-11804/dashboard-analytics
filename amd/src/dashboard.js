@@ -3276,7 +3276,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
     };
 
     var edgeScrollContainerFor = function(target, root) {
-        var selectors = ['.da-table-wrap', '.da-forecast-chart-wrap', '.block-dashboardanalytics'];
+        var selectors = ['.da-table-wrap', '.da-forecast-chart-wrap', '.da-forecast-chart-area'];
         for (var i = 0; i < selectors.length; i++) {
             var candidate = target.closest(selectors[i]);
             if (candidate && root.contains(candidate) && candidate.scrollWidth > candidate.clientWidth + 2) {
