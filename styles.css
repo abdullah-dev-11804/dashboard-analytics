@@ -4050,6 +4050,20 @@ body.da-modal-open {
     }
 }
 
+@media (max-width: 1080px) {
+    .block-dashboardanalytics .da-visual-panel[data-panel-key="forecastworkload"] {
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .block-dashboardanalytics .da-forecast-workload,
+    .block-dashboardanalytics .da-forecast-toolbar,
+    .block-dashboardanalytics .da-forecast-layout {
+        min-width: 900px;
+    }
+}
+
 @media (max-width: 1200px) {
     .block-dashboardanalytics.is-fullpage .da-kpi-strip {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4102,6 +4116,18 @@ body.da-modal-open {
     .block-dashboardanalytics .da-forecast-toolbar {
         align-items: stretch;
         gap: .85rem;
+    }
+
+    .block-dashboardanalytics .da-visual-panel[data-panel-key="forecastworkload"] {
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .block-dashboardanalytics .da-forecast-workload,
+    .block-dashboardanalytics .da-forecast-toolbar,
+    .block-dashboardanalytics .da-forecast-layout {
+        min-width: 760px;
     }
 
     .block-dashboardanalytics .da-forecast-toolbar-group,
