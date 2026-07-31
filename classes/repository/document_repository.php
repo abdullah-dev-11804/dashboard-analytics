@@ -11,8 +11,6 @@ class document_repository {
     /** @var array<string, array> */
     private array $overviewrowscache = [];
     /** @var array<string, array> */
-    private array $forecastcandidaterowscache = [];
-    /** @var array<string, array> */
     private array $heatmaptabscache = [];
 
     public function is_configured(): bool {
@@ -287,28 +285,11 @@ class document_repository {
         $label30 = get_string('forecast:window:30days', 'block_dashboardanalytics');
         $label60 = get_string('forecast:window:60days', 'block_dashboardanalytics');
         $label90 = get_string('forecast:window:90days', 'block_dashboardanalytics');
-        $rows = $this->forecast_candidate_rows($filters);
-        $now = time();
         $counts = [
-            $label30 => 0,
-            $label60 => 0,
-            $label90 => 0,
+            $label30 => $this->count_expiring_between($filters, 0, 30),
+            $label60 => $this->count_expiring_between($filters, 31, 60),
+            $label90 => $this->count_expiring_between($filters, 61, 90),
         ];
-
-        foreach ($rows as $row) {
-            $expiry = !empty($row['expirytime']) ? (int)$row['expirytime'] : 0;
-            if ($expiry <= 0) {
-                continue;
-            }
-
-            if ($expiry >= $now && $expiry <= ($now + (30 * DAYSECS))) {
-                $counts[$label30]++;
-            } else if ($expiry >= ($now + (31 * DAYSECS)) && $expiry <= ($now + (60 * DAYSECS))) {
-                $counts[$label60]++;
-            } else if ($expiry >= ($now + (61 * DAYSECS)) && $expiry <= ($now + (90 * DAYSECS))) {
-                $counts[$label90]++;
-            }
-        }
 
         $max = max(1, max($counts));
         $items = [];
@@ -360,23 +341,16 @@ class document_repository {
     }
 
     public function forecast_stacked_items(array $filters, int $limit = 8): array {
-        $tabs = $this->forecast_scope_tabs($filters, $limit);
-        $selectedtab = $this->selected_panel_tab($tabs, $filters, 'forecastworkload');
-        if ($selectedtab === null) {
-            return [];
-        }
-
-        $definitions = $this->forecast_period_definitions();
-        $selectedperiodkey = (string)($filters['forecastperiod_forecastworkload'] ?? array_key_first($definitions));
-        $definition = $definitions[$selectedperiodkey] ?? reset($definitions);
-        if (!$definition) {
-            return [];
-        }
-
-        $scopefilters = $this->heatmap_tab_filters($filters, $selectedtab);
-        $items = $this->forecast_interval_items($scopefilters, $selectedperiodkey, $definition);
-        foreach ($items as $index => $intervalitem) {
-            $items[$index]['groupkey'] = (string)$selectedtab['key'];
+        $items = [];
+        foreach ($this->forecast_scope_tabs($filters, $limit) as $tab) {
+            $scopefilters = $this->heatmap_tab_filters($filters, $tab);
+            foreach ($this->forecast_period_definitions() as $periodkey => $definition) {
+                $intervalitems = $this->forecast_interval_items($scopefilters, $periodkey, $definition);
+                foreach ($intervalitems as $intervalitem) {
+                    $intervalitem['groupkey'] = (string)$tab['key'];
+                    $items[] = $intervalitem;
+                }
+            }
         }
 
         return $items;
@@ -1005,19 +979,12 @@ class document_repository {
     }
 
     private function forecast_candidate_rows(array $filters): array {
-        $cachekey = $this->cache_key($filters);
-        if (isset($this->forecastcandidaterowscache[$cachekey])) {
-            return $this->forecastcandidaterowscache[$cachekey];
-        }
-
         $now = time();
 
-        $this->forecastcandidaterowscache[$cachekey] = array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now): bool {
+        return array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now): bool {
             $expiry = (int)($row['expirytime'] ?? 0);
             return $expiry > $now;
         }));
-
-        return $this->forecastcandidaterowscache[$cachekey];
     }
 
     private function forecast_course_colour(int $index): string {
