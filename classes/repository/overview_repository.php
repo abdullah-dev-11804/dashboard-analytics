@@ -5,6 +5,12 @@ namespace block_dashboardanalytics\repository;
 
 defined('MOODLE_INTERNAL') || die();
 class overview_repository {
+    /** @var array<string, array> */
+    private static array $enrolmentstatusrowscache = [];
+    /** @var array<string, array> */
+    private static array $companysummariescache = [];
+    /** @var array<string, array> */
+    private static array $monthwindowscache = [];
 
     public function enrolment_status_snapshot_rows(array $filters, ?int $reportdate = null): array {
         $reportdate = $reportdate ?? $this->current_report_date();
@@ -661,6 +667,11 @@ class overview_repository {
     }
 
     private function company_summaries(array $filters, int $reportdate): array {
+        $cachekey = $this->cache_key($filters, $reportdate);
+        if (isset(self::$companysummariescache[$cachekey])) {
+            return self::$companysummariescache[$cachekey];
+        }
+
         $rows = $this->enrolment_status_rows($filters, $reportdate);
         $companies = [];
         foreach ($rows as $row) {
@@ -692,7 +703,8 @@ class overview_repository {
             ];
         }
 
-        return $summaries;
+        self::$companysummariescache[$cachekey] = $summaries;
+        return self::$companysummariescache[$cachekey];
     }
 
     private function compliance_rollup_from_rows(array $rows): array {
@@ -740,6 +752,11 @@ class overview_repository {
 
     private function enrolment_status_rows(array $filters, int $reportdate): array {
         global $DB;
+
+        $cachekey = $this->cache_key($filters, $reportdate);
+        if (isset(self::$enrolmentstatusrowscache[$cachekey])) {
+            return self::$enrolmentstatusrowscache[$cachekey];
+        }
 
         $employee = new employee_repository();
         $documents = new document_repository();
@@ -796,6 +813,16 @@ class overview_repository {
             $siteselect = 'uidsite.data AS sitename';
         }
 
+        $personnelcategoryselect = "'' AS personnelcategoryname";
+        $personnelcategoryjoin = '';
+        $personnelcategoryfield = $this->existing_user_profile_field_shortname(['PersonnelCategory']);
+        if ($personnelcategoryfield !== '') {
+            $escapedpersonnelcategoryfield = addslashes($personnelcategoryfield);
+            $personnelcategoryjoin = "LEFT JOIN {user_info_field} uifpcat ON uifpcat.shortname = '{$escapedpersonnelcategoryfield}'
+                                      LEFT JOIN {user_info_data} uidpcat ON uidpcat.fieldid = uifpcat.id AND uidpcat.userid = u.id";
+            $personnelcategoryselect = 'uidpcat.data AS personnelcategoryname';
+        }
+
         $analyticsjoin = $analytics->eligibility_join_sql('c', 'cfanalyticsoverview', 'cdanalyticsoverview');
         $basewhere = [
             $userfilter['sql'],
@@ -818,6 +845,7 @@ class overview_repository {
                                 {$departmentselect},
                                 {$regionselect},
                                 {$siteselect},
+                                {$personnelcategoryselect},
                                 {$positionselect},
                                 COALESCE({$companysql['idexpr']}, 0) AS companyid,
                                 {$companysql['select']}
@@ -830,6 +858,7 @@ class overview_repository {
                                 {$departmentjoin}
                                 {$regionjoin}
                                 {$sitejoin}
+                                {$personnelcategoryjoin}
                                 {$positionjoin}
                           WHERE " . implode(' AND ', array_merge($basewhere, [
                               'ue.status = 0',
@@ -877,6 +906,7 @@ class overview_repository {
                 'department' => (string)$record->departmentname,
                 'location' => (string)$record->regionname,
                 'site' => (string)$record->sitename,
+                'personnelcategory' => (string)$record->personnelcategoryname,
                 'position' => (string)$record->positionname,
                 'course' => format_string((string)$record->coursename),
                 'documentid' => $documentid,
@@ -885,7 +915,8 @@ class overview_repository {
             ];
         }
 
-        return $this->apply_status_mode($rows, $filters);
+        self::$enrolmentstatusrowscache[$cachekey] = $this->apply_status_mode($rows, $filters);
+        return self::$enrolmentstatusrowscache[$cachekey];
     }
 
     private function status_for_row(int $documentid, ?int $expirytime, int $reportdate, bool $nullExpiryMeansActive = false): string {
@@ -1055,6 +1086,11 @@ class overview_repository {
     }
 
     private function month_windows(array $filters): array {
+        $cachekey = $this->cache_key($filters);
+        if (isset(self::$monthwindowscache[$cachekey])) {
+            return self::$monthwindowscache[$cachekey];
+        }
+
         $daterange = $filters['daterange'] ?? 'last12months';
         $count = 12;
         if (in_array($daterange, ['6months', 'last6months'], true)) {
@@ -1089,7 +1125,8 @@ class overview_repository {
                     $limit++;
                 }
                 if ($months) {
-                    return $months;
+                    self::$monthwindowscache[$cachekey] = $months;
+                    return self::$monthwindowscache[$cachekey];
                 }
             }
         }
@@ -1105,7 +1142,8 @@ class overview_repository {
                 'end' => $end->getTimestamp(),
             ];
         }
-        return $months;
+        self::$monthwindowscache[$cachekey] = $months;
+        return self::$monthwindowscache[$cachekey];
     }
 
     private function platform_growth_windows(array $filters): array {
@@ -1150,6 +1188,39 @@ class overview_repository {
 
     private function current_report_date(): int {
         return (new \DateTimeImmutable('today 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
+    }
+
+    private function cache_key(array $filters, ?int $reportdate = null): string {
+        $payload = [
+            'filters' => $this->normalize_cache_value($filters),
+            'reportdate' => $reportdate,
+        ];
+
+        return md5(json_encode($payload));
+    }
+
+    private function normalize_cache_value($value) {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->normalize_cache_value($item);
+        }
+
+        if ($this->array_is_associative($value)) {
+            ksort($value);
+        }
+
+        return $value;
+    }
+
+    private function array_is_associative(array $items): bool {
+        if ($items === []) {
+            return false;
+        }
+
+        return array_keys($items) !== range(0, count($items) - 1);
     }
 
     private function apply_status_mode(array $rows, array $filters): array {

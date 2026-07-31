@@ -8,6 +8,12 @@ use block_dashboardanalytics\permissions;
 defined('MOODLE_INTERNAL') || die();
 
 class document_repository {
+    /** @var array<string, array> */
+    private array $overviewrowscache = [];
+    /** @var array<string, array> */
+    private array $forecastcandidaterowscache = [];
+    /** @var array<string, array> */
+    private array $heatmaptabscache = [];
 
     public function is_configured(): bool {
         return !empty($this->sources());
@@ -208,7 +214,13 @@ class document_repository {
     public function noncompliance_by_course_items(array $filters, int $limit = 10): array {
         $overview = new overview_repository();
         $items = [];
-        foreach ($this->company_tabs($filters, 8) as $tab) {
+        $tabs = $this->company_tabs($filters, 8);
+        $selectedtab = $this->selected_panel_tab($tabs, $filters, 'riskcourse');
+        if ($selectedtab === null) {
+            return [];
+        }
+
+        foreach ([$selectedtab] as $tab) {
             $scopefilters = $this->heatmap_tab_filters($filters, $tab);
             $rows = $overview->enrolment_status_snapshot_rows($scopefilters);
             $courses = [];
@@ -275,11 +287,29 @@ class document_repository {
         $label30 = get_string('forecast:window:30days', 'block_dashboardanalytics');
         $label60 = get_string('forecast:window:60days', 'block_dashboardanalytics');
         $label90 = get_string('forecast:window:90days', 'block_dashboardanalytics');
+        $rows = $this->forecast_candidate_rows($filters);
+        $now = time();
         $counts = [
-            $label30 => $this->count_expiring_between($filters, 0, 30),
-            $label60 => $this->count_expiring_between($filters, 31, 60),
-            $label90 => $this->count_expiring_between($filters, 61, 90),
+            $label30 => 0,
+            $label60 => 0,
+            $label90 => 0,
         ];
+
+        foreach ($rows as $row) {
+            $expiry = !empty($row['expirytime']) ? (int)$row['expirytime'] : 0;
+            if ($expiry <= 0) {
+                continue;
+            }
+
+            if ($expiry >= $now && $expiry <= ($now + (30 * DAYSECS))) {
+                $counts[$label30]++;
+            } else if ($expiry >= ($now + (31 * DAYSECS)) && $expiry <= ($now + (60 * DAYSECS))) {
+                $counts[$label60]++;
+            } else if ($expiry >= ($now + (61 * DAYSECS)) && $expiry <= ($now + (90 * DAYSECS))) {
+                $counts[$label90]++;
+            }
+        }
+
         $max = max(1, max($counts));
         $items = [];
         foreach ($counts as $label => $count) {
@@ -330,16 +360,23 @@ class document_repository {
     }
 
     public function forecast_stacked_items(array $filters, int $limit = 8): array {
-        $items = [];
-        foreach ($this->forecast_scope_tabs($filters, $limit) as $tab) {
-            $scopefilters = $this->heatmap_tab_filters($filters, $tab);
-            foreach ($this->forecast_period_definitions() as $periodkey => $definition) {
-                $intervalitems = $this->forecast_interval_items($scopefilters, $periodkey, $definition);
-                foreach ($intervalitems as $intervalitem) {
-                    $intervalitem['groupkey'] = (string)$tab['key'];
-                    $items[] = $intervalitem;
-                }
-            }
+        $tabs = $this->forecast_scope_tabs($filters, $limit);
+        $selectedtab = $this->selected_panel_tab($tabs, $filters, 'forecastworkload');
+        if ($selectedtab === null) {
+            return [];
+        }
+
+        $definitions = $this->forecast_period_definitions();
+        $selectedperiodkey = (string)($filters['forecastperiod_forecastworkload'] ?? array_key_first($definitions));
+        $definition = $definitions[$selectedperiodkey] ?? reset($definitions);
+        if (!$definition) {
+            return [];
+        }
+
+        $scopefilters = $this->heatmap_tab_filters($filters, $selectedtab);
+        $items = $this->forecast_interval_items($scopefilters, $selectedperiodkey, $definition);
+        foreach ($items as $index => $intervalitem) {
+            $items[$index]['groupkey'] = (string)$selectedtab['key'];
         }
 
         return $items;
@@ -394,18 +431,27 @@ class document_repository {
     }
 
     public function compliance_heatmap_items(array $filters, int $limit = 18): array {
+        $tabs = $this->compliance_heatmap_tabs($filters, $limit);
+        $selectedtab = $this->selected_named_tab($tabs, (string)($filters['heatmapcompany'] ?? ''));
+        if ($selectedtab === null) {
+            return [];
+        }
+
         $items = [];
-        foreach ($this->compliance_heatmap_tabs($filters, $limit) as $tab) {
-            $scopefilters = $this->heatmap_tab_filters($filters, $tab);
-            foreach ($this->compliance_heatmap_group_items($scopefilters, $tab, $limit) as $item) {
-                $items[] = $item;
-            }
+        $scopefilters = $this->heatmap_tab_filters($filters, $selectedtab);
+        foreach ($this->compliance_heatmap_group_items($scopefilters, $selectedtab, $limit) as $item) {
+            $items[] = $item;
         }
 
         return $items;
     }
 
     public function compliance_heatmap_tabs(array $filters, int $limit = 8): array {
+        $cachekey = $this->cache_key($filters, $limit);
+        if (isset($this->heatmaptabscache[$cachekey])) {
+            return $this->heatmaptabscache[$cachekey];
+        }
+
         $employee = new employee_repository();
         $tabs = [];
         $iscompanyowner = permissions::is_company_owner(\context_system::instance());
@@ -445,7 +491,8 @@ class document_repository {
             ];
         }
 
-        return $tabs;
+        $this->heatmaptabscache[$cachekey] = $tabs;
+        return $this->heatmaptabscache[$cachekey];
     }
 
     public function weekly_expiry_histogram_items(array $filters, int $weeks = 13): array {
@@ -958,12 +1005,19 @@ class document_repository {
     }
 
     private function forecast_candidate_rows(array $filters): array {
+        $cachekey = $this->cache_key($filters);
+        if (isset($this->forecastcandidaterowscache[$cachekey])) {
+            return $this->forecastcandidaterowscache[$cachekey];
+        }
+
         $now = time();
 
-        return array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now): bool {
+        $this->forecastcandidaterowscache[$cachekey] = array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now): bool {
             $expiry = (int)($row['expirytime'] ?? 0);
             return $expiry > $now;
         }));
+
+        return $this->forecastcandidaterowscache[$cachekey];
     }
 
     private function forecast_course_colour(int $index): string {
@@ -1024,7 +1078,12 @@ class document_repository {
     }
 
     private function overview_rows(array $filters): array {
-        return (new overview_repository())->enrolment_status_snapshot_rows($filters);
+        $cachekey = $this->cache_key($filters);
+        if (!isset($this->overviewrowscache[$cachekey])) {
+            $this->overviewrowscache[$cachekey] = (new overview_repository())->enrolment_status_snapshot_rows($filters);
+        }
+
+        return $this->overviewrowscache[$cachekey];
     }
 
     private function filtered_document_records(array $filters, string $status): array {
@@ -1428,35 +1487,79 @@ class document_repository {
     }
 
     private function compliance_heatmap_group_items(array $filters, array $tab, int $limit): array {
-        $employee = new employee_repository();
-        $personnelcategories = array_values(array_filter(
-            array_slice($employee->active_users_by_dimension_items($filters, 'personnelcategory', $limit), 0, $limit),
-            static function(array $item): bool {
-                return trim((string)($item['label'] ?? '')) !== '';
-            }
-        ));
-        $sites = array_values(array_filter(
-            array_slice($employee->active_users_by_dimension_items($filters, 'site', $limit), 0, $limit),
-            static function(array $item): bool {
-                return trim((string)($item['label'] ?? '')) !== '';
-            }
-        ));
-
-        if (!$personnelcategories || !$sites) {
+        $rows = $this->overview_rows($filters);
+        if (!$rows) {
             return [];
         }
 
+        $personnelcategorylabels = [];
+        $sitelabels = [];
+        $cellusers = [];
+
+        foreach ($rows as $row) {
+            $personnelcategory = trim((string)($row['personnelcategory'] ?? ''));
+            $site = trim((string)($row['site'] ?? ''));
+            if ($personnelcategory === '' || $site === '') {
+                continue;
+            }
+
+            $personnelcategorylabels[$personnelcategory] = $personnelcategory;
+            $sitelabels[$site] = $site;
+
+            $userid = (int)($row['userid'] ?? 0);
+            if ($userid <= 0) {
+                continue;
+            }
+
+            if (!isset($cellusers[$personnelcategory])) {
+                $cellusers[$personnelcategory] = [];
+            }
+            if (!isset($cellusers[$personnelcategory][$site])) {
+                $cellusers[$personnelcategory][$site] = [];
+            }
+            if (!isset($cellusers[$personnelcategory][$site][$userid])) {
+                $cellusers[$personnelcategory][$site][$userid] = [
+                    'totalcourses' => 0,
+                    'validcourses' => 0,
+                ];
+            }
+
+            $cellusers[$personnelcategory][$site][$userid]['totalcourses']++;
+            if (($row['status'] ?? '') === 'Active' || ($row['status'] ?? '') === 'Expiring') {
+                $cellusers[$personnelcategory][$site][$userid]['validcourses']++;
+            }
+        }
+
+        if (!$personnelcategorylabels || !$sitelabels) {
+            return [];
+        }
+
+        $personnelcategories = array_slice(array_values($personnelcategorylabels), 0, $limit);
+        $sites = array_slice(array_values($sitelabels), 0, $limit);
+
         $items = [];
-        foreach ($personnelcategories as $rowindex => $personnelcategoryitem) {
-            $personnelcategory = (string)$personnelcategoryitem['label'];
-            foreach ($sites as $columnindex => $siteitem) {
-                $site = (string)$siteitem['label'];
-                $cellfilters = $filters;
-                $cellfilters['personnelcategories'] = [$personnelcategory];
-                $cellfilters['sites'] = [$site];
-                $summary = $this->compliance_summary($cellfilters);
-                $hasstaff = (int)$summary['totalactiveusers'] > 0;
-                $compliance = $hasstaff ? round((float)$summary['compliance'], 1) : 0.0;
+        foreach ($personnelcategories as $personnelcategory) {
+            foreach ($sites as $site) {
+                $users = $cellusers[$personnelcategory][$site] ?? [];
+                $hasstaff = !empty($users);
+                $totalusers = 0;
+                $compliantusers = 0;
+                $sumpercent = 0.0;
+
+                foreach ($users as $user) {
+                    if (($user['totalcourses'] ?? 0) <= 0) {
+                        continue;
+                    }
+
+                    $totalusers++;
+                    $employeepercent = (((int)$user['validcourses']) / ((int)$user['totalcourses'])) * 100.0;
+                    $sumpercent += $employeepercent;
+                    if ((int)$user['validcourses'] >= (int)$user['totalcourses']) {
+                        $compliantusers++;
+                    }
+                }
+
+                $compliance = $totalusers > 0 ? round($sumpercent / $totalusers, 1) : 0.0;
                 $items[] = [
                     'label' => $personnelcategory . ' / ' . $site,
                     'value' => $hasstaff ? $compliance . '%' : '—',
@@ -1464,8 +1567,8 @@ class document_repository {
                     'status' => $this->visual_status_for_percent($compliance, $filters, $hasstaff),
                     'meta' => $hasstaff
                         ? get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
-                            'compliant' => $summary['validusers'],
-                            'total' => $summary['totalactiveusers'],
+                            'compliant' => $compliantusers,
+                            'total' => $totalusers,
                         ])
                         : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
                     'groupkey' => (string)$tab['key'],
@@ -1479,6 +1582,63 @@ class document_repository {
         }
 
         return $items;
+    }
+
+    private function selected_panel_tab(array $tabs, array $filters, string $panelkey): ?array {
+        return $this->selected_named_tab($tabs, (string)($filters['paneltab_' . $panelkey] ?? ''));
+    }
+
+    private function selected_named_tab(array $tabs, string $selectedkey): ?array {
+        if (!$tabs) {
+            return null;
+        }
+
+        if ($selectedkey !== '') {
+            foreach ($tabs as $tab) {
+                if ((string)($tab['key'] ?? '') === $selectedkey) {
+                    return $tab;
+                }
+            }
+        }
+
+        foreach ($tabs as $tab) {
+            if (!empty($tab['active'])) {
+                return $tab;
+            }
+        }
+
+        return $tabs[0];
+    }
+
+    private function cache_key(array $filters, ?int $extra = null): string {
+        return md5(json_encode([
+            'filters' => $this->normalize_cache_value($filters),
+            'extra' => $extra,
+        ]));
+    }
+
+    private function normalize_cache_value($value) {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->normalize_cache_value($item);
+        }
+
+        if ($this->array_is_associative($value)) {
+            ksort($value);
+        }
+
+        return $value;
+    }
+
+    private function array_is_associative(array $items): bool {
+        if ($items === []) {
+            return false;
+        }
+
+        return array_keys($items) !== range(0, count($items) - 1);
     }
 
     private function heatmap_tab_filters(array $filters, array $tab): array {
