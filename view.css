@@ -284,6 +284,12 @@
     min-width: 0;
 }
 
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel[data-panel-key="forecastworkload"] {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-visual-panel h5 {
     margin-bottom: .3rem;
     font-size: 1.08rem;
