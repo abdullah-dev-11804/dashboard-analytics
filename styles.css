@@ -3307,7 +3307,9 @@ body.da-modal-open {
 
 .block-dashboardanalytics .da-visual-panel[data-panel-key="forecastworkload"] {
     padding: 0;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
     border-radius: 10px;
     box-shadow: 0 18px 34px -28px rgba(15, 24, 34, .45);
 }
