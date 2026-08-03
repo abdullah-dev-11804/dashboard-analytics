@@ -1239,7 +1239,7 @@ class document_repository {
 
             foreach ($group['courses'] as $record) {
                 [$expirytext, $daystext] = $this->document_date_cells($record);
-                $statuskey = (string)$record['status'];
+                $statuskey = (string)($record['documentstatus'] ?? $record['status']);
                 $rows[] = [
                     'rowtype' => 'course',
                     'groupid' => (string)$group['groupid'],
