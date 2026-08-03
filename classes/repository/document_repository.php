@@ -1217,7 +1217,10 @@ class document_repository {
                         'coursecount' => $coursecount,
                         'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
                         'courseurl' => ($coursecount === 1 && !empty($summaryrecord['courseid']))
-                            ? (new \moodle_url('/course/view.php', ['id' => (int)$summaryrecord['courseid']]))->out(false)
+                            ? (new \moodle_url('/local/sentaldocupload/course_record.php', [
+                                'courseid' => (int)$summaryrecord['courseid'],
+                                'userid' => (int)$group['userid'],
+                            ]))->out(false)
                             : '',
                     ],
                     ['key' => 'expiry', 'value' => $summaryexpiry],
@@ -1252,7 +1255,10 @@ class document_repository {
                             'key' => 'course',
                             'value' => (string)$record['course'],
                             'courseurl' => !empty($record['courseid'])
-                                ? (new \moodle_url('/course/view.php', ['id' => (int)$record['courseid']]))->out(false)
+                                ? (new \moodle_url('/local/sentaldocupload/course_record.php', [
+                                    'courseid' => (int)$record['courseid'],
+                                    'userid' => (int)$group['userid'],
+                                ]))->out(false)
                                 : '',
                         ],
                         ['key' => 'expiry', 'value' => $expirytext],

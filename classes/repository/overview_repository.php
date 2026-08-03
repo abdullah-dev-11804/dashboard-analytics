@@ -58,7 +58,10 @@ class overview_repository {
                         'key' => 'course',
                         'value' => (string)$row['course'],
                         'courseurl' => !empty($row['courseid'])
-                            ? (new \moodle_url('/course/view.php', ['id' => (int)$row['courseid']]))->out(false)
+                            ? (new \moodle_url('/local/sentaldocupload/course_record.php', [
+                                'courseid' => (int)$row['courseid'],
+                                'userid' => (int)$row['userid'],
+                            ]))->out(false)
                             : '',
                     ],
                     ['key' => 'expiry', 'value' => $expirytime !== null ? userdate($expirytime, get_string('strftimedate')) : '-'],
