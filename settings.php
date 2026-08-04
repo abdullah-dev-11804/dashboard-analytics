@@ -105,4 +105,33 @@ if ($ADMIN->fulltree) {
         '60',
         PARAM_FLOAT
     ));
+
+    $settings->add(new admin_setting_heading(
+        'block_dashboardanalytics/expiryworkflowheading',
+        get_string('settings:expiryworkflowheading', 'block_dashboardanalytics'),
+        get_string('settings:expiryworkflowheading_desc', 'block_dashboardanalytics')
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'block_dashboardanalytics/expiryworkflowenabled',
+        get_string('settings:expiryworkflowenabled', 'block_dashboardanalytics'),
+        get_string('settings:expiryworkflowenabled_desc', 'block_dashboardanalytics'),
+        0
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'block_dashboardanalytics/expiryworkflowthresholddays',
+        get_string('settings:expiryworkflowthresholddays', 'block_dashboardanalytics'),
+        get_string('settings:expiryworkflowthresholddays_desc', 'block_dashboardanalytics'),
+        '30',
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'block_dashboardanalytics/expiryworkflowdefaultrecipient',
+        get_string('settings:expiryworkflowdefaultrecipient', 'block_dashboardanalytics'),
+        get_string('settings:expiryworkflowdefaultrecipient_desc', 'block_dashboardanalytics'),
+        'trainingmng1@sental.kz',
+        PARAM_EMAIL
+    ));
 }

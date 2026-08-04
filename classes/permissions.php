@@ -129,6 +129,11 @@ class permissions {
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'analyticscourses', 'label' => get_string('tab:analyticscourses', 'block_dashboardanalytics')];
         }
 
+        if ($dashboardkey === self::DASHBOARD_COMPANY
+                && (new \block_dashboardanalytics\repository\expiry_workflow_repository())->can_view_panel($userid)) {
+            $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'expiryworkflow', 'label' => get_string('tab:expiryworkflow', 'block_dashboardanalytics')];
+        }
+
         $items = $tabs[$dashboardkey] ?? [];
         foreach ($items as $index => $tab) {
             $items[$index]['active'] = $index === 0;

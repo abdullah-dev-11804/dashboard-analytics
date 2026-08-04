@@ -9,7 +9,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'block_dashboardanalytics';
-$plugin->version = 2026070300;
+$plugin->version = 2026080400;
 $plugin->requires = 2022112800;
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.3.2';
+$plugin->release = '0.4.0';

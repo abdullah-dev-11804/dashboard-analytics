@@ -913,8 +913,10 @@ class overview_repository {
                 'position' => (string)$record->positionname,
                 'course' => format_string((string)$record->coursename),
                 'documentid' => $documentid,
+                'issuedate' => (int)($document['issuedate'] ?? 0),
                 'expirytime' => $expirytime ?? 0,
                 'status' => $status,
+                'sourcekind' => (string)($document['sourcekind'] ?? ''),
             ];
         }
 
@@ -953,6 +955,7 @@ class overview_repository {
         $sql = "SELECT d.id AS documentid,
                        u.id AS userid,
                        c.id AS courseid,
+                       cc.timecompleted AS issuedate,
                        {$expiryselect}
                   FROM {{$source['table']}} d
                   JOIN {user} u ON u.id = d.{$source['userid']}
@@ -995,6 +998,7 @@ class overview_repository {
                        d.{$source['documentid']} AS documentid,
                        du.{$source['userid']} AS userid,
                        c.id AS courseid,
+                       COALESCE(v.issuedate, d.issuedate) AS issuedate,
                        CASE
                            WHEN {$expiryexpr} IS NULL THEN NULL
                            WHEN {$expiryexpr} = 0 THEN NULL
@@ -1018,8 +1022,10 @@ class overview_repository {
         foreach ($records as $record) {
             $candidate = [
                 'documentid' => (int)$record->documentid,
+                'issuedate' => !empty($record->issuedate) ? (int)$record->issuedate : 0,
                 'expirytime' => $record->expirytime !== null ? (int)$record->expirytime : null,
                 'null_expiry_means_active' => $nullExpiryMeansActive,
+                'sourcekind' => $nullExpiryMeansActive ? 'legacy_type1' : 'ncasign',
             ];
             $candidate['status'] = $this->status_for_row(
                 $candidate['documentid'],

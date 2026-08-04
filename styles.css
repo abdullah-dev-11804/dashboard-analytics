@@ -2386,6 +2386,196 @@
     margin-top: 4px;
 }
 
+.block-dashboardanalytics .da-expiry-workflow-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-card {
+    border: 1px solid #dfe7f1;
+    border-radius: 16px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-card-full {
+    grid-column: 1 / -1;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .9rem;
+    margin-bottom: .9rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-card-head h6 {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: #243b5a;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-card-head p {
+    margin: .22rem 0 0;
+    color: #687a93;
+    font-size: .84rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-site-settings,
+.block-dashboardanalytics .da-expiry-workflow-company-settings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem;
+    margin-bottom: .9rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-site-settings label,
+.block-dashboardanalytics .da-expiry-workflow-company-settings label {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    color: #41556f;
+    font-size: .84rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-site-settings input[type="number"],
+.block-dashboardanalytics .da-expiry-workflow-site-settings input[type="email"],
+.block-dashboardanalytics .da-expiry-workflow-company-settings select {
+    width: 100%;
+    min-height: 2.7rem;
+    border: 1px solid #cfd9ea;
+    border-radius: 10px;
+    padding: .6rem .8rem;
+    font-size: .92rem;
+    color: #22324a;
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-company-settings select[multiple] {
+    min-height: 8.5rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-checkbox {
+    flex-direction: row !important;
+    align-items: center;
+    gap: .55rem !important;
+    padding-top: 1.7rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-checkbox input {
+    margin: 0;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counter {
+    border-radius: 14px;
+    padding: .9rem 1rem;
+    background: #f5f8fc;
+    border: 1px solid #e2ebf5;
+    display: flex;
+    flex-direction: column;
+    gap: .22rem;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counter strong {
+    font-size: 1.6rem;
+    line-height: 1;
+    color: #243b5a;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counter span {
+    color: #61748f;
+    font-size: .84rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counter-ok strong {
+    color: #1b8d67;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counter-warning strong {
+    color: #b56a00;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-counter-muted strong {
+    color: #64748b;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-actions {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-actions .da-row-action-primary {
+    background: #2f7bdc;
+    border-color: #2f7bdc;
+    color: #fff;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-cadence {
+    min-height: 2.35rem;
+    border: 1px solid #cfd9ea;
+    border-radius: 9px;
+    padding: .45rem .65rem;
+    font-size: .82rem;
+    color: #29415f;
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-case-toolbar {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-expiry-workflow-case-toolbar select {
+    min-width: 170px;
+    min-height: 2.6rem;
+    border: 1px solid #cfd9ea;
+    border-radius: 9px;
+    padding: .55rem .8rem;
+    font-size: .88rem;
+    color: #29415f;
+    background: #fff;
+}
+
+@media (max-width: 980px) {
+    .block-dashboardanalytics .da-expiry-workflow-layout,
+    .block-dashboardanalytics .da-expiry-workflow-site-settings,
+    .block-dashboardanalytics .da-expiry-workflow-company-settings {
+        grid-template-columns: 1fr;
+    }
+
+    .block-dashboardanalytics .da-expiry-workflow-counters {
+        grid-template-columns: 1fr;
+    }
+
+    .block-dashboardanalytics .da-expiry-workflow-card-head,
+    .block-dashboardanalytics .da-expiry-workflow-case-toolbar,
+    .block-dashboardanalytics .da-expiry-workflow-actions {
+        align-items: stretch;
+    }
+}
+
 .block-dashboardanalytics .da-toggle {
     align-items: center;
     background: transparent;

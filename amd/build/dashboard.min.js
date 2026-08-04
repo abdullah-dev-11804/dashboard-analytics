@@ -1600,6 +1600,233 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
+    var expiryWorkflowRoot = function(root) {
+        return root.querySelector('[data-region="expiry-workflow-panel"]');
+    };
+
+    var renderExpiryWorkflowPanel = function() {
+        return '<div class="da-expiry-workflow" data-region="expiry-workflow-panel">'
+            + '<div class="da-loading">' + escapeHtml(text('loading', 'Loading...')) + '</div>'
+            + '</div>';
+    };
+
+    var expiryWorkflowOverrides = function(state, overrides) {
+        state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, overrides || {});
+        return state.currentVisualOverrides;
+    };
+
+    var expiryWorkflowState = function(state) {
+        var overrides = state.currentVisualOverrides || {};
+        return {
+            companyid: Number(overrides.expiryworkflow_companyid) || 0,
+            coursesearch: overrides.expiryworkflow_coursesearch || '',
+            coursepage: Math.max(0, Number(overrides.expiryworkflow_coursepage) || 0),
+            courseperpage: Math.max(10, Number(overrides.expiryworkflow_courseperpage) || 20),
+            casesearch: overrides.expiryworkflow_casesearch || '',
+            casestatus: overrides.expiryworkflow_casestatus || '',
+            casepage: Math.max(0, Number(overrides.expiryworkflow_casepage) || 0),
+            caseperpage: Math.max(10, Number(overrides.expiryworkflow_caseperpage) || 20)
+        };
+    };
+
+    var expiryWorkflowPagination = function(prefix, page, perpage, totalcount) {
+        var totalpages = Math.max(1, Math.ceil((Number(totalcount) || 0) / Math.max(1, Number(perpage) || 20)));
+        var currentPage = Math.max(0, Number(page) || 0);
+        return '<div class="da-table-pagination">'
+            + '<div class="da-table-pagination-status">' + escapeHtml(formatString(text('page', 'Page {$a}'),
+                String((currentPage + 1) + ' / ' + totalpages))) + '</div>'
+            + '<div class="da-table-pagination-controls">'
+            + '<label class="da-table-perpage-label"><span>' + escapeHtml(text('perPage', 'Rows per page')) + '</span>'
+            + '<select class="da-table-perpage" data-action="' + escapeHtml(prefix + '-perpage') + '">'
+            + [20, 50, 100].map(function(size) {
+                return '<option value="' + size + '"' + (size === perpage ? ' selected' : '') + '>' + size + '</option>';
+            }).join('')
+            + '</select></label>'
+            + '<button type="button" class="da-pagination-button" data-action="' + escapeHtml(prefix + '-page') + '" data-page="' + Math.max(0, currentPage - 1) + '"'
+            + (currentPage <= 0 ? ' disabled' : '') + '>' + escapeHtml(text('previous', 'Previous')) + '</button>'
+            + '<button type="button" class="da-pagination-button" data-action="' + escapeHtml(prefix + '-page') + '" data-page="' + Math.min(totalpages - 1, currentPage + 1) + '"'
+            + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
+            + '</div></div>';
+    };
+
+    var expiryWorkflowBadgeStatus = function(status) {
+        if (status === 'awaiting') {
+            return 'warning';
+        }
+        if (status === 'reassigned') {
+            return 'ok';
+        }
+        if (status === 'dismissed') {
+            return 'muted';
+        }
+        return 'muted';
+    };
+
+    var renderExpiryWorkflowResults = function(root, response, state) {
+        var panel = expiryWorkflowRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var company = response.company || {};
+        var site = response.site || {};
+        var courses = response.courses || {rows: [], totalcount: 0, page: 0, perpage: 20};
+        var cases = response.cases || {rows: [], totalcount: 0, page: 0, perpage: 20};
+        var cadenceOptions = response.cadenceoptions || [];
+        var canManageCases = !!response.canmanagecases;
+
+        var counterMarkup = (response.counters || []).map(function(counter) {
+            var status = counter.key === 'reassigned' ? 'ok' : (counter.key === 'dismissed' ? 'muted' : 'warning');
+            return '<article class="da-expiry-workflow-counter da-expiry-workflow-counter-' + escapeHtml(status) + '">'
+                + '<strong>' + escapeHtml(counter.value || '0') + '</strong>'
+                + '<span>' + escapeHtml(counter.label || '') + '</span>'
+                + '</article>';
+        }).join('');
+
+        var companyOptions = (company.companyoptions || []).map(function(option) {
+            var selected = String(option.value) === String(company.companyid || 0) ? ' selected' : '';
+            return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+        }).join('');
+
+        var recipientOptions = (company.recipientoptions || []).map(function(option) {
+            var selected = (company.recipientids || []).indexOf(String(option.value)) !== -1 ? ' selected' : '';
+            return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+        }).join('');
+
+        var courseRows = (courses.rows || []).map(function(row) {
+            var toggleLabel = row.enabled ? text('courseAnalyticsToggleOn', 'On') : text('courseAnalyticsToggleOff', 'Off');
+            return '<tr>'
+                + '<td><a class="da-table-link da-table-course-link" href="/course/view.php?id=' + escapeHtml(String(row.courseid)) + '" title="' + escapeHtml(row.fullname || '') + '">'
+                + escapeHtml(row.fullname || '') + '</a><div class="da-course-analytics-shortname">' + escapeHtml(row.shortname || '') + '</div></td>'
+                + '<td><button type="button" class="da-toggle' + (row.enabled ? ' is-on' : '')
+                + '" data-action="expiry-workflow-course-toggle" data-courseid="' + escapeHtml(String(row.courseid)) + '" data-companyid="' + escapeHtml(String(company.companyid || 0))
+                + '" data-enabled="' + (row.enabled ? '1' : '0') + '"><span class="da-toggle-track"></span><span class="da-toggle-label">'
+                + escapeHtml(toggleLabel) + '</span></button></td>'
+                + '</tr>';
+        }).join('');
+
+        var caseRows = (cases.rows || []).map(function(row) {
+            var cadenceSelect = '<select class="da-expiry-workflow-cadence" data-case-cadence="' + escapeHtml(String(row.caseid)) + '"'
+                + (!canManageCases ? ' disabled' : '') + '>'
+                + cadenceOptions.map(function(option) {
+                    var selected = String(option.value) === String(row.cadencemode || '') ? ' selected' : '';
+                    return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+                }).join('') + '</select>';
+
+            return '<tr>'
+                + '<td><a class="da-table-link" href="' + escapeHtml(row.employeeprofile || '#') + '">' + escapeHtml(row.employee || '') + '</a></td>'
+                + '<td>' + escapeHtml(row.company || '') + '</td>'
+                + '<td><a class="da-table-link da-table-course-link" href="' + escapeHtml(row.courserecordurl || '#') + '" title="' + escapeHtml(row.course || '') + '">'
+                + escapeHtml(row.course || '') + '</a></td>'
+                + '<td>' + escapeHtml(row.issuedate || '—') + '</td>'
+                + '<td>' + escapeHtml(row.expirydate || '—') + '</td>'
+                + '<td><span class="da-badge da-badge-' + escapeHtml(expiryWorkflowBadgeStatus(row.workflowstatus || '')) + '">' + escapeHtml(row.workflowstatuslabel || '') + '</span></td>'
+                + '<td><div class="da-expiry-workflow-actions">'
+                + '<button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-enroll" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Enroll') + '</button>'
+                + cadenceSelect
+                + '<button type="button" class="da-row-action" data-action="expiry-workflow-remind" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Remind later') + '</button>'
+                + '<button type="button" class="da-row-action" data-action="expiry-workflow-dismiss" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Dismiss') + '</button>'
+                + '</div></td>'
+                + '</tr>';
+        }).join('');
+
+        panel.innerHTML = '<div class="da-expiry-workflow-layout">'
+            + '<section class="da-expiry-workflow-card">'
+            + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Notification settings') + '</h6><p>'
+            + escapeHtml('Master switch, threshold, recipients, and company/course controls.') + '</p></div></div>'
+            + '<div class="da-expiry-workflow-site-settings">'
+            + '<label class="da-expiry-workflow-checkbox"><input type="checkbox" data-expiry-site-enabled' + (site.enabled ? ' checked' : '') + (!site.cansavesite ? ' disabled' : '') + '><span>'
+            + escapeHtml('Enable expiry workflow site-wide') + '</span></label>'
+            + '<label><span>' + escapeHtml('Threshold (days)') + '</span><input type="number" min="1" step="1" data-expiry-threshold value="' + escapeHtml(String(site.thresholddays || 30)) + '"'
+            + (!site.cansavesite ? ' disabled' : '') + '></label>'
+            + '<label><span>' + escapeHtml('Default recipient email') + '</span><input type="email" data-expiry-defaultrecipient value="' + escapeHtml(site.defaultrecipient || '') + '"'
+            + (!site.cansavesite ? ' disabled' : '') + '></label>'
+            + '</div>'
+            + '<div class="da-expiry-workflow-company-settings">'
+            + (company.selectorvisible ? '<label><span>' + escapeHtml(text('companyHeader', 'Company')) + '</span><select data-action="expiry-workflow-company">' + companyOptions + '</select></label>' : '')
+            + '<label class="da-expiry-workflow-checkbox"><input type="checkbox" data-expiry-company-enabled' + (company.enabled ? ' checked' : '') + (!company.cansavecompany ? ' disabled' : '') + '><span>'
+            + escapeHtml('Enable notifications for this company') + '</span></label>'
+            + '<label><span>' + escapeHtml('Expiry notification recipients') + '</span><select multiple data-expiry-recipientids'
+            + (!company.cansavecompany ? ' disabled' : '') + '>' + recipientOptions + '</select></label>'
+            + '</div>'
+            + '<div class="da-expiry-workflow-settings-actions"><button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-save-settings"'
+            + ((!site.cansavesite && !company.cansavecompany) ? ' disabled' : '') + '>' + escapeHtml('Save settings') + '</button></div>'
+            + '<div class="da-expiry-workflow-counters">' + counterMarkup + '</div>'
+            + '</section>'
+            + '<section class="da-expiry-workflow-card">'
+            + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Course toggles') + '</h6><p>'
+            + escapeHtml('Only enabled courses can generate coordinator notifications.') + '</p></div>'
+            + '<input type="search" class="da-course-analytics-search" data-action="expiry-workflow-course-search" value="' + escapeHtml(expiryWorkflowState(state).coursesearch || '') + '" placeholder="' + escapeHtml(text('courseAnalyticsSearch', 'Search courses')) + '"></div>'
+            + '<div class="da-table-wrap"><table class="da-table da-course-analytics-table"><thead><tr><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderCourse', 'Course')) + '</th><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderToggle', 'Toggle')) + '</th></tr></thead><tbody>'
+            + (courseRows || '<tr><td colspan="2"><div class="da-empty">' + escapeHtml(text('courseAnalyticsNoResults', 'No matching courses found.')) + '</div></td></tr>')
+            + '</tbody></table></div>'
+            + expiryWorkflowPagination('expiry-workflow-course', courses.page || 0, courses.perpage || 20, courses.totalcount || 0)
+            + '</section>'
+            + '<section class="da-expiry-workflow-card da-expiry-workflow-card-full">'
+            + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Expiry cases') + '</h6><p>'
+            + escapeHtml('Expiring certifications awaiting coordinator action.') + '</p></div>'
+            + '<div class="da-expiry-workflow-case-toolbar"><input type="search" class="da-course-analytics-search" data-action="expiry-workflow-case-search" value="' + escapeHtml(expiryWorkflowState(state).casesearch || '') + '" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'employee / course')) + '">'
+            + '<select data-action="expiry-workflow-case-status"><option value="">' + escapeHtml(text('filter:statusall', 'All statuses')) + '</option>'
+            + (response.counters || []).map(function(counter) {
+                var selected = String(expiryWorkflowState(state).casestatus || '') === String(counter.key || '') ? ' selected' : '';
+                return '<option value="' + escapeHtml(counter.key || '') + '"' + selected + '>' + escapeHtml(counter.label || '') + '</option>';
+            }).join('') + '</select></div></div>'
+            + '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + escapeHtml('Employee') + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml('Completion date') + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
+            + (caseRows || '<tr><td colspan="7"><div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div></td></tr>')
+            + '</tbody></table></div>'
+            + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0)
+            + '</section>'
+            + '</div>';
+    };
+
+    var loadExpiryWorkflowControl = function(root, state, overrides) {
+        var panel = expiryWorkflowRoot(root);
+        if (!panel) {
+            return Promise.resolve();
+        }
+
+        setLoading(panel);
+        var current = expiryWorkflowState(state);
+        var nextOverrides = Object.assign({}, current, overrides || {});
+        expiryWorkflowOverrides(state, {
+            expiryworkflow_companyid: nextOverrides.companyid,
+            expiryworkflow_coursesearch: nextOverrides.coursesearch,
+            expiryworkflow_coursepage: nextOverrides.coursepage,
+            expiryworkflow_courseperpage: nextOverrides.courseperpage,
+            expiryworkflow_casesearch: nextOverrides.casesearch,
+            expiryworkflow_casestatus: nextOverrides.casestatus,
+            expiryworkflow_casepage: nextOverrides.casepage,
+            expiryworkflow_caseperpage: nextOverrides.caseperpage
+        });
+
+        return call('block_dashboardanalytics_get_expiry_workflow_data', {
+            contextid: state.contextid,
+            companyid: Number(nextOverrides.companyid) || 0,
+            coursesearch: nextOverrides.coursesearch || '',
+            coursepage: Math.max(0, Number(nextOverrides.coursepage) || 0),
+            courseperpage: Math.max(10, Number(nextOverrides.courseperpage) || 20),
+            casesearch: nextOverrides.casesearch || '',
+            casestatus: nextOverrides.casestatus || '',
+            casepage: Math.max(0, Number(nextOverrides.casepage) || 0),
+            caseperpage: Math.max(10, Number(nextOverrides.caseperpage) || 20)
+        }).then(function(response) {
+            if (response && response.company) {
+                expiryWorkflowOverrides(state, {
+                    expiryworkflow_companyid: Number(response.company.companyid) || 0
+                });
+            }
+            renderExpiryWorkflowResults(root, response, state);
+            persistState(root, state);
+            commitBrowserHistoryState(root, state, 'push');
+        }).catch(function(error) {
+            Notification.exception(error);
+            panel.innerHTML = '<div class="da-empty">' + escapeHtml('Unable to load expiry workflow controls.') + '</div>';
+        });
+    };
+
     var forecastPeriodOrder = ['30days', '60days', '90days', '6months', '12months', '3years'];
 
     var forecastPeriodOptions = function(items) {
@@ -1913,7 +2140,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline', 'forecastworkload'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
                 || panel.type === 'analyticscourses';
         };
@@ -1956,6 +2183,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 body = renderReportsActPanel();
             } else if (panel.type === 'analyticscourses') {
                 body = renderCourseAnalyticsPanel();
+            } else if (panel.type === 'expiryworkflow') {
+                body = renderExpiryWorkflowPanel();
             } else if (panel.type === 'forecastworkload') {
                 body = panelTabMarkup + renderForecastWorkloadPanel(root, panel, state, visibleItems, selectedPanelTab);
             } else if (!(panel.type === 'heatmap' ? items : visibleItems).length) {
@@ -3197,6 +3426,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         if (panels.some(function(panel) { return panel.type === 'analyticscourses'; })) {
             loadCourseAnalyticsControl(root, state);
         }
+        if (panels.some(function(panel) { return panel.type === 'expiryworkflow'; })) {
+            loadExpiryWorkflowControl(root, state);
+        }
         if (panels.some(function(panel) { return panel.type === 'forecastworkload'; })) {
             loadForecastInlineTable(root, state, 'forecastworkload');
         }
@@ -4152,6 +4384,66 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            if (event.target.matches('[data-action="expiry-workflow-company"]')) {
+                rememberCurrentState(root, state);
+                loadExpiryWorkflowControl(root, state, {
+                    companyid: Number(event.target.value) || 0,
+                    coursesearch: '',
+                    coursepage: 0,
+                    courseperpage: expiryWorkflowState(state).courseperpage,
+                    casesearch: '',
+                    casestatus: '',
+                    casepage: 0,
+                    caseperpage: expiryWorkflowState(state).caseperpage
+                });
+                return;
+            }
+
+            if (event.target.matches('[data-action="expiry-workflow-case-status"]')) {
+                rememberCurrentState(root, state);
+                loadExpiryWorkflowControl(root, state, {
+                    companyid: expiryWorkflowState(state).companyid,
+                    coursesearch: expiryWorkflowState(state).coursesearch,
+                    coursepage: expiryWorkflowState(state).coursepage,
+                    courseperpage: expiryWorkflowState(state).courseperpage,
+                    casesearch: expiryWorkflowState(state).casesearch,
+                    casestatus: event.target.value || '',
+                    casepage: 0,
+                    caseperpage: expiryWorkflowState(state).caseperpage
+                });
+                return;
+            }
+
+            if (event.target.matches('[data-action="expiry-workflow-course-perpage"]')) {
+                rememberCurrentState(root, state);
+                loadExpiryWorkflowControl(root, state, {
+                    companyid: expiryWorkflowState(state).companyid,
+                    coursesearch: expiryWorkflowState(state).coursesearch,
+                    coursepage: 0,
+                    courseperpage: Number(event.target.value) || 20,
+                    casesearch: expiryWorkflowState(state).casesearch,
+                    casestatus: expiryWorkflowState(state).casestatus,
+                    casepage: expiryWorkflowState(state).casepage,
+                    caseperpage: expiryWorkflowState(state).caseperpage
+                });
+                return;
+            }
+
+            if (event.target.matches('[data-action="expiry-workflow-case-perpage"]')) {
+                rememberCurrentState(root, state);
+                loadExpiryWorkflowControl(root, state, {
+                    companyid: expiryWorkflowState(state).companyid,
+                    coursesearch: expiryWorkflowState(state).coursesearch,
+                    coursepage: expiryWorkflowState(state).coursepage,
+                    courseperpage: expiryWorkflowState(state).courseperpage,
+                    casesearch: expiryWorkflowState(state).casesearch,
+                    casestatus: expiryWorkflowState(state).casestatus,
+                    casepage: 0,
+                    caseperpage: Number(event.target.value) || 20
+                });
+                return;
+            }
+
             if (event.target.matches('[data-action="forecast-table-perpage"]')) {
                 rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
@@ -4196,6 +4488,38 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         courseanalytics_page: 0
                     });
                     loadCourseAnalyticsControl(root, state);
+                }, 250);
+                return;
+            }
+            if (event.target.matches('[data-action="expiry-workflow-course-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    loadExpiryWorkflowControl(root, state, {
+                        companyid: expiryWorkflowState(state).companyid,
+                        coursesearch: event.target.value || '',
+                        coursepage: 0,
+                        courseperpage: expiryWorkflowState(state).courseperpage,
+                        casesearch: expiryWorkflowState(state).casesearch,
+                        casestatus: expiryWorkflowState(state).casestatus,
+                        casepage: expiryWorkflowState(state).casepage,
+                        caseperpage: expiryWorkflowState(state).caseperpage
+                    });
+                }, 250);
+                return;
+            }
+            if (event.target.matches('[data-action="expiry-workflow-case-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    loadExpiryWorkflowControl(root, state, {
+                        companyid: expiryWorkflowState(state).companyid,
+                        coursesearch: expiryWorkflowState(state).coursesearch,
+                        coursepage: expiryWorkflowState(state).coursepage,
+                        courseperpage: expiryWorkflowState(state).courseperpage,
+                        casesearch: event.target.value || '',
+                        casestatus: expiryWorkflowState(state).casestatus,
+                        casepage: 0,
+                        caseperpage: expiryWorkflowState(state).caseperpage
+                    });
                 }, 250);
                 return;
             }
@@ -4331,6 +4655,209 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
                 return;
             }
+
+            var expirySaveSettings = event.target.closest('[data-action="expiry-workflow-save-settings"]');
+            if (expirySaveSettings && root.contains(expirySaveSettings)) {
+                var expiryPanel = expiryWorkflowRoot(root);
+                if (!expiryPanel) {
+                    return;
+                }
+                var companySelect = expiryPanel.querySelector('[data-action="expiry-workflow-company"]');
+                var companyEnabled = expiryPanel.querySelector('[data-expiry-company-enabled]');
+                var siteEnabled = expiryPanel.querySelector('[data-expiry-site-enabled]');
+                var thresholdInput = expiryPanel.querySelector('[data-expiry-threshold]');
+                var defaultRecipient = expiryPanel.querySelector('[data-expiry-defaultrecipient]');
+                var recipientSelect = expiryPanel.querySelector('[data-expiry-recipientids]');
+                var recipientIds = recipientSelect ? Array.prototype.slice.call(recipientSelect.selectedOptions).map(function(option) {
+                    return Number(option.value) || 0;
+                }).filter(function(value) {
+                    return value > 0;
+                }) : [];
+
+                expirySaveSettings.disabled = true;
+                call('block_dashboardanalytics_save_expiry_workflow_settings', {
+                    contextid: state.contextid,
+                    companyid: companySelect ? (Number(companySelect.value) || 0) : (expiryWorkflowState(state).companyid || 0),
+                    siteenabled: !!(siteEnabled && siteEnabled.checked),
+                    thresholddays: Math.max(1, Number(thresholdInput ? thresholdInput.value : 30) || 30),
+                    defaultrecipient: defaultRecipient ? (defaultRecipient.value || '') : '',
+                    companyenabled: !!(companyEnabled && companyEnabled.checked),
+                    recipientids: recipientIds
+                }).then(function() {
+                    Notification.addNotification({
+                        message: 'Expiry workflow settings saved.',
+                        type: 'success'
+                    });
+                    return loadExpiryWorkflowControl(root, state, {
+                        companyid: companySelect ? (Number(companySelect.value) || 0) : (expiryWorkflowState(state).companyid || 0)
+                    });
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    expirySaveSettings.disabled = false;
+                });
+                return;
+            }
+
+            var expiryCourseToggle = event.target.closest('[data-action="expiry-workflow-course-toggle"]');
+            if (expiryCourseToggle && root.contains(expiryCourseToggle)) {
+                if (expiryCourseToggle.disabled) {
+                    return;
+                }
+                var nextCourseEnabled = expiryCourseToggle.getAttribute('data-enabled') !== '1';
+                expiryCourseToggle.disabled = true;
+                call('block_dashboardanalytics_set_expiry_workflow_course', {
+                    contextid: state.contextid,
+                    companyid: Number(expiryCourseToggle.getAttribute('data-companyid')) || 0,
+                    courseid: Number(expiryCourseToggle.getAttribute('data-courseid')) || 0,
+                    enabled: nextCourseEnabled
+                }).then(function() {
+                    updateCourseAnalyticsToggleUi(expiryCourseToggle, nextCourseEnabled);
+                    Notification.addNotification({
+                        message: 'Expiry notification setting updated for this course.',
+                        type: 'success'
+                    });
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    expiryCourseToggle.disabled = false;
+                });
+                return;
+            }
+
+            var expiryCoursePage = event.target.closest('[data-action="expiry-workflow-course-page"]');
+            if (expiryCoursePage && root.contains(expiryCoursePage) && !expiryCoursePage.disabled) {
+                rememberCurrentState(root, state);
+                loadExpiryWorkflowControl(root, state, {
+                    companyid: expiryWorkflowState(state).companyid,
+                    coursesearch: expiryWorkflowState(state).coursesearch,
+                    coursepage: Number(expiryCoursePage.getAttribute('data-page')) || 0,
+                    courseperpage: expiryWorkflowState(state).courseperpage,
+                    casesearch: expiryWorkflowState(state).casesearch,
+                    casestatus: expiryWorkflowState(state).casestatus,
+                    casepage: expiryWorkflowState(state).casepage,
+                    caseperpage: expiryWorkflowState(state).caseperpage
+                });
+                return;
+            }
+
+            var expiryCasePage = event.target.closest('[data-action="expiry-workflow-case-page"]');
+            if (expiryCasePage && root.contains(expiryCasePage) && !expiryCasePage.disabled) {
+                rememberCurrentState(root, state);
+                loadExpiryWorkflowControl(root, state, {
+                    companyid: expiryWorkflowState(state).companyid,
+                    coursesearch: expiryWorkflowState(state).coursesearch,
+                    coursepage: expiryWorkflowState(state).coursepage,
+                    courseperpage: expiryWorkflowState(state).courseperpage,
+                    casesearch: expiryWorkflowState(state).casesearch,
+                    casestatus: expiryWorkflowState(state).casestatus,
+                    casepage: Number(expiryCasePage.getAttribute('data-page')) || 0,
+                    caseperpage: expiryWorkflowState(state).caseperpage
+                });
+                return;
+            }
+
+            var expiryEnroll = event.target.closest('[data-action="expiry-workflow-enroll"]');
+            if (expiryEnroll && root.contains(expiryEnroll)) {
+                if (!window.confirm('Reassign this learner and clear their current completion records for this course?')) {
+                    return;
+                }
+                expiryEnroll.disabled = true;
+                call('block_dashboardanalytics_act_on_expiry_workflow_case', {
+                    contextid: state.contextid,
+                    caseid: Number(expiryEnroll.getAttribute('data-caseid')) || 0,
+                    action: 'enroll',
+                    cadence: ''
+                }).then(function(response) {
+                    Notification.addNotification({
+                        message: response.message || 'Learner re-assigned successfully.',
+                        type: response.status ? 'success' : 'warning'
+                    });
+                    return loadExpiryWorkflowControl(root, state, {
+                        companyid: expiryWorkflowState(state).companyid,
+                        coursesearch: expiryWorkflowState(state).coursesearch,
+                        coursepage: expiryWorkflowState(state).coursepage,
+                        courseperpage: expiryWorkflowState(state).courseperpage,
+                        casesearch: expiryWorkflowState(state).casesearch,
+                        casestatus: expiryWorkflowState(state).casestatus,
+                        casepage: expiryWorkflowState(state).casepage,
+                        caseperpage: expiryWorkflowState(state).caseperpage
+                    });
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    expiryEnroll.disabled = false;
+                });
+                return;
+            }
+
+            var expiryRemind = event.target.closest('[data-action="expiry-workflow-remind"]');
+            if (expiryRemind && root.contains(expiryRemind)) {
+                var remindCaseId = Number(expiryRemind.getAttribute('data-caseid')) || 0;
+                var cadenceField = root.querySelector('[data-case-cadence="' + remindCaseId + '"]');
+                expiryRemind.disabled = true;
+                call('block_dashboardanalytics_act_on_expiry_workflow_case', {
+                    contextid: state.contextid,
+                    caseid: remindCaseId,
+                    action: 'remind',
+                    cadence: cadenceField ? (cadenceField.value || '') : ''
+                }).then(function(response) {
+                    Notification.addNotification({
+                        message: response.message || 'Reminder cadence updated.',
+                        type: response.status ? 'success' : 'warning'
+                    });
+                    return loadExpiryWorkflowControl(root, state, {
+                        companyid: expiryWorkflowState(state).companyid,
+                        coursesearch: expiryWorkflowState(state).coursesearch,
+                        coursepage: expiryWorkflowState(state).coursepage,
+                        courseperpage: expiryWorkflowState(state).courseperpage,
+                        casesearch: expiryWorkflowState(state).casesearch,
+                        casestatus: expiryWorkflowState(state).casestatus,
+                        casepage: expiryWorkflowState(state).casepage,
+                        caseperpage: expiryWorkflowState(state).caseperpage
+                    });
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    expiryRemind.disabled = false;
+                });
+                return;
+            }
+
+            var expiryDismiss = event.target.closest('[data-action="expiry-workflow-dismiss"]');
+            if (expiryDismiss && root.contains(expiryDismiss)) {
+                if (!window.confirm('Dismiss reminders for this learner and course during the current expiry cycle?')) {
+                    return;
+                }
+                expiryDismiss.disabled = true;
+                call('block_dashboardanalytics_act_on_expiry_workflow_case', {
+                    contextid: state.contextid,
+                    caseid: Number(expiryDismiss.getAttribute('data-caseid')) || 0,
+                    action: 'dismiss',
+                    cadence: ''
+                }).then(function(response) {
+                    Notification.addNotification({
+                        message: response.message || 'Expiry case dismissed.',
+                        type: response.status ? 'success' : 'warning'
+                    });
+                    return loadExpiryWorkflowControl(root, state, {
+                        companyid: expiryWorkflowState(state).companyid,
+                        coursesearch: expiryWorkflowState(state).coursesearch,
+                        coursepage: expiryWorkflowState(state).coursepage,
+                        courseperpage: expiryWorkflowState(state).courseperpage,
+                        casesearch: expiryWorkflowState(state).casesearch,
+                        casestatus: expiryWorkflowState(state).casestatus,
+                        casepage: expiryWorkflowState(state).casepage,
+                        caseperpage: expiryWorkflowState(state).caseperpage
+                    });
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    expiryDismiss.disabled = false;
+                });
+                return;
+            }
+
             var addFilterToggle = event.target.closest('[data-action="toggle-add-filter"]');
             if (addFilterToggle && root.contains(addFilterToggle)) {
                 toggleAddFilterMenu(root);

@@ -85,4 +85,36 @@ $functions = [
         'type' => 'write',
         'ajax' => true,
     ],
+
+    'block_dashboardanalytics_get_expiry_workflow_data' => [
+        'classname' => 'block_dashboardanalytics\external\get_expiry_workflow_data',
+        'methodname' => 'execute',
+        'description' => 'Return expiry workflow settings, counters, courses, and current cases.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_save_expiry_workflow_settings' => [
+        'classname' => 'block_dashboardanalytics\external\save_expiry_workflow_settings',
+        'methodname' => 'execute',
+        'description' => 'Save expiry workflow site and company settings.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_set_expiry_workflow_course' => [
+        'classname' => 'block_dashboardanalytics\external\set_expiry_workflow_course',
+        'methodname' => 'execute',
+        'description' => 'Toggle whether a course participates in expiry workflow notifications.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_act_on_expiry_workflow_case' => [
+        'classname' => 'block_dashboardanalytics\external\act_on_expiry_workflow_case',
+        'methodname' => 'execute',
+        'description' => 'Apply coordinator actions to expiry workflow cases.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
 ];

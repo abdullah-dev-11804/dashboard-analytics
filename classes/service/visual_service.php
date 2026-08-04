@@ -10,6 +10,7 @@ use block_dashboardanalytics\service\training_quality_service;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
+use block_dashboardanalytics\repository\expiry_workflow_repository;
 use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
 use block_dashboardanalytics\repository\server_repository;
@@ -66,6 +67,10 @@ class visual_service {
 
         if ($tabkey === 'analyticscourses') {
             return $this->analytics_courses($filters);
+        }
+
+        if ($tabkey === 'expiryworkflow') {
+            return $this->expiry_workflow($filters);
         }
 
         if ($tabkey === 'turnover') {
@@ -288,6 +293,25 @@ class visual_service {
                     get_string('panel:analyticscourses:paneltitle', 'block_dashboardanalytics'),
                     'analyticscourses',
                     get_string('panel:analyticscourses:paneldescription', 'block_dashboardanalytics'),
+                    []
+                ),
+            ],
+        ];
+    }
+
+    private function expiry_workflow(array $filters): array {
+        $repository = new expiry_workflow_repository();
+        $repository->sync_cases(!empty($filters['companyids']) ? (int)reset($filters['companyids']) : 0);
+
+        return [
+            'title' => get_string('panel:expiryworkflow:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:expiryworkflow:description', 'block_dashboardanalytics'),
+            'panels' => [
+                $this->panel(
+                    'expiryworkflow',
+                    get_string('panel:expiryworkflow:paneltitle', 'block_dashboardanalytics'),
+                    'expiryworkflow',
+                    get_string('panel:expiryworkflow:paneldescription', 'block_dashboardanalytics'),
                     []
                 ),
             ],
