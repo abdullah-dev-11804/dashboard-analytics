@@ -117,4 +117,12 @@ $functions = [
         'type' => 'write',
         'ajax' => true,
     ],
+
+    'block_dashboardanalytics_notify_expiry_workflow_now' => [
+        'classname' => 'block_dashboardanalytics\external\notify_expiry_workflow_now',
+        'methodname' => 'execute',
+        'description' => 'Send the expiry workflow digest immediately for one company.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
 ];

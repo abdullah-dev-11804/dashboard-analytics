@@ -116,7 +116,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         forecastInWindowLabel: 'In this window',
         forecastRenewalsLabel: '{$a} renewals',
         forecastClearCourseLabel: 'Clear course filter',
-        learningMatrixTitle: 'The Learning Matrix'
+        learningMatrixTitle: 'The Learning Matrix',
+        expiryNotifyNow: 'Notify coordinator now',
+        expiryNotifyNowConfirm: 'Send the expiry digest now to the configured recipients for this company?'
     };
 
     var stringList = [
@@ -243,7 +245,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'forecast:toolbar:window', component: 'block_dashboardanalytics'},
         {key: 'forecast:toolbar:renewals', component: 'block_dashboardanalytics'},
         {key: 'forecast:table:clearcourse', component: 'block_dashboardanalytics'},
-        {key: 'complianceactiontable', component: 'block_dashboardanalytics'}
+        {key: 'complianceactiontable', component: 'block_dashboardanalytics'},
+        {key: 'js:expirynotifynow', component: 'block_dashboardanalytics'},
+        {key: 'js:expirynotifynowconfirm', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -370,7 +374,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'forecastInWindowLabel',
         'forecastRenewalsLabel',
         'forecastClearCourseLabel',
-        'learningMatrixTitle'
+        'learningMatrixTitle',
+        'expiryNotifyNow',
+        'expiryNotifyNowConfirm'
     ];
 
     var call = function(methodname, args) {
@@ -1838,7 +1844,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '</div></div></label>'
             + '</div>'
             + '<div class="da-expiry-workflow-settings-actions"><button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-save-settings"'
-            + ((!site.cansavesite && !company.cansavecompany) ? ' disabled' : '') + '>' + escapeHtml('Save settings') + '</button></div>'
+            + ((!site.cansavesite && !company.cansavecompany) ? ' disabled' : '') + '>' + escapeHtml('Save settings') + '</button>'
+            + '<button type="button" class="da-row-action" data-action="expiry-workflow-notify-now"'
+            + ((!canManageCases || !company.companyid) ? ' disabled' : '') + '>' + escapeHtml(text('expiryNotifyNow', 'Notify coordinator now')) + '</button></div>'
             + '<div class="da-expiry-workflow-counters">' + counterMarkup + '</div>'
             + '</section>'
             + '<section class="da-expiry-workflow-card">'
@@ -4821,6 +4829,42 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     Notification.exception(error);
                 }).finally(function() {
                     expirySaveSettings.disabled = false;
+                });
+                return;
+            }
+
+            var expiryNotifyNow = event.target.closest('[data-action="expiry-workflow-notify-now"]');
+            if (expiryNotifyNow && root.contains(expiryNotifyNow)) {
+                var notifyPanel = expiryWorkflowRoot(root);
+                var notifyCompanySelect = notifyPanel ? notifyPanel.querySelector('[data-action="expiry-workflow-company"]') : null;
+                var notifyCompanyId = notifyCompanySelect ? (Number(notifyCompanySelect.value) || 0) : (expiryWorkflowState(state).companyid || 0);
+                if (!notifyCompanyId) {
+                    Notification.addNotification({
+                        message: 'Select a company first.',
+                        type: 'warning'
+                    });
+                    return;
+                }
+                if (!window.confirm(text('expiryNotifyNowConfirm', 'Send the expiry digest now to the configured recipients for this company?'))) {
+                    return;
+                }
+
+                expiryNotifyNow.disabled = true;
+                call('block_dashboardanalytics_notify_expiry_workflow_now', {
+                    contextid: state.contextid,
+                    companyid: notifyCompanyId
+                }).then(function(response) {
+                    Notification.addNotification({
+                        message: response && response.message ? response.message : 'Expiry digest sent.',
+                        type: 'success'
+                    });
+                    return loadExpiryWorkflowControl(root, state, {
+                        companyid: notifyCompanyId
+                    });
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    expiryNotifyNow.disabled = false;
                 });
                 return;
             }

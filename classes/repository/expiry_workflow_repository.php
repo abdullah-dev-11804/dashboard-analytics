@@ -671,6 +671,91 @@ class expiry_workflow_repository {
         ];
     }
 
+    public function send_company_digest_now(int $companyid, int $actorid): array {
+        global $DB;
+
+        if ($companyid <= 0) {
+            throw new \moodle_exception('invalidparameter');
+        }
+
+        if (!$this->can_manage_company($actorid, $companyid)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
+
+        $sql = "SELECT ec.*, u.firstname, u.lastname, c.fullname AS coursename, co.name AS companyname
+                  FROM {block_da_expcase} ec
+                  JOIN {user} u ON u.id = ec.userid
+                  JOIN {course} c ON c.id = ec.courseid
+             LEFT JOIN {company} co ON co.id = ec.companyid
+                 WHERE ec.activewindow = 1
+                   AND ec.workflowstatus = :workflowstatus
+                   AND ec.companyid = :companyid
+              ORDER BY ec.expirydate ASC, u.lastname ASC, u.firstname ASC";
+
+        $cases = $DB->get_records_sql($sql, [
+            'workflowstatus' => self::STATUS_AWAITING,
+            'companyid' => $companyid,
+        ]);
+
+        if (!$cases) {
+            return [
+                'status' => true,
+                'message' => get_string('expiryworkflow:action:notifyempty', 'block_dashboardanalytics'),
+                'casesent' => 0,
+                'recipients' => 0,
+            ];
+        }
+
+        $now = time();
+        $sent = 0;
+        $recipientcount = 0;
+        $byrecipient = [];
+        foreach ($cases as $case) {
+            foreach ($this->recipients_for_company($companyid) as $recipientkey => $recipient) {
+                if (!isset($byrecipient[$recipientkey])) {
+                    $byrecipient[$recipientkey] = [
+                        'recipient' => $recipient,
+                        'rows' => [],
+                    ];
+                }
+                $byrecipient[$recipientkey]['rows'][] = $case;
+            }
+        }
+
+        foreach ($byrecipient as $payload) {
+            $recipient = $payload['recipient'];
+            $rows = $payload['rows'];
+            if (!$rows) {
+                continue;
+            }
+
+            if ($this->send_digest_email($recipient, $rows)) {
+                $recipientcount++;
+                foreach ($rows as $case) {
+                    $case->lastnotifiedat = $now;
+                    $case->nextnotifyat = $now + $this->cadence_seconds((string)$case->cadencemode);
+                    $case->timemodified = $now;
+                    $DB->update_record('block_da_expcase', $case);
+                    $this->audit((int)$case->id, 'manual_digest_sent', $actorid, [
+                        'recipient' => $recipient['email'],
+                        'cadence' => (string)$case->cadencemode,
+                    ]);
+                    $sent++;
+                }
+            }
+        }
+
+        return [
+            'status' => true,
+            'message' => get_string('expiryworkflow:action:notifysent', 'block_dashboardanalytics', (object)[
+                'cases' => $sent,
+                'recipients' => $recipientcount,
+            ]),
+            'casesent' => $sent,
+            'recipients' => $recipientcount,
+        ];
+    }
+
     public function workflow_status_label(string $status): string {
         if ($status === self::STATUS_REASSIGNED) {
             return get_string('expiryworkflow:status:reassigned', 'block_dashboardanalytics');
