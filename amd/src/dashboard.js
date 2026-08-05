@@ -1662,6 +1662,69 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return 'muted';
     };
 
+    var closeAllExpiryRecipientPickers = function(root, except) {
+        Array.prototype.slice.call(root.querySelectorAll('[data-expiry-recipient-picker].is-open')).forEach(function(picker) {
+            if (except && picker === except) {
+                return;
+            }
+            picker.classList.remove('is-open');
+        });
+    };
+
+    var syncExpiryRecipientPicker = function(picker) {
+        if (!picker) {
+            return;
+        }
+
+        var select = picker.querySelector('[data-expiry-recipientids]');
+        var summary = picker.querySelector('[data-expiry-recipient-summary]');
+        var count = picker.querySelector('[data-expiry-recipient-count]');
+        if (!select) {
+            return;
+        }
+
+        var selectedOptions = Array.prototype.slice.call(select.options).filter(function(option) {
+            return option.selected;
+        });
+
+        Array.prototype.slice.call(picker.querySelectorAll('[data-expiry-recipient-option]')).forEach(function(checkbox) {
+            checkbox.checked = selectedOptions.some(function(option) {
+                return String(option.value) === String(checkbox.value);
+            });
+        });
+
+        if (summary) {
+            summary.textContent = selectedOptions.length ? selectedOptions.map(function(option) {
+                return option.text;
+            }).join(', ') : 'No recipients selected';
+        }
+        if (count) {
+            count.textContent = String(selectedOptions.length || 0);
+        }
+    };
+
+    var filterExpiryRecipientPicker = function(picker, query) {
+        if (!picker) {
+            return;
+        }
+
+        var normalized = String(query || '').trim().toLowerCase();
+        var visibleCount = 0;
+        Array.prototype.slice.call(picker.querySelectorAll('[data-expiry-recipient-row]')).forEach(function(row) {
+            var haystack = String(row.getAttribute('data-searchtext') || '').toLowerCase();
+            var visible = normalized === '' || haystack.indexOf(normalized) !== -1;
+            row.hidden = !visible;
+            if (visible) {
+                visibleCount += 1;
+            }
+        });
+
+        var empty = picker.querySelector('[data-expiry-recipient-empty]');
+        if (empty) {
+            empty.hidden = visibleCount > 0;
+        }
+    };
+
     var renderExpiryWorkflowResults = function(root, response, state) {
         var panel = expiryWorkflowRoot(root);
         if (!panel) {
@@ -1692,6 +1755,21 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var selected = (company.recipientids || []).indexOf(String(option.value)) !== -1 ? ' selected' : '';
             return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
         }).join('');
+
+        var recipientRows = (company.recipientoptions || []).map(function(option) {
+            var checked = (company.recipientids || []).indexOf(String(option.value)) !== -1 ? ' checked' : '';
+            return '<label class="da-expiry-recipient-row" data-expiry-recipient-row data-searchtext="' + escapeHtml((option.label || '').toLowerCase()) + '">'
+                + '<input type="checkbox" data-expiry-recipient-option value="' + escapeHtml(option.value) + '"' + checked
+                + (!company.cansavecompany ? ' disabled' : '') + '>'
+                + '<span>' + escapeHtml(option.label || '') + '</span>'
+                + '</label>';
+        }).join('');
+
+        var selectedRecipientLabels = (company.recipientoptions || []).filter(function(option) {
+            return (company.recipientids || []).indexOf(String(option.value)) !== -1;
+        }).map(function(option) {
+            return option.label || '';
+        });
 
         var courseRows = (courses.rows || []).map(function(row) {
             var toggleLabel = row.enabled ? text('courseAnalyticsToggleOn', 'On') : text('courseAnalyticsToggleOff', 'Off');
@@ -1749,8 +1827,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + (company.selectorvisible ? '<label><span>' + escapeHtml(text('companyHeader', 'Company')) + '</span><select data-action="expiry-workflow-company">' + companyOptions + '</select></label>' : '')
             + '<label class="da-expiry-workflow-checkbox"><input type="checkbox" data-expiry-company-enabled' + (company.enabled ? ' checked' : '') + (!company.cansavecompany ? ' disabled' : '') + '><span>'
             + escapeHtml('Enable notifications for this company') + '</span></label>'
-            + '<label><span>' + escapeHtml('Expiry notification recipients') + '</span><select multiple data-expiry-recipientids'
-            + (!company.cansavecompany ? ' disabled' : '') + '>' + recipientOptions + '</select></label>'
+            + '<label><span>' + escapeHtml('Expiry notification recipients') + '</span>'
+            + '<div class="da-expiry-recipient-picker' + (company.cansavecompany ? '' : ' is-disabled') + '" data-expiry-recipient-picker>'
+            + '<select multiple data-expiry-recipientids hidden' + (!company.cansavecompany ? ' disabled' : '') + '>' + recipientOptions + '</select>'
+            + '<button type="button" class="da-expiry-recipient-trigger" data-action="expiry-recipient-toggle"' + (!company.cansavecompany ? ' disabled' : '') + '>'
+            + '<span class="da-expiry-recipient-count" data-expiry-recipient-count>' + escapeHtml(String(selectedRecipientLabels.length || 0)) + '</span>'
+            + '<span class="da-expiry-recipient-summary" data-expiry-recipient-summary>' + escapeHtml(selectedRecipientLabels.length ? selectedRecipientLabels.join(', ') : 'No recipients selected') + '</span>'
+            + '</button>'
+            + '<div class="da-expiry-recipient-menu">'
+            + '<input type="search" class="da-expiry-recipient-search" data-action="expiry-recipient-search" placeholder="' + escapeHtml('Search recipients') + '"' + (!company.cansavecompany ? ' disabled' : '') + '>'
+            + '<div class="da-expiry-recipient-options">' + recipientRows + '<div class="da-empty" data-expiry-recipient-empty hidden>' + escapeHtml('No matching recipients found.') + '</div></div>'
+            + '</div></div></label>'
             + '</div>'
             + '<div class="da-expiry-workflow-settings-actions"><button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-save-settings"'
             + ((!site.cansavesite && !company.cansavecompany) ? ' disabled' : '') + '>' + escapeHtml('Save settings') + '</button></div>'
@@ -1780,6 +1867,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0)
             + '</section>'
             + '</div>';
+
+        Array.prototype.slice.call(panel.querySelectorAll('[data-expiry-recipient-picker]')).forEach(function(picker) {
+            syncExpiryRecipientPicker(picker);
+            filterExpiryRecipientPicker(picker, '');
+        });
     };
 
     var loadExpiryWorkflowControl = function(root, state, overrides) {
@@ -4321,6 +4413,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         };
 
         root.addEventListener('change', function(event) {
+            if (event.target.matches('[data-expiry-recipient-option]')) {
+                var picker = event.target.closest('[data-expiry-recipient-picker]');
+                var select = picker ? picker.querySelector('[data-expiry-recipientids]') : null;
+                if (picker && select) {
+                    Array.prototype.slice.call(select.options).forEach(function(option) {
+                        if (String(option.value) === String(event.target.value)) {
+                            option.selected = !!event.target.checked;
+                        }
+                    });
+                    syncExpiryRecipientPicker(picker);
+                }
+                return;
+            }
+
             if (event.target.matches('select[data-filter-group]')) {
                 rememberCurrentState(root, state);
                 if (event.target.getAttribute('data-filter-group') === 'daterange') {
@@ -4463,6 +4569,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
 
         root.addEventListener('input', function(event) {
+            if (event.target.matches('[data-action="expiry-recipient-search"]')) {
+                filterExpiryRecipientPicker(event.target.closest('[data-expiry-recipient-picker]'), event.target.value || '');
+                return;
+            }
+
             if (event.target.matches('[data-filter-search]')) {
                 var changed = syncSearchableFilter(event.target);
                 updateFilterCounts(root, state);
@@ -4617,6 +4728,25 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }, true);
 
         root.addEventListener('click', function(event) {
+            var recipientToggle = event.target.closest('[data-action="expiry-recipient-toggle"]');
+            if (recipientToggle && root.contains(recipientToggle)) {
+                var recipientPicker = recipientToggle.closest('[data-expiry-recipient-picker]');
+                if (recipientPicker) {
+                    var shouldOpen = !recipientPicker.classList.contains('is-open');
+                    closeAllExpiryRecipientPickers(root, recipientPicker);
+                    recipientPicker.classList.toggle('is-open', shouldOpen);
+                    if (shouldOpen) {
+                        var searchField = recipientPicker.querySelector('[data-action="expiry-recipient-search"]');
+                        if (searchField) {
+                            searchField.value = '';
+                            filterExpiryRecipientPicker(recipientPicker, '');
+                            searchField.focus();
+                        }
+                    }
+                }
+                return;
+            }
+
             var reportsActLoad = event.target.closest('[data-action="reports-act-load"]');
             if (reportsActLoad && root.contains(reportsActLoad)) {
                 rememberCurrentState(root, state);
@@ -5346,10 +5476,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }
             }
 
+            if (!event.target.closest('[data-expiry-recipient-picker]')) {
+                closeAllExpiryRecipientPickers(root);
+            }
+
         });
 
         if (!modalEventsBound) {
             document.addEventListener('click', function(event) {
+                if (!event.target.closest('[data-expiry-recipient-picker]')) {
+                    Array.prototype.slice.call(document.querySelectorAll('[data-expiry-recipient-picker].is-open')).forEach(function(picker) {
+                        picker.classList.remove('is-open');
+                    });
+                }
+
                 if (event.target.closest('[data-action="close-company-summary"]') || event.target.closest('.da-company-summary-backdrop')) {
                     closeCompanySummaryModal();
                     return;
