@@ -150,6 +150,7 @@ class expiry_workflow_repository {
     ): array {
         $companyoptions = $this->manageable_company_options($userid);
         $companyid = $this->resolve_companyid_for_user($userid, $selectedcompanyid);
+        $this->sync_cases($companyid);
         $companyconfig = $companyid > 0 ? $this->company_config($companyid) : ['enabled' => true, 'recipientids' => []];
         $coursecontrols = $this->list_company_courses($companyid, $coursesearch, $coursepage, $courseperpage);
         $cases = $this->list_cases($companyid, $casesearch, $casestatus, $casepage, $caseperpage);
@@ -518,6 +519,10 @@ class expiry_workflow_repository {
         foreach ($rows as $row) {
             $expiry = (int)($row['expirytime'] ?? 0);
             $companyrowid = (int)($row['companyid'] ?? 0);
+            if (($row['status'] ?? '') !== 'Expiring') {
+                continue;
+            }
+
             if ($companyrowid <= 0 || $expiry <= $now || $expiry > $thresholdend) {
                 continue;
             }
