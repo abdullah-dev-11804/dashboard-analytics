@@ -76,7 +76,6 @@ class get_expiry_workflow_data extends \external_api {
         return new \external_single_structure([
             'site' => new \external_single_structure([
                 'enabled' => new \external_value(PARAM_BOOL, 'Master switch'),
-                'thresholddays' => new \external_value(PARAM_INT, 'Threshold days'),
                 'defaultrecipient' => new \external_value(PARAM_TEXT, 'Fallback recipient email'),
                 'cansavesite' => new \external_value(PARAM_BOOL, 'Can save site settings'),
             ]),

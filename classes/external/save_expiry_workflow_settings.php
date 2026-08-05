@@ -17,7 +17,6 @@ class save_expiry_workflow_settings extends \external_api {
             'contextid' => new \external_value(PARAM_INT, 'Block context ID'),
             'companyid' => new \external_value(PARAM_INT, 'Company id', VALUE_DEFAULT, 0),
             'siteenabled' => new \external_value(PARAM_BOOL, 'Master switch', VALUE_DEFAULT, false),
-            'thresholddays' => new \external_value(PARAM_INT, 'Threshold days', VALUE_DEFAULT, 30),
             'defaultrecipient' => new \external_value(PARAM_TEXT, 'Fallback recipient email', VALUE_DEFAULT, ''),
             'companyenabled' => new \external_value(PARAM_BOOL, 'Company switch', VALUE_DEFAULT, true),
             'recipientids' => new \external_multiple_structure(new \external_value(PARAM_INT, 'Recipient user id'), 'Selected recipients', VALUE_DEFAULT, []),
@@ -28,7 +27,6 @@ class save_expiry_workflow_settings extends \external_api {
         int $contextid,
         int $companyid = 0,
         bool $siteenabled = false,
-        int $thresholddays = 30,
         string $defaultrecipient = '',
         bool $companyenabled = true,
         array $recipientids = []
@@ -39,7 +37,6 @@ class save_expiry_workflow_settings extends \external_api {
             'contextid' => $contextid,
             'companyid' => $companyid,
             'siteenabled' => $siteenabled,
-            'thresholddays' => $thresholddays,
             'defaultrecipient' => $defaultrecipient,
             'companyenabled' => $companyenabled,
             'recipientids' => $recipientids,
@@ -54,7 +51,6 @@ class save_expiry_workflow_settings extends \external_api {
         if (is_siteadmin((int)$USER->id)) {
             $repository->save_site_settings(
                 (bool)$params['siteenabled'],
-                max(1, (int)$params['thresholddays']),
                 trim((string)$params['defaultrecipient'])
             );
         }

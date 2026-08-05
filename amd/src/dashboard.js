@@ -1814,12 +1814,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         panel.innerHTML = '<div class="da-expiry-workflow-layout">'
             + '<section class="da-expiry-workflow-card">'
             + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Notification settings') + '</h6><p>'
-            + escapeHtml('Master switch, threshold, recipients, and company/course controls.') + '</p></div></div>'
+            + escapeHtml('Master switch, recipients, and company/course controls.') + '</p></div></div>'
             + '<div class="da-expiry-workflow-site-settings">'
             + '<label class="da-expiry-workflow-checkbox"><input type="checkbox" data-expiry-site-enabled' + (site.enabled ? ' checked' : '') + (!site.cansavesite ? ' disabled' : '') + '><span>'
             + escapeHtml('Enable expiry workflow site-wide') + '</span></label>'
-            + '<label><span>' + escapeHtml('Threshold (days)') + '</span><input type="number" min="1" step="1" data-expiry-threshold value="' + escapeHtml(String(site.thresholddays || 30)) + '"'
-            + (!site.cansavesite ? ' disabled' : '') + '></label>'
             + '<label><span>' + escapeHtml('Default recipient email') + '</span><input type="email" data-expiry-defaultrecipient value="' + escapeHtml(site.defaultrecipient || '') + '"'
             + (!site.cansavesite ? ' disabled' : '') + '></label>'
             + '</div>'
@@ -4795,7 +4793,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var companySelect = expiryPanel.querySelector('[data-action="expiry-workflow-company"]');
                 var companyEnabled = expiryPanel.querySelector('[data-expiry-company-enabled]');
                 var siteEnabled = expiryPanel.querySelector('[data-expiry-site-enabled]');
-                var thresholdInput = expiryPanel.querySelector('[data-expiry-threshold]');
                 var defaultRecipient = expiryPanel.querySelector('[data-expiry-defaultrecipient]');
                 var recipientSelect = expiryPanel.querySelector('[data-expiry-recipientids]');
                 var recipientIds = recipientSelect ? Array.prototype.slice.call(recipientSelect.selectedOptions).map(function(option) {
@@ -4809,7 +4806,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     contextid: state.contextid,
                     companyid: companySelect ? (Number(companySelect.value) || 0) : (expiryWorkflowState(state).companyid || 0),
                     siteenabled: !!(siteEnabled && siteEnabled.checked),
-                    thresholddays: Math.max(1, Number(thresholdInput ? thresholdInput.value : 30) || 30),
                     defaultrecipient: defaultRecipient ? (defaultRecipient.value || '') : '',
                     companyenabled: !!(companyEnabled && companyEnabled.checked),
                     recipientids: recipientIds

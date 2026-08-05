@@ -159,7 +159,6 @@ class expiry_workflow_repository {
         return [
             'site' => [
                 'enabled' => $this->master_enabled(),
-                'thresholddays' => $this->threshold_days(),
                 'defaultrecipient' => $this->default_recipient_email(),
                 'cansavesite' => is_siteadmin($userid),
             ],
@@ -184,9 +183,8 @@ class expiry_workflow_repository {
         ];
     }
 
-    public function save_site_settings(bool $enabled, int $thresholddays, string $defaultrecipient): void {
+    public function save_site_settings(bool $enabled, string $defaultrecipient): void {
         set_config('expiryworkflowenabled', $enabled ? 1 : 0, 'block_dashboardanalytics');
-        set_config('expiryworkflowthresholddays', max(1, $thresholddays), 'block_dashboardanalytics');
         set_config('expiryworkflowdefaultrecipient', trim($defaultrecipient), 'block_dashboardanalytics');
     }
 
