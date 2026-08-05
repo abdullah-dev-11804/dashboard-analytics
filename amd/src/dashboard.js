@@ -1794,7 +1794,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return '<tr>'
                 + '<td><a class="da-table-link" href="' + escapeHtml(row.employeeprofile || '#') + '">' + escapeHtml(row.employee || '') + '</a></td>'
                 + '<td>' + escapeHtml(row.company || '') + '</td>'
-                + '<td><a class="da-table-link da-table-course-link" href="' + escapeHtml(row.courserecordurl || '#') + '" title="' + escapeHtml(row.course || '') + '">'
+                + '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="' + escapeHtml(row.courserecordurl || '#') + '" title="' + escapeHtml(row.course || '') + '">'
                 + escapeHtml(row.course || '') + '</a></td>'
                 + '<td>' + escapeHtml(row.issuedate || '—') + '</td>'
                 + '<td>' + escapeHtml(row.expirydate || '—') + '</td>'

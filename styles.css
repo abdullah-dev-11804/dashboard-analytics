@@ -654,6 +654,11 @@
     max-width: 22rem;
 }
 
+.block-dashboardanalytics .da-expiry-workflow-card-full .da-table-course-cell {
+    width: 18rem;
+    max-width: 18rem;
+}
+
 .block-dashboardanalytics .da-table th {
     background: #f9fafc;
     color: var(--da-muted);
