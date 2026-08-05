@@ -514,7 +514,6 @@ class expiry_workflow_repository {
         }
 
         $rows = (new overview_repository())->enrolment_status_snapshot_rows($filters);
-        $thresholdend = $now + ($this->threshold_days() * DAYSECS);
         $candidates = [];
         foreach ($rows as $row) {
             $expiry = (int)($row['expirytime'] ?? 0);
@@ -523,7 +522,7 @@ class expiry_workflow_repository {
                 continue;
             }
 
-            if ($companyrowid <= 0 || $expiry <= $now || $expiry > $thresholdend) {
+            if ($companyrowid <= 0) {
                 continue;
             }
 

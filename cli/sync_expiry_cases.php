@@ -69,14 +69,10 @@ if ($diagnose) {
     ];
     $sourcecounts = [];
     $expiringsamples = [];
-    $thresholddays = $repository->threshold_days();
     $now = time();
-    $thresholdend = $now + ($thresholddays * DAYSECS);
     $eligiblecounts = [
         'status_not_expiring' => 0,
         'company_missing' => 0,
-        'expiry_missing_or_past' => 0,
-        'expiry_beyond_threshold' => 0,
         'eligible' => 0,
     ];
     $eligiblesamples = [];
@@ -121,16 +117,6 @@ if ($diagnose) {
             continue;
         }
 
-        if ($expirytime <= $now) {
-            $eligiblecounts['expiry_missing_or_past']++;
-            continue;
-        }
-
-        if ($expirytime > $thresholdend) {
-            $eligiblecounts['expiry_beyond_threshold']++;
-            continue;
-        }
-
         $eligiblecounts['eligible']++;
         if (count($eligiblesamples) < 10) {
             $eligiblesamples[] = [
@@ -149,8 +135,6 @@ if ($diagnose) {
 
     cli_writeln('Upstream snapshot diagnostics:');
     cli_writeln('Now: ' . userdate($now, '%Y-%m-%d %H:%M:%S'));
-    cli_writeln('Threshold days: ' . $thresholddays);
-    cli_writeln('Threshold end: ' . userdate($thresholdend, '%Y-%m-%d %H:%M:%S'));
     cli_writeln('Rows: ' . count($rows));
     foreach ($statuscounts as $status => $count) {
         cli_writeln('  Status ' . $status . ': ' . (int)$count);
