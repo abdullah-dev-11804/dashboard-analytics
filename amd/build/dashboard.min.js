@@ -121,7 +121,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         expiryNotifyNowConfirm: 'Send the expiry digest now to the configured recipients for this company?',
         expiryNotifyNowTitle: 'Send expiry digest',
         confirmSend: 'Send now',
-        cancel: 'Cancel'
+        cancel: 'Cancel',
+        issueDate: 'Issue date'
     };
 
     var stringList = [
@@ -253,7 +254,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:expirynotifynowconfirm', component: 'block_dashboardanalytics'},
         {key: 'js:expirynotifynowtitle', component: 'block_dashboardanalytics'},
         {key: 'js:confirmsend', component: 'block_dashboardanalytics'},
-        {key: 'modal:close', component: 'block_dashboardanalytics'}
+        {key: 'modal:close', component: 'block_dashboardanalytics'},
+        {key: 'label:issuedate', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -385,7 +387,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'expiryNotifyNowConfirm',
         'expiryNotifyNowTitle',
         'confirmSend',
-        'cancel'
+        'cancel',
+        'issueDate'
     ];
 
     var call = function(methodname, args) {
@@ -1876,7 +1879,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var selected = String(expiryWorkflowState(state).casestatus || '') === String(counter.key || '') ? ' selected' : '';
                 return '<option value="' + escapeHtml(counter.key || '') + '"' + selected + '>' + escapeHtml(counter.label || '') + '</option>';
             }).join('') + '</select></div></div>'
-            + '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + escapeHtml('Employee') + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml('Completion date') + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
+            + '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + escapeHtml('Employee') + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
             + (caseRows || '<tr><td colspan="7"><div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div></td></tr>')
             + '</tbody></table></div>'
             + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0)

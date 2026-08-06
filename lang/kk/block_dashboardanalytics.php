@@ -216,6 +216,7 @@ $string['label:expirydate'] = 'Мерзімінің аяқталу күні';
 $string['label:daysremaining'] = 'Қалған күндер';
 $string['label:site'] = 'Нысан / Алаң';
 $string['label:document'] = 'Құжат';
+$string['label:issuedate'] = 'Берілген күні';
 $string['label:expectedsigner'] = 'Күтілетін қол қоюшы';
 $string['label:dayswaiting'] = 'Күту күндері';
 $string['label:action'] = 'Әрекет';

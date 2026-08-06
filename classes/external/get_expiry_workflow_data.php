@@ -120,7 +120,7 @@ class get_expiry_workflow_data extends \external_api {
                     'company' => new \external_value(PARAM_TEXT, 'Company'),
                     'course' => new \external_value(PARAM_TEXT, 'Course'),
                     'courserecordurl' => new \external_value(PARAM_URL, 'Course record URL'),
-                    'issuedate' => new \external_value(PARAM_TEXT, 'Completion date'),
+                    'issuedate' => new \external_value(PARAM_TEXT, 'Issue date'),
                     'expirydate' => new \external_value(PARAM_TEXT, 'Expiry date'),
                     'workflowstatus' => new \external_value(PARAM_ALPHANUMEXT, 'Status key'),
                     'workflowstatuslabel' => new \external_value(PARAM_TEXT, 'Status label'),

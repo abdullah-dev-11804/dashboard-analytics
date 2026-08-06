@@ -216,6 +216,7 @@ $string['label:expirydate'] = 'Expiry date';
 $string['label:daysremaining'] = 'Days remaining';
 $string['label:site'] = 'Site / Facility';
 $string['label:document'] = 'Document';
+$string['label:issuedate'] = 'Issue date';
 $string['label:expectedsigner'] = 'Expected signer';
 $string['label:dayswaiting'] = 'Days waiting';
 $string['label:action'] = 'Action';

@@ -216,6 +216,7 @@ $string['label:expirydate'] = 'Дата истечения';
 $string['label:daysremaining'] = 'Дней осталось';
 $string['label:site'] = 'Объект / Площадка';
 $string['label:document'] = 'Документ';
+$string['label:issuedate'] = 'Дата выдачи';
 $string['label:expectedsigner'] = 'Ожидаемый подписант';
 $string['label:dayswaiting'] = 'Дней ожидания';
 $string['label:action'] = 'Действие';

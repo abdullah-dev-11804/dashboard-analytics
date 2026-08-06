@@ -837,7 +837,7 @@ class expiry_workflow_repository {
             . '<th>' . s(get_string('label:employee', 'block_dashboardanalytics')) . '</th>'
             . '<th>' . s(get_string('label:company', 'block_dashboardanalytics')) . '</th>'
             . '<th>' . s(get_string('label:course', 'block_dashboardanalytics')) . '</th>'
-            . '<th>' . s(get_string('label:completiondate', 'block_dashboardanalytics')) . '</th>'
+            . '<th>' . s(get_string('label:issuedate', 'block_dashboardanalytics')) . '</th>'
             . '<th>' . s(get_string('label:expirydate', 'block_dashboardanalytics')) . '</th>'
             . '<th>' . s(get_string('label:action', 'block_dashboardanalytics')) . '</th>'
             . '</tr></thead><tbody>' . $htmlrows . '</tbody></table>'
