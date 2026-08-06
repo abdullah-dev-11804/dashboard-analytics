@@ -118,7 +118,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         forecastClearCourseLabel: 'Clear course filter',
         learningMatrixTitle: 'The Learning Matrix',
         expiryNotifyNow: 'Notify coordinator now',
-        expiryNotifyNowConfirm: 'Send the expiry digest now to the configured recipients for this company?'
+        expiryNotifyNowConfirm: 'Send the expiry digest now to the configured recipients for this company?',
+        expiryNotifyNowTitle: 'Send expiry digest',
+        confirmSend: 'Send now',
+        cancel: 'Cancel'
     };
 
     var stringList = [
@@ -247,7 +250,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'forecast:table:clearcourse', component: 'block_dashboardanalytics'},
         {key: 'complianceactiontable', component: 'block_dashboardanalytics'},
         {key: 'js:expirynotifynow', component: 'block_dashboardanalytics'},
-        {key: 'js:expirynotifynowconfirm', component: 'block_dashboardanalytics'}
+        {key: 'js:expirynotifynowconfirm', component: 'block_dashboardanalytics'},
+        {key: 'js:expirynotifynowtitle', component: 'block_dashboardanalytics'},
+        {key: 'js:confirmsend', component: 'block_dashboardanalytics'},
+        {key: 'modal:close', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -376,7 +382,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'forecastClearCourseLabel',
         'learningMatrixTitle',
         'expiryNotifyNow',
-        'expiryNotifyNowConfirm'
+        'expiryNotifyNowConfirm',
+        'expiryNotifyNowTitle',
+        'confirmSend',
+        'cancel'
     ];
 
     var call = function(methodname, args) {
@@ -3711,6 +3720,56 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return node;
     };
 
+    var confirmModalResolver = null;
+
+    var confirmModalRoot = function() {
+        var existing = document.querySelector('[data-region="da-confirm-modal"]');
+        if (existing) {
+            return existing;
+        }
+
+        var node = document.createElement('div');
+        node.className = 'da-confirm-modal-root';
+        node.setAttribute('data-region', 'da-confirm-modal');
+        node.hidden = true;
+        document.body.appendChild(node);
+        return node;
+    };
+
+    var closeConfirmModal = function(result) {
+        var root = confirmModalRoot();
+        root.hidden = true;
+        root.innerHTML = '';
+        document.body.classList.remove('da-modal-open');
+        if (confirmModalResolver) {
+            var resolver = confirmModalResolver;
+            confirmModalResolver = null;
+            resolver(!!result);
+        }
+    };
+
+    var openConfirmModal = function(title, message, confirmLabel, cancelLabel) {
+        var root = confirmModalRoot();
+        root.hidden = false;
+        root.innerHTML = '<div class="da-confirm-modal-backdrop" data-action="close-confirm-modal"></div>'
+            + '<section class="da-confirm-modal" role="dialog" aria-modal="true" aria-label="' + escapeHtml(title || '') + '">'
+            + '<header class="da-confirm-modal-header">'
+            + '<div><h3>' + escapeHtml(title || '') + '</h3></div>'
+            + '<button type="button" class="da-confirm-modal-close" data-action="close-confirm-modal" aria-label="' + escapeHtml(cancelLabel || 'Cancel') + '">×</button>'
+            + '</header>'
+            + '<div class="da-confirm-modal-body"><p>' + escapeHtml(message || '') + '</p></div>'
+            + '<footer class="da-confirm-modal-footer">'
+            + '<button type="button" class="da-row-action" data-action="confirm-modal-cancel">' + escapeHtml(cancelLabel || 'Cancel') + '</button>'
+            + '<button type="button" class="da-row-action da-row-action-primary" data-action="confirm-modal-confirm">' + escapeHtml(confirmLabel || 'OK') + '</button>'
+            + '</footer>'
+            + '</section>';
+        document.body.classList.add('da-modal-open');
+
+        return new Promise(function(resolve) {
+            confirmModalResolver = resolve;
+        });
+    };
+
     var edgeAutoScrollTimers = new WeakMap();
 
     var clearEdgeScrollClasses = function(container) {
@@ -4845,26 +4904,33 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     });
                     return;
                 }
-                if (!window.confirm(text('expiryNotifyNowConfirm', 'Send the expiry digest now to the configured recipients for this company?'))) {
-                    return;
-                }
+                openConfirmModal(
+                    text('expiryNotifyNowTitle', 'Send expiry digest'),
+                    text('expiryNotifyNowConfirm', 'Send the expiry digest now to the configured recipients for this company?'),
+                    text('confirmSend', 'Send now'),
+                    text('cancel', 'Cancel')
+                ).then(function(confirmed) {
+                    if (!confirmed) {
+                        return null;
+                    }
 
-                expiryNotifyNow.disabled = true;
-                call('block_dashboardanalytics_notify_expiry_workflow_now', {
-                    contextid: state.contextid,
-                    companyid: notifyCompanyId
-                }).then(function(response) {
-                    Notification.addNotification({
-                        message: response && response.message ? response.message : 'Expiry digest sent.',
-                        type: 'success'
-                    });
-                    return loadExpiryWorkflowControl(root, state, {
+                    expiryNotifyNow.disabled = true;
+                    return call('block_dashboardanalytics_notify_expiry_workflow_now', {
+                        contextid: state.contextid,
                         companyid: notifyCompanyId
+                    }).then(function(response) {
+                        Notification.addNotification({
+                            message: response && response.message ? response.message : 'Expiry digest sent.',
+                            type: 'success'
+                        });
+                        return loadExpiryWorkflowControl(root, state, {
+                            companyid: notifyCompanyId
+                        });
+                    }).catch(function(error) {
+                        Notification.exception(error);
+                    }).finally(function() {
+                        expiryNotifyNow.disabled = false;
                     });
-                }).catch(function(error) {
-                    Notification.exception(error);
-                }).finally(function() {
-                    expiryNotifyNow.disabled = false;
                 });
                 return;
             }
@@ -5535,6 +5601,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     return;
                 }
 
+                if (event.target.closest('[data-action="close-confirm-modal"]')
+                        || event.target.closest('[data-action="confirm-modal-cancel"]')
+                        || event.target.closest('.da-confirm-modal-backdrop')) {
+                    closeConfirmModal(false);
+                    return;
+                }
+
+                if (event.target.closest('[data-action="confirm-modal-confirm"]')) {
+                    closeConfirmModal(true);
+                    return;
+                }
+
                 if (event.target.closest('[data-action="company-summary-export"]')) {
                     window.print();
                 }
@@ -5542,6 +5620,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
+                    if (!confirmModalRoot().hidden) {
+                        closeConfirmModal(false);
+                        return;
+                    }
                     closeCompanySummaryModal();
                 }
             });

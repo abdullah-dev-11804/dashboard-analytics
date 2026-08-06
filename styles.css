@@ -2791,7 +2791,19 @@ body.da-modal-open {
     z-index: 1050;
 }
 
+.da-confirm-modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+}
+
 .da-company-summary-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, .45);
+}
+
+.da-confirm-modal-backdrop {
     position: absolute;
     inset: 0;
     background: rgba(15, 23, 42, .45);
@@ -2803,6 +2815,18 @@ body.da-modal-open {
     left: 50%;
     width: min(860px, calc(100vw - 32px));
     max-height: calc(100vh - 48px);
+    transform: translate(-50%, -50%);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .24);
+    overflow: hidden;
+}
+
+.da-confirm-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(520px, calc(100vw - 32px));
     transform: translate(-50%, -50%);
     border-radius: 18px;
     background: #fff;
@@ -2825,6 +2849,21 @@ body.da-modal-open {
     padding: 1.15rem 1.25rem;
     background: linear-gradient(135deg, #294f88 0%, #376db3 100%);
     color: #fff;
+}
+
+.da-confirm-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.2rem;
+    background: linear-gradient(135deg, #294f88 0%, #376db3 100%);
+    color: #fff;
+}
+
+.da-confirm-modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
 }
 
 .da-company-summary-header h3,
@@ -2853,10 +2892,38 @@ body.da-modal-open {
     line-height: 1;
 }
 
+.da-confirm-modal-close {
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .2);
+    color: #fff;
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
 .da-company-summary-body {
     padding: 1.2rem;
     max-height: calc(100vh - 160px);
     overflow: auto;
+}
+
+.da-confirm-modal-body {
+    padding: 1.2rem;
+}
+
+.da-confirm-modal-body p {
+    margin: 0;
+    color: #42556f;
+    line-height: 1.55;
+}
+
+.da-confirm-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .75rem;
+    padding: 0 1.2rem 1.2rem;
 }
 
 .da-company-summary-grid {

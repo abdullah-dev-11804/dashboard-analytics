@@ -619,4 +619,6 @@ $string['expiryworkflow:digest:open'] = 'Workflow-ты ашу';
 $string['expiryworkflow:digest:opendashboard'] = 'Workflow-ты дашбордта ашу';
 $string['js:expirynotifynow'] = 'Координаторға қазір хабарлау';
 $string['js:expirynotifynowconfirm'] = 'Осы компания үшін бапталған алушыларға мерзім дайджестін қазір жіберу керек пе?';
+$string['js:expirynotifynowtitle'] = 'Мерзім дайджестін жіберу';
+$string['js:confirmsend'] = 'Қазір жіберу';
 $string['label:completiondate'] = 'Аяқтау күні';

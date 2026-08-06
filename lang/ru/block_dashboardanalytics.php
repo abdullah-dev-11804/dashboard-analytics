@@ -619,4 +619,6 @@ $string['expiryworkflow:digest:open'] = 'Открыть workflow';
 $string['expiryworkflow:digest:opendashboard'] = 'Открыть workflow в дашборде';
 $string['js:expirynotifynow'] = 'Уведомить координатора сейчас';
 $string['js:expirynotifynowconfirm'] = 'Отправить дайджест истечения сейчас настроенным получателям этой компании?';
+$string['js:expirynotifynowtitle'] = 'Отправить дайджест истечения';
+$string['js:confirmsend'] = 'Отправить сейчас';
 $string['label:completiondate'] = 'Дата завершения';

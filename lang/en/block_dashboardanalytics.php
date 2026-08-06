@@ -619,4 +619,6 @@ $string['expiryworkflow:digest:open'] = 'Open workflow';
 $string['expiryworkflow:digest:opendashboard'] = 'Open the dashboard workflow';
 $string['js:expirynotifynow'] = 'Notify coordinator now';
 $string['js:expirynotifynowconfirm'] = 'Send the expiry digest now to the configured recipients for this company?';
+$string['js:expirynotifynowtitle'] = 'Send expiry digest';
+$string['js:confirmsend'] = 'Send now';
 $string['label:completiondate'] = 'Completion date';
