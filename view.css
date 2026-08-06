@@ -333,7 +333,29 @@
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
     margin-bottom: .9rem;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    margin-bottom: .9rem;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-search {
+    flex: 1 1 240px;
+    min-width: min(100%, 240px);
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-search .da-course-analytics-search {
+    width: 100%;
+    max-width: none;
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table thead th {
@@ -671,6 +693,15 @@
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-pagination,
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-pagination-controls {
         gap: .5rem;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-toolbar {
+        align-items: stretch;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-search,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-actions {
+        width: 100%;
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table-actions {

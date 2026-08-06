@@ -899,7 +899,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
     };
 
     var activeFilterDefaults = function(state) {
-        var defaults = [state.companyFilterKey, 'locations', 'sites', 'departments', 'personnelcategories', 'positions', 'userids'];
+        var defaults = [state.companyFilterKey, 'locations', 'sites', 'departments', 'personnelcategories', 'positions'];
         return defaults.filter(function(key) {
             return key && state.filterGroups[key];
         });
@@ -1285,6 +1285,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             }).join('') + '</tr>';
         }).join('');
 
+        var localSearchValue = String((((options || {}).overrides) || {}).search || '');
         var description = data.description
             ? '<div class="da-description">' + escapeHtml(data.description) + '</div>'
             : '';
@@ -1296,6 +1297,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 + escapeHtml(text('exportAllLabel', 'Export all')) + '</a>'
                 + '</div>'
             : '';
+        var toolbar = '<div class="da-table-toolbar">'
+            + '<div class="da-table-search">'
+            + '<input type="search" class="da-course-analytics-search" data-action="drilldown-search"'
+            + ' value="' + escapeHtml(localSearchValue) + '"'
+            + ' placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), text('filter:employees', 'Employee'))) + '">'
+            + '</div>'
+            + actions
+            + '</div>';
 
         var pagination = totalcount ? '<div class="da-table-pagination">'
             + '<div class="da-table-pagination-status">' + escapeHtml(formatString(text('page', 'Page {$a}'), String((currentPage + 1) + ' / ' + totalpages))) + '</div>'
@@ -1312,7 +1321,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
             + '</div></div>' : '';
 
-        return description + actions + '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
+        return description + toolbar + '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
             + '<thead><tr>' + head + '</tr></thead>'
             + '<tbody>' + body + '</tbody>'
             + '</table></div>' + pagination;
@@ -4667,6 +4676,23 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         courseanalytics_page: 0
                     });
                     loadCourseAnalyticsControl(root, state);
+                }, 250);
+                return;
+            }
+            if (event.target.matches('[data-action="drilldown-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    rememberCurrentState(root, state);
+                    loadDrilldown(
+                        root,
+                        state,
+                        state.currentDrilldown || defaultDrilldownKey(state),
+                        Object.assign({}, state.currentDrilldownOverrides || {}, {
+                            search: event.target.value || ''
+                        }),
+                        0,
+                        state.currentDrilldownPerPage || 20
+                    );
                 }, 250);
                 return;
             }

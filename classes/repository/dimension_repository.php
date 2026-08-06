@@ -107,18 +107,6 @@ class dimension_repository {
             ];
         }
 
-        $users = $this->users($this->filters_without_keys($scopefilters, ['userids']));
-        if ($users) {
-            $groups[] = [
-                'key' => 'userids',
-                'label' => get_string('filter:employees', 'block_dashboardanalytics'),
-                'multiple' => true,
-                'allowblank' => true,
-                'options' => $users,
-                'searchable' => true,
-            ];
-        }
-
         $groups[] = [
             'key' => 'daterange',
             'label' => get_string('filter:daterange', 'block_dashboardanalytics'),

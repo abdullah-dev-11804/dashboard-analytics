@@ -374,11 +374,17 @@ class expiry_workflow_repository {
             $where[] = '('
                 . $DB->sql_like('u.firstname', ':caseq1', false)
                 . ' OR ' . $DB->sql_like('u.lastname', ':caseq2', false)
-                . ' OR ' . $DB->sql_like('c.fullname', ':caseq3', false)
+                . ' OR ' . $DB->sql_like($DB->sql_concat('u.firstname', "' '", 'u.lastname'), ':caseq3', false)
+                . ' OR ' . $DB->sql_like('u.email', ':caseq4', false)
+                . ' OR ' . $DB->sql_like('c.fullname', ':caseq5', false)
+                . ' OR ' . $DB->sql_like('co.name', ':caseq6', false)
                 . ')';
             $params['caseq1'] = $like;
             $params['caseq2'] = $like;
             $params['caseq3'] = $like;
+            $params['caseq4'] = $like;
+            $params['caseq5'] = $like;
+            $params['caseq6'] = $like;
         }
 
         $sql = "SELECT ec.id,
