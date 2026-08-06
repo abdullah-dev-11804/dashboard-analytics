@@ -1197,7 +1197,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         );
     };
 
-    var buildDrilldownTableMarkup = function(root, data, state, options) {
+    var buildDrilldownTableResultsMarkup = function(root, data, state, options) {
         var columns = data.columns || [];
         var currentPage = Math.max(0, Number(options.page) || 0);
         var perpage = Math.max(10, Number(options.perpage) || 20);
@@ -1321,13 +1321,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>' + escapeHtml(text('next', 'Next')) + '</button>'
             + '</div></div>' : '';
 
-        return description + toolbar + '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
+        return {
+            description: description,
+            toolbar: toolbar,
+            results: '<div class="da-table-wrap"><table class="da-table da-learning-matrix">'
             + '<thead><tr>' + head + '</tr></thead>'
             + '<tbody>' + body + '</tbody>'
-            + '</table></div>' + pagination;
+            + '</table></div>' + pagination
+        };
     };
 
-    var renderDrilldown = function(root, data, state) {
+    var buildDrilldownTableMarkup = function(root, data, state, options) {
+        var parts = buildDrilldownTableResultsMarkup(root, data, state, options);
+        return parts.description + parts.toolbar + '<div data-region="drilldown-results">' + parts.results + '</div>';
+    };
+
+    var renderDrilldown = function(root, data, state, mode) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
         var count = root.querySelector('[data-region="drilldown-count"]');
@@ -1347,13 +1356,24 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return;
         }
 
+        var partialTableUpdate = mode === 'table-only';
+        var resultsRegion = container.querySelector('[data-region="drilldown-results"]');
+
         if (data.notice) {
-            container.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
+            if (partialTableUpdate && resultsRegion) {
+                resultsRegion.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
+            } else {
+                container.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
+            }
             return;
         }
 
         if (!data.rows || !data.rows.length) {
-            container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            if (partialTableUpdate && resultsRegion) {
+                resultsRegion.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            } else {
+                container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            }
             return;
         }
 
@@ -1383,6 +1403,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             container.innerHTML = '<div class="da-server-metrics-panel"><div class="da-server-metrics-grid">'
                 + metricTiles + '</div>' + serverAction + '</div>';
+            return;
+        }
+
+        if (partialTableUpdate && resultsRegion) {
+            var partial = buildDrilldownTableResultsMarkup(root, data, state, {
+                page: currentPage,
+                perpage: perpage,
+                drilldownkey: state.currentDrilldown || '',
+                overrides: state.currentDrilldownOverrides || undefined,
+                actionPrefix: 'drilldown'
+            });
+            resultsRegion.innerHTML = partial.results;
+            var searchInput = container.querySelector('[data-action="drilldown-search"]');
+            if (searchInput) {
+                searchInput.value = String((((state.currentDrilldownOverrides || {}).search) || ''));
+            }
             return;
         }
 
@@ -4265,9 +4301,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).catch(Notification.exception);
     };
 
-    var loadDrilldown = function(root, state, drilldownkey, filterOverrides, page, perpage, historyMode) {
+    var loadDrilldown = function(root, state, drilldownkey, filterOverrides, page, perpage, historyMode, renderMode) {
         var container = root.querySelector('[data-region="drilldown"]');
-        setLoading(container);
+        var resultsRegion = container ? container.querySelector('[data-region="drilldown-results"]') : null;
+        if (renderMode === 'table-only' && resultsRegion) {
+            setLoading(resultsRegion);
+        } else {
+            setLoading(container);
+        }
         var targetPage = typeof page === 'number' ? page : (state.currentDrilldownPage || 0);
         var targetPerPage = typeof perpage === 'number' ? perpage : (state.currentDrilldownPerPage || 20);
         var overrides = typeof filterOverrides !== 'undefined' ? filterOverrides : state.currentDrilldownOverrides;
@@ -4284,7 +4325,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             state.currentDrilldownOverrides = overrides || null;
             state.currentDrilldownPage = targetPage;
             state.currentDrilldownPerPage = targetPerPage;
-            renderDrilldown(root, response, state);
+            renderDrilldown(root, response, state, renderMode);
             persistState(root, state);
             commitBrowserHistoryState(root, state, historyMode || 'push');
         }).catch(Notification.exception);
@@ -4691,7 +4732,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             search: event.target.value || ''
                         }),
                         0,
-                        state.currentDrilldownPerPage || 20
+                        state.currentDrilldownPerPage || 20,
+                        'push',
+                        'table-only'
                     );
                 }, 250);
                 return;
