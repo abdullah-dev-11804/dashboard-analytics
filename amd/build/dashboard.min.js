@@ -1788,7 +1788,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
     };
 
-    var renderExpiryWorkflowResults = function(root, response, state) {
+    var renderExpiryWorkflowResults = function(root, response, state, renderMode) {
         var panel = expiryWorkflowRoot(root);
         if (!panel) {
             return;
@@ -1834,6 +1834,53 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return option.label || '';
         });
 
+        var buildExpiryWorkflowCasesResultsMarkup = function() {
+            var caseRows = (cases.rows || []).map(function(row) {
+                var cadenceSelect = '<select class="da-expiry-workflow-cadence" data-case-cadence="' + escapeHtml(String(row.caseid)) + '"'
+                    + (!canManageCases ? ' disabled' : '') + '>'
+                    + cadenceOptions.map(function(option) {
+                        var selected = String(option.value) === String(row.cadencemode || '') ? ' selected' : '';
+                        return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+                    }).join('') + '</select>';
+
+                return '<tr>'
+                    + '<td><a class="da-table-link" href="' + escapeHtml(row.employeeprofile || '#') + '">' + escapeHtml(row.employee || '') + '</a></td>'
+                    + '<td>' + escapeHtml(row.company || '') + '</td>'
+                    + '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="' + escapeHtml(row.courserecordurl || '#') + '" title="' + escapeHtml(row.course || '') + '">'
+                    + escapeHtml(row.course || '') + '</a></td>'
+                    + '<td>' + escapeHtml(row.issuedate || '—') + '</td>'
+                    + '<td>' + escapeHtml(row.expirydate || '—') + '</td>'
+                    + '<td><span class="da-badge da-badge-' + escapeHtml(expiryWorkflowBadgeStatus(row.workflowstatus || '')) + '">' + escapeHtml(row.workflowstatuslabel || '') + '</span></td>'
+                    + '<td><div class="da-expiry-workflow-actions">'
+                    + '<button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-enroll" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                    + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Enroll') + '</button>'
+                    + cadenceSelect
+                    + '<button type="button" class="da-row-action" data-action="expiry-workflow-remind" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                    + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Remind later') + '</button>'
+                    + '<button type="button" class="da-row-action" data-action="expiry-workflow-dismiss" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                    + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Dismiss') + '</button>'
+                    + '</div></td>'
+                    + '</tr>';
+            }).join('');
+
+            return '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + escapeHtml('Employee') + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
+                + (caseRows || '<tr><td colspan="7"><div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div></td></tr>')
+                + '</tbody></table></div>'
+                + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0);
+        };
+
+        var buildExpiryWorkflowCasesSectionMarkup = function() {
+            return '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Expiry cases') + '</h6><p>'
+                + escapeHtml('Expiring certifications awaiting coordinator action.') + '</p></div>'
+                + '<div class="da-expiry-workflow-case-toolbar"><input type="search" class="da-course-analytics-search" data-action="expiry-workflow-case-search" value="' + escapeHtml(expiryWorkflowState(state).casesearch || '') + '" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'employee / course')) + '">'
+                + '<select data-action="expiry-workflow-case-status"><option value="">' + escapeHtml(text('filter:statusall', 'All statuses')) + '</option>'
+                + (response.counters || []).map(function(counter) {
+                    var selected = String(expiryWorkflowState(state).casestatus || '') === String(counter.key || '') ? ' selected' : '';
+                    return '<option value="' + escapeHtml(counter.key || '') + '"' + selected + '>' + escapeHtml(counter.label || '') + '</option>';
+                }).join('') + '</select></div></div>'
+                + '<div data-region="expiry-workflow-cases-results">' + buildExpiryWorkflowCasesResultsMarkup() + '</div>';
+        };
+
         var courseRows = (courses.rows || []).map(function(row) {
             var toggleLabel = row.enabled ? text('courseAnalyticsToggleOn', 'On') : text('courseAnalyticsToggleOff', 'Off');
             return '<tr>'
@@ -1846,33 +1893,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 + '</tr>';
         }).join('');
 
-        var caseRows = (cases.rows || []).map(function(row) {
-            var cadenceSelect = '<select class="da-expiry-workflow-cadence" data-case-cadence="' + escapeHtml(String(row.caseid)) + '"'
-                + (!canManageCases ? ' disabled' : '') + '>'
-                + cadenceOptions.map(function(option) {
-                    var selected = String(option.value) === String(row.cadencemode || '') ? ' selected' : '';
-                    return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
-                }).join('') + '</select>';
-
-            return '<tr>'
-                + '<td><a class="da-table-link" href="' + escapeHtml(row.employeeprofile || '#') + '">' + escapeHtml(row.employee || '') + '</a></td>'
-                + '<td>' + escapeHtml(row.company || '') + '</td>'
-                + '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="' + escapeHtml(row.courserecordurl || '#') + '" title="' + escapeHtml(row.course || '') + '">'
-                + escapeHtml(row.course || '') + '</a></td>'
-                + '<td>' + escapeHtml(row.issuedate || '—') + '</td>'
-                + '<td>' + escapeHtml(row.expirydate || '—') + '</td>'
-                + '<td><span class="da-badge da-badge-' + escapeHtml(expiryWorkflowBadgeStatus(row.workflowstatus || '')) + '">' + escapeHtml(row.workflowstatuslabel || '') + '</span></td>'
-                + '<td><div class="da-expiry-workflow-actions">'
-                + '<button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-enroll" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
-                + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Enroll') + '</button>'
-                + cadenceSelect
-                + '<button type="button" class="da-row-action" data-action="expiry-workflow-remind" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
-                + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Remind later') + '</button>'
-                + '<button type="button" class="da-row-action" data-action="expiry-workflow-dismiss" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
-                + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Dismiss') + '</button>'
-                + '</div></td>'
-                + '</tr>';
-        }).join('');
+        var existingCasesResults = panel.querySelector('[data-region="expiry-workflow-cases-results"]');
+        if (renderMode === 'cases-only' && existingCasesResults) {
+            existingCasesResults.innerHTML = buildExpiryWorkflowCasesResultsMarkup();
+            return;
+        }
 
         panel.innerHTML = '<div class="da-expiry-workflow-layout">'
             + '<section class="da-expiry-workflow-card">'
@@ -1916,18 +1941,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + expiryWorkflowPagination('expiry-workflow-course', courses.page || 0, courses.perpage || 20, courses.totalcount || 0)
             + '</section>'
             + '<section class="da-expiry-workflow-card da-expiry-workflow-card-full">'
-            + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Expiry cases') + '</h6><p>'
-            + escapeHtml('Expiring certifications awaiting coordinator action.') + '</p></div>'
-            + '<div class="da-expiry-workflow-case-toolbar"><input type="search" class="da-course-analytics-search" data-action="expiry-workflow-case-search" value="' + escapeHtml(expiryWorkflowState(state).casesearch || '') + '" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'employee / course')) + '">'
-            + '<select data-action="expiry-workflow-case-status"><option value="">' + escapeHtml(text('filter:statusall', 'All statuses')) + '</option>'
-            + (response.counters || []).map(function(counter) {
-                var selected = String(expiryWorkflowState(state).casestatus || '') === String(counter.key || '') ? ' selected' : '';
-                return '<option value="' + escapeHtml(counter.key || '') + '"' + selected + '>' + escapeHtml(counter.label || '') + '</option>';
-            }).join('') + '</select></div></div>'
-            + '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + escapeHtml('Employee') + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
-            + (caseRows || '<tr><td colspan="7"><div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div></td></tr>')
-            + '</tbody></table></div>'
-            + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0)
+            + buildExpiryWorkflowCasesSectionMarkup()
             + '</section>'
             + '</div>';
 
@@ -1937,13 +1951,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
-    var loadExpiryWorkflowControl = function(root, state, overrides) {
+    var loadExpiryWorkflowControl = function(root, state, overrides, renderMode) {
         var panel = expiryWorkflowRoot(root);
         if (!panel) {
             return Promise.resolve();
         }
 
-        setLoading(panel);
+        var casesResults = panel.querySelector('[data-region="expiry-workflow-cases-results"]');
+        if (renderMode === 'cases-only' && casesResults) {
+            setLoading(casesResults);
+        } else {
+            setLoading(panel);
+        }
         var current = expiryWorkflowState(state);
         var nextOverrides = Object.assign({}, current, overrides || {});
         expiryWorkflowOverrides(state, {
@@ -1973,7 +1992,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     expiryworkflow_companyid: Number(response.company.companyid) || 0
                 });
             }
-            renderExpiryWorkflowResults(root, response, state);
+            renderExpiryWorkflowResults(root, response, state, renderMode);
             persistState(root, state);
             commitBrowserHistoryState(root, state, 'push');
         }).catch(function(error) {
@@ -4634,7 +4653,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     casestatus: event.target.value || '',
                     casepage: 0,
                     caseperpage: expiryWorkflowState(state).caseperpage
-                });
+                }, 'cases-only');
                 return;
             }
 
@@ -4664,7 +4683,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     casestatus: expiryWorkflowState(state).casestatus,
                     casepage: 0,
                     caseperpage: Number(event.target.value) || 20
-                });
+                }, 'cases-only');
                 return;
             }
 
@@ -4767,7 +4786,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         casestatus: expiryWorkflowState(state).casestatus,
                         casepage: 0,
                         caseperpage: expiryWorkflowState(state).caseperpage
-                    });
+                    }, 'cases-only');
                 }, 250);
                 return;
             }
@@ -5061,7 +5080,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     casestatus: expiryWorkflowState(state).casestatus,
                     casepage: Number(expiryCasePage.getAttribute('data-page')) || 0,
                     caseperpage: expiryWorkflowState(state).caseperpage
-                });
+                }, 'cases-only');
                 return;
             }
 

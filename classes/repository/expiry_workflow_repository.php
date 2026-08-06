@@ -410,6 +410,7 @@ class expiry_workflow_repository {
                        FROM {block_da_expcase} ec
                        JOIN {user} u ON u.id = ec.userid
                        JOIN {course} c ON c.id = ec.courseid
+                  LEFT JOIN {company} co ON co.id = ec.companyid
                       WHERE " . implode(' AND ', $where);
 
         $rows = [];
