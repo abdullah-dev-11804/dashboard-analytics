@@ -2652,6 +2652,12 @@
     flex-wrap: wrap;
 }
 
+.block-dashboardanalytics .da-expiry-workflow-note {
+    color: #64748b;
+    font-size: .84rem;
+    font-weight: 600;
+}
+
 .block-dashboardanalytics .da-expiry-workflow-actions .da-row-action-primary {
     background: #2f7bdc;
     border-color: #2f7bdc;

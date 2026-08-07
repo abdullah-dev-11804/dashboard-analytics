@@ -1836,12 +1836,32 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
         var buildExpiryWorkflowCasesResultsMarkup = function() {
             var caseRows = (cases.rows || []).map(function(row) {
+                var workflowstatus = String(row.workflowstatus || '');
                 var cadenceSelect = '<select class="da-expiry-workflow-cadence" data-case-cadence="' + escapeHtml(String(row.caseid)) + '"'
                     + (!canManageCases ? ' disabled' : '') + '>'
                     + cadenceOptions.map(function(option) {
                         var selected = String(option.value) === String(row.cadencemode || '') ? ' selected' : '';
                         return '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
                     }).join('') + '</select>';
+                var actionsMarkup = '<div class="da-expiry-workflow-actions">';
+
+                if (workflowstatus === 'awaiting') {
+                    actionsMarkup += '<button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-enroll" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                        + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Enroll') + '</button>'
+                        + cadenceSelect
+                        + '<button type="button" class="da-row-action" data-action="expiry-workflow-remind" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                        + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Remind later') + '</button>'
+                        + '<button type="button" class="da-row-action" data-action="expiry-workflow-dismiss" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
+                        + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Dismiss') + '</button>';
+                } else if (workflowstatus === 'reassigned') {
+                    actionsMarkup += '<span class="da-expiry-workflow-note">' + escapeHtml('Already reassigned') + '</span>';
+                } else if (workflowstatus === 'dismissed') {
+                    actionsMarkup += '<span class="da-expiry-workflow-note">' + escapeHtml('Dismissed for this cycle') + '</span>';
+                } else {
+                    actionsMarkup += '<span class="da-expiry-workflow-note">—</span>';
+                }
+
+                actionsMarkup += '</div>';
 
                 return '<tr>'
                     + '<td><a class="da-table-link" href="' + escapeHtml(row.employeeprofile || '#') + '">' + escapeHtml(row.employee || '') + '</a></td>'
@@ -1851,15 +1871,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '<td>' + escapeHtml(row.issuedate || '—') + '</td>'
                     + '<td>' + escapeHtml(row.expirydate || '—') + '</td>'
                     + '<td><span class="da-badge da-badge-' + escapeHtml(expiryWorkflowBadgeStatus(row.workflowstatus || '')) + '">' + escapeHtml(row.workflowstatuslabel || '') + '</span></td>'
-                    + '<td><div class="da-expiry-workflow-actions">'
-                    + '<button type="button" class="da-row-action da-row-action-primary" data-action="expiry-workflow-enroll" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
-                    + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Enroll') + '</button>'
-                    + cadenceSelect
-                    + '<button type="button" class="da-row-action" data-action="expiry-workflow-remind" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
-                    + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Remind later') + '</button>'
-                    + '<button type="button" class="da-row-action" data-action="expiry-workflow-dismiss" data-caseid="' + escapeHtml(String(row.caseid)) + '"'
-                    + (!canManageCases ? ' disabled' : '') + '>' + escapeHtml('Dismiss') + '</button>'
-                    + '</div></td>'
+                    + '<td>' + actionsMarkup + '</td>'
                     + '</tr>';
             }).join('');
 

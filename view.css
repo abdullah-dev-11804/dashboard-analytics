@@ -1058,3 +1058,9 @@
 .sental-content-shell {
     padding: 3px !important;
 }
+
+.path-block-dashboardanalytics-view .da-expiry-workflow-note {
+    color: #64748b;
+    font-size: .84rem;
+    font-weight: 600;
+}
