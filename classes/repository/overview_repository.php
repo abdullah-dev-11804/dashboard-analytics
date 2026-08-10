@@ -905,6 +905,8 @@ class overview_repository {
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
+                'firstname' => (string)$record->firstname,
+                'lastname' => (string)$record->lastname,
                 'employee' => $this->format_person_name((string)$record->firstname, (string)$record->lastname),
                 'companyid' => (int)$record->companyid,
                 'company' => (string)$record->companyname,

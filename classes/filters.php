@@ -36,6 +36,8 @@ class filters {
             'expiryendts' => self::timestamp($decoded['expiryendts'] ?? 0),
             'compliancenorm' => self::percentage($decoded['compliancenorm'] ?? 80, 80.0),
             'compliancecritical' => self::percentage($decoded['compliancecritical'] ?? 70, 70.0),
+            'sortkey' => self::sort_key($decoded['sortkey'] ?? ''),
+            'sortdir' => self::sort_dir($decoded['sortdir'] ?? ''),
             'search' => trim(clean_param((string)($decoded['search'] ?? ''), PARAM_TEXT)),
         ];
     }
@@ -177,6 +179,30 @@ class filters {
     private static function status_mode($value): string {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
         return $value === 'employee' ? 'employee' : 'course';
+    }
+
+    private static function sort_key($value): string {
+        $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
+        $allowed = [
+            'employee',
+            'lastname',
+            'firstname',
+            'position',
+            'company',
+            'location',
+            'department',
+            'site',
+            'course',
+            'expiry',
+            'days',
+            'status',
+        ];
+        return in_array($value, $allowed, true) ? $value : 'lastname';
+    }
+
+    private static function sort_dir($value): string {
+        $value = strtolower(clean_param((string)$value, PARAM_ALPHA));
+        return $value === 'desc' ? 'desc' : 'asc';
     }
 
     private static function date_range($value): string {

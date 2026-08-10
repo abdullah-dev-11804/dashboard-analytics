@@ -1133,6 +1133,8 @@ class document_repository {
                     'groupid' => $groupid,
                     'userid' => (int)$record['userid'],
                     'employee' => (string)$record['employee'],
+                    'firstname' => (string)($record['firstname'] ?? ''),
+                    'lastname' => (string)($record['lastname'] ?? ''),
                     'position' => (string)($record['position'] ?? ''),
                     'company' => (string)($record['company'] ?? ''),
                     'region' => (string)($record['location'] ?? ''),
@@ -1141,10 +1143,17 @@ class document_repository {
                     'courses' => [],
                     'summarysort' => self::matrix_status_weight((string)($record['status'] ?? '')),
                     'minexpiry' => !empty($record['expirytime']) ? (int)$record['expirytime'] : PHP_INT_MAX,
+                    'coursecount' => 0,
+                    'firstcourse' => '',
                 ];
             }
 
             $groups[$groupid]['courses'][] = $record;
+            $groups[$groupid]['coursecount'] = count($groups[$groupid]['courses']);
+            $course = mb_strtolower((string)($record['course'] ?? ''));
+            if ($course !== '' && ($groups[$groupid]['firstcourse'] === '' || $course < $groups[$groupid]['firstcourse'])) {
+                $groups[$groupid]['firstcourse'] = $course;
+            }
             $groups[$groupid]['summarysort'] = min(
                 (int)$groups[$groupid]['summarysort'],
                 self::matrix_status_weight((string)($record['status'] ?? ''))
@@ -1175,17 +1184,78 @@ class document_repository {
         }
 
         $groups = array_values($groups);
-        usort($groups, static function(array $a, array $b): int {
-            if ($a['summarysort'] !== $b['summarysort']) {
-                return $a['summarysort'] <=> $b['summarysort'];
-            }
-            if ($a['minexpiry'] !== $b['minexpiry']) {
-                return $a['minexpiry'] <=> $b['minexpiry'];
-            }
-            return mb_strtolower((string)$a['employee']) <=> mb_strtolower((string)$b['employee']);
-        });
+        $this->sort_document_matrix_groups($groups, $filters);
 
         return $groups;
+    }
+
+    private function sort_document_matrix_groups(array &$groups, array $filters): void {
+        $sortkey = (string)($filters['sortkey'] ?? 'lastname');
+        $sortdir = (string)($filters['sortdir'] ?? 'asc');
+        $direction = $sortdir === 'desc' ? -1 : 1;
+
+        $allowed = [
+            'employee',
+            'lastname',
+            'firstname',
+            'position',
+            'company',
+            'location',
+            'department',
+            'site',
+            'course',
+            'expiry',
+            'days',
+            'status',
+        ];
+        if (!in_array($sortkey, $allowed, true)) {
+            $sortkey = 'lastname';
+        }
+
+        usort($groups, function(array $a, array $b) use ($sortkey, $direction): int {
+            $comparison = $this->compare_document_matrix_group_value($a, $b, $sortkey);
+            if ($comparison === 0 && $sortkey !== 'lastname') {
+                $comparison = $this->compare_document_matrix_group_value($a, $b, 'lastname');
+            }
+            if ($comparison === 0 && $sortkey !== 'firstname') {
+                $comparison = $this->compare_document_matrix_group_value($a, $b, 'firstname');
+            }
+            if ($comparison === 0) {
+                $comparison = ((int)($a['userid'] ?? 0)) <=> ((int)($b['userid'] ?? 0));
+            }
+            return $comparison * $direction;
+        });
+    }
+
+    private function compare_document_matrix_group_value(array $a, array $b, string $sortkey): int {
+        if ($sortkey === 'expiry' || $sortkey === 'days') {
+            return ((int)($a['minexpiry'] ?? PHP_INT_MAX)) <=> ((int)($b['minexpiry'] ?? PHP_INT_MAX));
+        }
+
+        if ($sortkey === 'status') {
+            return ((int)($a['summarysort'] ?? 99)) <=> ((int)($b['summarysort'] ?? 99));
+        }
+
+        if ($sortkey === 'course') {
+            $countcomparison = ((int)($a['coursecount'] ?? 0)) <=> ((int)($b['coursecount'] ?? 0));
+            if ($countcomparison !== 0) {
+                return $countcomparison;
+            }
+            return strcmp((string)($a['firstcourse'] ?? ''), (string)($b['firstcourse'] ?? ''));
+        }
+
+        $fieldmap = [
+            'employee' => 'employee',
+            'lastname' => 'lastname',
+            'firstname' => 'firstname',
+            'position' => 'position',
+            'company' => 'company',
+            'location' => 'region',
+            'department' => 'department',
+            'site' => 'site',
+        ];
+        $field = $fieldmap[$sortkey] ?? 'lastname';
+        return strnatcasecmp((string)($a[$field] ?? ''), (string)($b[$field] ?? ''));
     }
 
     private function document_matrix_rows(array $groups, bool $showidentity): array {

@@ -950,69 +950,52 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
     };
 
-    var employeeHeaderMarkup = function() {
+    var sortButtonMarkup = function(label, key, currentKey, currentDir) {
+        var active = currentKey === key;
+        var nextDir = active && currentDir === 'asc' ? 'desc' : 'asc';
+        var ariaSort = active ? (currentDir === 'asc' ? 'ascending' : 'descending') : 'none';
+        return '<button type="button" class="da-table-sort' + (active ? ' is-active' : '') + '"'
+            + ' data-action="drilldown-sort"'
+            + ' data-sort-key="' + escapeHtml(key) + '"'
+            + ' data-sort-dir="' + escapeHtml(nextDir) + '"'
+            + ' aria-sort="' + escapeHtml(ariaSort) + '">'
+            + escapeHtml(label)
+            + (active ? '<span class="da-table-sort-icon">' + (currentDir === 'asc' ? '↑' : '↓') + '</span>' : '')
+            + '</button>';
+    };
+
+    var employeeHeaderMarkup = function(currentKey, currentDir, sortable) {
+        if (sortable === false) {
+            return '<span class="da-employee-header" aria-label="' + escapeHtml(text('label:employee', 'Employee')) + '">'
+                + '<span>' + escapeHtml(text('lastName', 'Last Name')) + '</span>'
+                + '<span>' + escapeHtml(text('firstName', 'First Name')) + '</span>'
+                + '</span>';
+        }
+
         return '<span class="da-employee-header" aria-label="' + escapeHtml(text('label:employee', 'Employee')) + '">'
-            + '<button type="button" class="da-employee-sort" data-action="employee-name-sort" data-name-part="lastname">'
-            + escapeHtml(text('lastName', 'Last Name')) + '</button>'
-            + '<button type="button" class="da-employee-sort" data-action="employee-name-sort" data-name-part="firstname">'
-            + escapeHtml(text('firstName', 'First Name')) + '</button>'
+            + sortButtonMarkup(text('lastName', 'Last Name'), 'lastname', currentKey, currentDir)
+            + sortButtonMarkup(text('firstName', 'First Name'), 'firstname', currentKey, currentDir)
             + '</span>';
     };
 
-    var employeeNamePart = function(value, part) {
-        var pieces = String(value || '').trim().split(/\s+/).filter(Boolean);
-        if (!pieces.length) {
-            return '';
-        }
-
-        if (part === 'firstname') {
-            return pieces.slice(1).join(' ') || pieces[0];
-        }
-
-        return pieces[0];
-    };
-
-    var sortRowsByEmployeePart = function(button) {
-        var table = button.closest('table');
-        if (!table || !table.tBodies || !table.tBodies[0]) {
-            return;
-        }
-
-        var tbody = table.tBodies[0];
-        var direction = button.getAttribute('data-sort-direction') === 'asc' ? 'desc' : 'asc';
-        Array.prototype.slice.call(table.querySelectorAll('[data-action="employee-name-sort"]')).forEach(function(item) {
-            item.removeAttribute('data-sort-direction');
-            item.setAttribute('aria-sort', 'none');
-        });
-        button.setAttribute('data-sort-direction', direction);
-        button.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
-
-        var part = button.getAttribute('data-name-part') || 'lastname';
-        var groups = [];
-        var currentGroup = null;
-        Array.prototype.slice.call(tbody.querySelectorAll('tr')).forEach(function(row) {
-            if (row.getAttribute('data-rowtype') === 'course' && currentGroup) {
-                currentGroup.rows.push(row);
-                return;
+    var tableHeaderMarkup = function(column, currentKey, currentDir, sortable) {
+        if (!sortable) {
+            if (column.key === 'employee') {
+                return '<th scope="col">' + employeeHeaderMarkup(currentKey, currentDir, false) + '</th>';
             }
+            return '<th scope="col">' + escapeHtml(column.label) + '</th>';
+        }
 
-            currentGroup = {
-                rows: [row],
-                key: employeeNamePart(((row.cells && row.cells[0]) ? row.cells[0].textContent : ''), part).toLowerCase()
-            };
-            groups.push(currentGroup);
-        });
+        if (column.key === 'employee') {
+            return '<th scope="col">' + employeeHeaderMarkup(currentKey, currentDir) + '</th>';
+        }
 
-        groups.sort(function(a, b) {
-            var comparison = a.key.localeCompare(b.key);
-            return direction === 'asc' ? comparison : -comparison;
-        });
+        var sortableKeys = ['position', 'company', 'location', 'department', 'site', 'course', 'expiry', 'days', 'status'];
+        if (sortableKeys.indexOf(column.key) !== -1) {
+            return '<th scope="col">' + sortButtonMarkup(column.label, column.key, currentKey, currentDir) + '</th>';
+        }
 
-        groups.forEach(function(group) {
-            group.rows.forEach(function(row) {
-                tbody.appendChild(row);
-            });
-        });
+        return '<th scope="col">' + escapeHtml(column.label) + '</th>';
     };
 
     var activeFilterDefaults = function(state) {
@@ -1325,11 +1308,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var actionPrefix = options.actionPrefix || 'drilldown';
         var exporturl = data.exporturl || drilldownExportUrlFor(root, state, 'visible', drilldownkey, overrides, currentPage, perpage);
         var exportallurl = drilldownExportUrlFor(root, state, 'all', drilldownkey, overrides, currentPage, perpage);
+        var currentSortKey = String(((overrides || {}).sortkey) || 'lastname');
+        var currentSortDir = String(((overrides || {}).sortdir) || 'asc') === 'desc' ? 'desc' : 'asc';
+        var sortableMatrix = (data.rows || []).some(function(row) {
+            return row.rowtype === 'summary' || row.rowtype === 'course';
+        });
         var head = columns.map(function(column) {
-            if (column.key === 'employee') {
-                return '<th scope="col">' + employeeHeaderMarkup() + '</th>';
-            }
-            return '<th scope="col">' + escapeHtml(column.label) + '</th>';
+            return tableHeaderMarkup(column, currentSortKey, currentSortDir, sortableMatrix);
         }).join('');
 
         var body = data.rows.map(function(row) {
@@ -1993,7 +1978,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</tr>';
             }).join('');
 
-            return '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + employeeHeaderMarkup() + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
+            return '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + employeeHeaderMarkup('lastname', 'asc', false) + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
                 + (caseRows || '<tr><td colspan="7"><div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div></td></tr>')
                 + '</tbody></table></div>'
                 + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0);
@@ -2374,7 +2359,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var drilldownkey = state.dashboardkey === 'client' ? 'client_forecast_documents' : 'company_forecast_documents';
         var filterOverrides = {
             expirystartts: Number(selection.fromts) || 0,
-            expiryendts: Number(selection.tots) || 0
+            expiryendts: Number(selection.tots) || 0,
+            sortkey: String(overrides['forecastsortkey_' + panelKey] || 'lastname'),
+            sortdir: String(overrides['forecastsortdir_' + panelKey] || 'asc') === 'desc' ? 'desc' : 'asc'
         };
         if (selection.courseid) {
             filterOverrides.courseids = [Number(selection.courseid)];
@@ -5014,9 +5001,38 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }, true);
 
         root.addEventListener('click', function(event) {
-            var employeeSort = event.target.closest('[data-action="employee-name-sort"]');
-            if (employeeSort && root.contains(employeeSort)) {
-                sortRowsByEmployeePart(employeeSort);
+            var drilldownSort = event.target.closest('[data-action="drilldown-sort"]');
+            if (drilldownSort && root.contains(drilldownSort)) {
+                var forecastTable = drilldownSort.closest('[data-region="forecast-workload"]');
+                if (forecastTable) {
+                    var forecastPanelKey = forecastTable.getAttribute('data-panel-key') || 'forecastworkload';
+                    rememberCurrentState(root, state);
+                    var forecastSortOverrides = {};
+                    forecastSortOverrides['forecastsortkey_' + forecastPanelKey] = drilldownSort.getAttribute('data-sort-key') || 'lastname';
+                    forecastSortOverrides['forecastsortdir_' + forecastPanelKey] = drilldownSort.getAttribute('data-sort-dir') === 'desc' ? 'desc' : 'asc';
+                    forecastSortOverrides['forecastpage_' + forecastPanelKey] = 0;
+                    state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, forecastSortOverrides);
+                    loadForecastInlineTable(root, state, forecastPanelKey);
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
+
+                rememberCurrentState(root, state);
+                state.currentDrilldownPage = 0;
+                loadDrilldown(
+                    root,
+                    state,
+                    state.currentDrilldown || defaultDrilldownKey(state),
+                    Object.assign({}, state.currentDrilldownOverrides || {}, {
+                        sortkey: drilldownSort.getAttribute('data-sort-key') || 'lastname',
+                        sortdir: drilldownSort.getAttribute('data-sort-dir') === 'desc' ? 'desc' : 'asc'
+                    }),
+                    0,
+                    state.currentDrilldownPerPage || 20,
+                    'push',
+                    'table-only'
+                );
                 return;
             }
 
