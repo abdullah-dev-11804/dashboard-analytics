@@ -4519,6 +4519,48 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             || '';
     };
 
+    var dashboardTitleValues = function(root) {
+        var values = [];
+        ['company', 'client', 'employee', 'plugin'].forEach(function(key) {
+            ['en', 'ru', 'kk'].forEach(function(language) {
+                var value = root.getAttribute('data-title-' + key + '-' + language);
+                if (value) {
+                    values.push(value);
+                }
+            });
+        });
+        return values;
+    };
+
+    var normalizedTitle = function(value) {
+        return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    };
+
+    var renderExternalDashboardTitle = function(root, selectedTitle) {
+        var known = {};
+        dashboardTitleValues(root).forEach(function(value) {
+            known[normalizedTitle(value)] = true;
+        });
+
+        Array.prototype.slice.call(document.querySelectorAll(
+            '.path-block-dashboardanalytics-view .page-header-headings h1,'
+                + '.path-block-dashboardanalytics-view #page-header h1,'
+                + '.path-block-dashboardanalytics-view [data-region="page-title"]'
+        )).forEach(function(node) {
+            if (known[normalizedTitle(node.textContent)]) {
+                node.textContent = selectedTitle;
+            }
+        });
+
+        dashboardTitleValues(root).some(function(value) {
+            if (document.title.indexOf(value) === -1) {
+                return false;
+            }
+            document.title = document.title.replace(value, selectedTitle);
+            return true;
+        });
+    };
+
     var dashboardTitleForKey = function(root, dashboardkey) {
         if (dashboardkey === 'company') {
             return dashboardTitleAttribute(root, 'company') || text('dashboardCompany', 'Company Dashboard');
@@ -4536,14 +4578,17 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var title = root.querySelector('[data-region="dashboard-title"]');
         var subtitle = root.querySelector('[data-region="dashboard-subtitle"]');
         var dashboardkey = state.dashboardkey || root.getAttribute('data-dashboardkey') || '';
+        var dashboardtitle = dashboardTitleForKey(root, dashboardkey);
 
         if (title) {
-            title.textContent = dashboardTitleForKey(root, dashboardkey);
+            title.textContent = dashboardtitle;
         }
 
         if (subtitle) {
             subtitle.textContent = dashboardTitleAttribute(root, 'plugin') || text('pluginName', 'Analytics');
         }
+
+        renderExternalDashboardTitle(root, dashboardtitle);
     };
 
     var loadFilters = function(root, state, requestFilters) {
