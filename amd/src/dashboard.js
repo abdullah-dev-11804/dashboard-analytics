@@ -1298,16 +1298,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + value + '</button></td>';
                 }
                 if (key === 'course' && rowtype === 'summary') {
-                    var coursecount = cellsMetaByKey[key] && cellsMetaByKey[key].coursecount
-                        ? Number(cellsMetaByKey[key].coursecount)
-                        : 0;
-                    if (coursecount <= 1) {
-                        if (cellsMetaByKey[key] && cellsMetaByKey[key].courseurl) {
-                            return '<td class="da-table-course-cell"><a class="da-table-link da-table-course-link" href="'
-                                + escapeHtml(cellsMetaByKey[key].courseurl) + '" title="' + value + '">' + value + '</a></td>';
-                        }
-                        return '<td class="da-table-course-cell"><span class="da-table-course-text" title="' + value + '">' + value + '</span></td>';
-                    }
                     var togglelabel = cellsMetaByKey[key] && cellsMetaByKey[key].togglelabel
                         ? cellsMetaByKey[key].togglelabel
                         : text('details', 'Details');

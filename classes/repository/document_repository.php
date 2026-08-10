@@ -1192,12 +1192,8 @@ class document_repository {
         $rows = [];
         foreach ($groups as $group) {
             $coursecount = count($group['courses']);
-            $summaryrecord = $coursecount === 1 ? $group['courses'][0] : null;
             $summarystatus = $this->matrix_user_status($group['courses']);
-            [$summaryexpiry, $summarydays] = $summaryrecord ? $this->document_date_cells($summaryrecord) : ['', ''];
-            $summarycourse = $coursecount === 1
-                ? (string)($group['courses'][0]['course'] ?? '')
-                : get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
+            $summarycourse = get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
             $rows[] = [
                 'rowtype' => 'summary',
                 'groupid' => (string)$group['groupid'],
@@ -1218,15 +1214,9 @@ class document_repository {
                         'value' => $summarycourse,
                         'coursecount' => $coursecount,
                         'togglelabel' => get_string('label:expandcourses', 'block_dashboardanalytics'),
-                        'courseurl' => ($coursecount === 1 && !empty($summaryrecord['courseid']))
-                            ? (new \moodle_url('/local/sentaldocupload/course_record.php', [
-                                'courseid' => (int)$summaryrecord['courseid'],
-                                'userid' => (int)$group['userid'],
-                            ]))->out(false)
-                            : '',
                     ],
-                    ['key' => 'expiry', 'value' => $summaryexpiry],
-                    ['key' => 'days', 'value' => $summarydays],
+                    ['key' => 'expiry', 'value' => ''],
+                    ['key' => 'days', 'value' => ''],
                     [
                         'key' => 'status',
                         'value' => $this->status_display($summarystatus),
@@ -1234,10 +1224,6 @@ class document_repository {
                     ],
                 ],
             ];
-
-            if ($coursecount <= 1) {
-                continue;
-            }
 
             foreach ($group['courses'] as $record) {
                 [$expirytext, $daystext] = $this->document_date_cells($record);
