@@ -1193,9 +1193,7 @@ class document_repository {
         foreach ($groups as $group) {
             $coursecount = count($group['courses']);
             $summarystatus = $this->matrix_user_status($group['courses']);
-            $summarycourse = $coursecount === 1
-                ? get_string('label:coursecountone', 'block_dashboardanalytics')
-                : get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
+            $summarycourse = $this->course_count_label($coursecount);
             $rows[] = [
                 'rowtype' => 'summary',
                 'groupid' => (string)$group['groupid'],
@@ -1264,6 +1262,23 @@ class document_repository {
         }
 
         return $rows;
+    }
+
+    private function course_count_label(int $coursecount): string {
+        if ($coursecount === 1) {
+            return get_string('label:coursecountone', 'block_dashboardanalytics');
+        }
+
+        $language = current_language();
+        if (strpos($language, 'ru') === 0) {
+            $mod100 = $coursecount % 100;
+            $mod10 = $coursecount % 10;
+            if ($mod10 >= 2 && $mod10 <= 4 && !($mod100 >= 12 && $mod100 <= 14)) {
+                return get_string('label:coursecountfew', 'block_dashboardanalytics', $coursecount);
+            }
+        }
+
+        return get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
     }
 
     private function matrix_user_status(array $courses): string {
