@@ -898,9 +898,11 @@
 }
 
 .block-dashboardanalytics .da-badge-red,
+.block-dashboardanalytics .da-badge-danger,
 .block-dashboardanalytics .da-badge-critical,
 .block-dashboardanalytics .da-badge-expired,
 .da-company-summary-modal-root .da-badge-red,
+.da-company-summary-modal-root .da-badge-danger,
 .da-company-summary-modal-root .da-badge-critical,
 .da-company-summary-modal-root .da-badge-expired {
     background: #fdecec;
