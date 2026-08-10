@@ -211,6 +211,7 @@ $string['label:created'] = 'Создан';
 $string['label:company'] = 'Компания';
 $string['label:course'] = 'Курс';
 $string['label:coursecount'] = '{$a} курсов';
+$string['label:coursecountone'] = '1 курс';
 $string['label:expandcourses'] = 'Развернуть курсы';
 $string['label:expirydate'] = 'Дата истечения';
 $string['label:daysremaining'] = 'Дней осталось';

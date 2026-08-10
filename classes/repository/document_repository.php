@@ -1193,7 +1193,9 @@ class document_repository {
         foreach ($groups as $group) {
             $coursecount = count($group['courses']);
             $summarystatus = $this->matrix_user_status($group['courses']);
-            $summarycourse = get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
+            $summarycourse = $coursecount === 1
+                ? get_string('label:coursecountone', 'block_dashboardanalytics')
+                : get_string('label:coursecount', 'block_dashboardanalytics', $coursecount);
             $rows[] = [
                 'rowtype' => 'summary',
                 'groupid' => (string)$group['groupid'],

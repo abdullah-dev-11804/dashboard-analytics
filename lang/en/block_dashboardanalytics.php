@@ -211,6 +211,7 @@ $string['label:created'] = 'Created';
 $string['label:company'] = 'Company';
 $string['label:course'] = 'Course';
 $string['label:coursecount'] = '{$a} courses';
+$string['label:coursecountone'] = '1 course';
 $string['label:expandcourses'] = 'Expand courses';
 $string['label:expirydate'] = 'Expiry date';
 $string['label:daysremaining'] = 'Days remaining';

@@ -211,6 +211,7 @@ $string['label:created'] = 'Жасалған';
 $string['label:company'] = 'Компания';
 $string['label:course'] = 'Курс';
 $string['label:coursecount'] = '{$a} курс';
+$string['label:coursecountone'] = '1 курс';
 $string['label:expandcourses'] = 'Курстарды ашу';
 $string['label:expirydate'] = 'Мерзімінің аяқталу күні';
 $string['label:daysremaining'] = 'Қалған күндер';
