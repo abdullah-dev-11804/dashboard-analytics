@@ -75,6 +75,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         complianceLabel: 'Compliance',
         compliantLabel: 'Compliant',
         complianceLine: 'Compliance line',
+        activeStatusExplanation: 'more than 30 days before expiry',
+        expiringStatusExplanation: 'less than 30 days before expiry',
         compliantThresholdTitle: 'Compliant threshold',
         criticalThresholdTitle: 'Critical threshold',
         pointsVsLastMonth: '{$a} pts vs last month',
@@ -125,6 +127,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         forecastInWindowLabel: 'In this window',
         forecastRenewalsLabel: '{$a} renewals',
         forecastClearCourseLabel: 'Clear course filter',
+        forecastPeriodLabel: 'Period',
+        forecastCompanyLabel: 'Company',
         learningMatrixTitle: 'The Learning Matrix',
         expiryNotifyNow: 'Notify coordinator now',
         expiryNotifyNowConfirm: 'Send the expiry digest now to the configured recipients for this company?',
@@ -217,6 +221,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:compliancelabel', component: 'block_dashboardanalytics'},
         {key: 'js:compliantlabel', component: 'block_dashboardanalytics'},
         {key: 'js:complianceline', component: 'block_dashboardanalytics'},
+        {key: 'js:activestatusexplanation', component: 'block_dashboardanalytics'},
+        {key: 'js:expiringstatusexplanation', component: 'block_dashboardanalytics'},
         {key: 'js:compliantthreshold', component: 'block_dashboardanalytics'},
         {key: 'js:criticalthresholdtitle', component: 'block_dashboardanalytics'},
         {key: 'js:pointsvslastmonth', component: 'block_dashboardanalytics'},
@@ -268,6 +274,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'forecast:toolbar:window', component: 'block_dashboardanalytics'},
         {key: 'forecast:toolbar:renewals', component: 'block_dashboardanalytics'},
         {key: 'forecast:table:clearcourse', component: 'block_dashboardanalytics'},
+        {key: 'forecast:label:period', component: 'block_dashboardanalytics'},
+        {key: 'forecast:label:company', component: 'block_dashboardanalytics'},
         {key: 'complianceactiontable', component: 'block_dashboardanalytics'},
         {key: 'js:expirynotifynow', component: 'block_dashboardanalytics'},
         {key: 'js:expirynotifynowconfirm', component: 'block_dashboardanalytics'},
@@ -360,6 +368,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'complianceLabel',
         'compliantLabel',
         'complianceLine',
+        'activeStatusExplanation',
+        'expiringStatusExplanation',
         'compliantThresholdTitle',
         'criticalThresholdTitle',
         'pointsVsLastMonth',
@@ -411,6 +421,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'forecastInWindowLabel',
         'forecastRenewalsLabel',
         'forecastClearCourseLabel',
+        'forecastPeriodLabel',
+        'forecastCompanyLabel',
         'learningMatrixTitle',
         'expiryNotifyNow',
         'expiryNotifyNowConfirm',
@@ -2400,9 +2412,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return '<div class="da-forecast-workload" data-region="forecast-workload" data-panel-key="' + escapeHtml(panel.key) + '">'
             + '<div class="da-forecast-toolbar">'
             + '<div class="da-forecast-toolbar-group"><span class="da-forecast-toolbar-label">'
-            + escapeHtml(text('filter:daterange', 'Period')) + '</span>' + periodButtons + '</div>'
+            + escapeHtml(text('forecastPeriodLabel', 'Period')) + '</span>' + periodButtons + '</div>'
             + (companyButtons ? '<div class="da-forecast-toolbar-group"><span class="da-forecast-toolbar-label">'
-                + escapeHtml(text('filter:companies', 'Company')) + '</span>' + companyButtons + '</div>' : '')
+                + escapeHtml(text('forecastCompanyLabel', 'Company')) + '</span>' + companyButtons + '</div>' : '')
             + '<div class="da-forecast-toolbar-spacer"></div>'
             + '<div class="da-forecast-toolbar-stat"><span>' + escapeHtml(text('forecastInWindowLabel', 'In this window')) + '</span><strong>'
             + escapeHtml(formatString(text('forecastRenewalsLabel', '{$a} renewals'), String(totalInWindow || 0))) + '</strong></div>'
@@ -3701,11 +3713,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<canvas class="da-donut-canvas da-donut-canvas-lg" width="250" height="250" data-donut="' + escapeHtml(panel.key) + '"></canvas>'
                         + '<div class="da-donut-center">'
                         + '<strong class="da-donut-center-value" data-donut-total="' + escapeHtml(panel.key) + '">' + escapeHtml(String(Math.round(donutTotal))) + '</strong>'
-                        + '<span class="da-donut-center-label">' + escapeHtml((text('total', 'total') + ' checks').toUpperCase()) + '</span>'
+                        + '<span class="da-donut-center-label">' + escapeHtml(text('total', 'total').toUpperCase()) + '</span>'
                         + '</div>'
                         + '</div>'
                         + '<div class="da-donut-card-list">' + visibleItems.map(function(item) {
                             var statusFilter = donutStatusFilter(item.status);
+                            var explanation = donutStatusExplanation(item.status);
                             var isClickable = !!(donutDrilldown && statusFilter);
                             var rowTag = isClickable ? 'button' : 'div';
                             var rowAttrs = isClickable
@@ -3715,7 +3728,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             return '<' + rowTag + ' class="da-donut-card-row' + (isClickable ? ' da-donut-card-row-button' : '') + '" data-donut-row="' + escapeHtml(panel.key + ':' + item.status) + '" style="--da-donut-color:' + escapeHtml(colorForStatus(item.status)) + '"' + rowAttrs + '>'
                                 + '<div class="da-donut-card-row-head">'
                                 + '<span class="da-donut-card-swatch"></span>'
-                                + '<span class="da-donut-card-name">' + escapeHtml(item.label) + '</span>'
+                                + '<span class="da-donut-card-name">' + escapeHtml(item.label)
+                                + (explanation ? ' <span class="da-donut-card-explanation">(' + escapeHtml(explanation) + ')</span>' : '')
+                                + '</span>'
                                 + '<strong class="da-donut-card-count">' + escapeHtml(item.value) + '</strong>'
                                 + '<span class="da-donut-card-badge">' + escapeHtml((Number(item.percent) || 0).toFixed(1) + '%') + '</span>'
                                 + '</div>'
@@ -3906,6 +3921,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
         if (statusKey === 'muted') {
             return 'nodocument';
+        }
+        return '';
+    };
+
+    var donutStatusExplanation = function(statusKey) {
+        if (statusKey === 'ok') {
+            return text('activeStatusExplanation', 'more than 30 days before expiry');
+        }
+        if (statusKey === 'warning') {
+            return text('expiringStatusExplanation', 'less than 30 days before expiry');
         }
         return '';
     };
@@ -6345,7 +6370,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         };
 
         var saved = readSessionState(state);
-        state.activeFilterKeys = Array.isArray(saved.activeFilterKeys) ? saved.activeFilterKeys : [];
+        state.activeFilterKeys = Array.isArray(saved.activeFilterKeys)
+            ? saved.activeFilterKeys.filter(function(key) { return key !== 'daterange'; })
+            : [];
         state.persistedFilters = saved.filters || {};
         state.currentTab = saved.currentTab || state.currentTab;
         state.currentComplianceDrilldown = saved.currentComplianceDrilldown || '';
@@ -6375,7 +6402,6 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             strings.allLabels = {
                 companies: strings.allcompanieslabel,
                 courses: strings.allcourseslabel,
-                daterange: strings.allperiodslabel,
                 departments: strings.alldepartmentslabel,
                 locations: strings.alllocationslabel,
                 positions: strings.allpositionslabel,

@@ -4365,6 +4365,11 @@ body.da-modal-open {
     font-weight: 700;
 }
 
+.block-dashboardanalytics .da-donut-card-explanation {
+    color: #5b6d82;
+    font-weight: 400;
+}
+
 .block-dashboardanalytics .da-donut-card-count {
     color: #111827;
     font-size: 1.9rem;

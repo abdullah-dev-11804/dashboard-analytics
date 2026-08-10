@@ -109,23 +109,6 @@ class dimension_repository {
         }
 
         $groups[] = [
-            'key' => 'daterange',
-            'label' => get_string('filter:daterange', 'block_dashboardanalytics'),
-            'multiple' => false,
-            'allowblank' => false,
-            'searchable' => false,
-            'options' => [
-                ['value' => 'day', 'label' => get_string('filter:day', 'block_dashboardanalytics')],
-                ['value' => 'week', 'label' => get_string('filter:week', 'block_dashboardanalytics')],
-                ['value' => 'month', 'label' => get_string('filter:month', 'block_dashboardanalytics')],
-                ['value' => '6months', 'label' => get_string('filter:6months', 'block_dashboardanalytics')],
-                ['value' => 'year', 'label' => get_string('filter:year', 'block_dashboardanalytics')],
-                ['value' => 'alltime', 'label' => get_string('filter:alltime', 'block_dashboardanalytics')],
-                ['value' => 'customrange', 'label' => get_string('filter:customrange', 'block_dashboardanalytics')],
-            ],
-        ];
-
-        $groups[] = [
             'key' => 'educations',
             'label' => get_string('filter:educations', 'block_dashboardanalytics'),
             'multiple' => true,
