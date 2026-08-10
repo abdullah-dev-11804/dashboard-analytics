@@ -520,6 +520,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             currentDrilldownPage: Math.max(0, Number(state.currentDrilldownPage) || 0),
             currentDrilldownPerPage: Math.max(10, Number(state.currentDrilldownPerPage) || 20),
             currentDrilldownOverrides: state.currentDrilldownOverrides || null,
+            currentComplianceDrilldown: state.currentComplianceDrilldown || '',
+            currentComplianceDrilldownPage: Math.max(0, Number(state.currentComplianceDrilldownPage) || 0),
+            currentComplianceDrilldownPerPage: Math.max(10, Number(state.currentComplianceDrilldownPerPage) || 20),
+            currentComplianceDrilldownOverrides: state.currentComplianceDrilldownOverrides || null,
             visualOverrides: Object.assign({}, state.currentVisualOverrides || {})
         };
     };
@@ -554,6 +558,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         state.currentDrilldownPage = Math.max(0, Number(snapshot.currentDrilldownPage) || 0);
         state.currentDrilldownPerPage = Math.max(10, Number(snapshot.currentDrilldownPerPage) || 20);
         state.currentDrilldownOverrides = snapshot.currentDrilldownOverrides || null;
+        state.currentComplianceDrilldown = snapshot.currentComplianceDrilldown || '';
+        state.currentComplianceDrilldownPage = Math.max(0, Number(snapshot.currentComplianceDrilldownPage) || 0);
+        state.currentComplianceDrilldownPerPage = Math.max(10, Number(snapshot.currentComplianceDrilldownPerPage) || 20);
+        state.currentComplianceDrilldownOverrides = snapshot.currentComplianceDrilldownOverrides || null;
         state.currentVisualOverrides = snapshot.visualOverrides || {};
     };
 
@@ -857,6 +865,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     statusmode: nextMode
                 });
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 syncStatusModeUi(root, state);
                 refresh(root, state);
             });
@@ -918,6 +927,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             activeFilterKeys: state.activeFilterKeys || [],
             filters: readFilters(root, state),
             currentTab: state.currentTab || 'overview',
+            currentComplianceDrilldown: state.currentComplianceDrilldown || '',
+            currentComplianceDrilldownPage: Math.max(0, Number(state.currentComplianceDrilldownPage) || 0),
+            currentComplianceDrilldownPerPage: Math.max(10, Number(state.currentComplianceDrilldownPerPage) || 20),
+            currentComplianceDrilldownOverrides: state.currentComplianceDrilldownOverrides || null,
             visualOverrides: state.currentVisualOverrides || {}
         });
     };
@@ -1394,7 +1407,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             : '';
         var toolbar = '<div class="da-table-toolbar">'
             + '<div class="da-table-search">'
-            + '<input type="search" class="da-course-analytics-search" data-action="drilldown-search"'
+            + '<input type="search" class="da-course-analytics-search" data-action="' + escapeHtml(actionPrefix) + '-search"'
             + ' value="' + escapeHtml(localSearchValue) + '"'
             + ' placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), text('filter:employees', 'Employee'))) + '">'
             + '</div>'
@@ -1532,6 +1545,92 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             state.currentDrilldownPage = 0;
             loadDrilldown(root, state, 'company_compliance', autoReportOverrides, 0, state.currentDrilldownPerPage || 20, 'replace');
         }
+    };
+
+    var scrollToComplianceInlineDrilldown = function(root) {
+        var panel = root.querySelector('[data-region="compliance-inline-panel"]');
+        if (!panel || typeof panel.getBoundingClientRect !== 'function') {
+            return;
+        }
+
+        var rect = panel.getBoundingClientRect();
+        var absoluteTop = rect.top + (window.pageYOffset || document.documentElement.scrollTop || 0);
+        var targetTop = Math.max(0, absoluteTop - 18);
+
+        if (typeof window.scrollTo === 'function') {
+            window.scrollTo({
+                top: targetTop,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    var renderComplianceInlineDrilldown = function(root, data, state, mode) {
+        var panel = root.querySelector('[data-region="compliance-inline-panel"]');
+        var container = root.querySelector('[data-region="compliance-inline-drilldown"]');
+        var title = root.querySelector('[data-region="compliance-inline-title"]');
+        var count = root.querySelector('[data-region="compliance-inline-count"]');
+        var currentPage = Math.max(0, Number(state.currentComplianceDrilldownPage) || 0);
+        var perpage = Math.max(10, Number(state.currentComplianceDrilldownPerPage) || 20);
+        var totalcount = Math.max(0, Number(data.totalcount) || 0);
+
+        if (!panel || !container) {
+            return;
+        }
+
+        panel.hidden = false;
+
+        if (title) {
+            title.textContent = data.title || text('learningMatrixTitle', 'The Learning Matrix');
+        }
+        if (count) {
+            count.textContent = totalcount ? formatString(text('rows', '{$a} rows'), String(totalcount)) : '';
+        }
+
+        var resultsRegion = container.querySelector('[data-region="compliance-inline-results"]');
+        var partialTableUpdate = mode === 'table-only';
+
+        if (data.notice) {
+            if (partialTableUpdate && resultsRegion) {
+                resultsRegion.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
+            } else {
+                container.innerHTML = '<div class="da-empty">' + escapeHtml(data.notice) + '</div>';
+            }
+            return;
+        }
+
+        if (!data.rows || !data.rows.length) {
+            if (partialTableUpdate && resultsRegion) {
+                resultsRegion.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            } else {
+                container.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';
+            }
+            return;
+        }
+
+        if (partialTableUpdate && resultsRegion) {
+            var partial = buildDrilldownTableResultsMarkup(root, data, state, {
+                page: currentPage,
+                perpage: perpage,
+                drilldownkey: state.currentComplianceDrilldown || '',
+                overrides: state.currentComplianceDrilldownOverrides || undefined,
+                actionPrefix: 'compliance-inline'
+            });
+            resultsRegion.innerHTML = partial.results;
+            var searchInput = container.querySelector('[data-action="compliance-inline-search"]');
+            if (searchInput) {
+                searchInput.value = String((((state.currentComplianceDrilldownOverrides || {}).search) || ''));
+            }
+            return;
+        }
+
+        container.innerHTML = buildDrilldownTableMarkup(root, data, state, {
+            page: currentPage,
+            perpage: perpage,
+            drilldownkey: state.currentComplianceDrilldown || '',
+            overrides: state.currentComplianceDrilldownOverrides || undefined,
+            actionPrefix: 'compliance-inline'
+        });
     };
 
     var renderReportsActPanel = function() {
@@ -2360,6 +2459,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var filterOverrides = {
             expirystartts: Number(selection.fromts) || 0,
             expiryendts: Number(selection.tots) || 0,
+            search: String(overrides['forecastsearch_' + panelKey] || ''),
             sortkey: String(overrides['forecastsortkey_' + panelKey] || 'lastname'),
             sortdir: String(overrides['forecastsortdir_' + panelKey] || 'asc') === 'desc' ? 'desc' : 'asc'
         };
@@ -3708,7 +3808,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 + qualityPanelActions
                 + body
                 + '</article>';
-        }).join('') + '</div>';
+        }).join('') + '</div>'
+            + (state.currentTab === 'compliance'
+                ? '<section class="da-panel da-compliance-inline-panel" data-region="compliance-inline-panel" hidden>'
+                    + '<div class="da-panel-head">'
+                    + '<div>'
+                    + '<h4 data-region="compliance-inline-title">' + escapeHtml(text('learningMatrixTitle', 'The Learning Matrix')) + '</h4>'
+                    + '<p data-region="compliance-inline-count"></p>'
+                    + '</div>'
+                    + '</div>'
+                    + '<div class="da-drilldown" data-region="compliance-inline-drilldown"></div>'
+                    + '</section>'
+                : '');
 
         drawDoughnuts(root, panels);
         if (panels.some(function(panel) { return panel.type === 'reportsact'; })) {
@@ -4467,6 +4578,46 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }).catch(Notification.exception);
     };
 
+    var loadComplianceInlineDrilldown = function(root, state, drilldownkey, filterOverrides, page, perpage, historyMode, renderMode, shouldScroll) {
+        var panel = root.querySelector('[data-region="compliance-inline-panel"]');
+        var container = root.querySelector('[data-region="compliance-inline-drilldown"]');
+        var resultsRegion = container ? container.querySelector('[data-region="compliance-inline-results"]') : null;
+        if (!panel || !container) {
+            return Promise.resolve();
+        }
+
+        panel.hidden = false;
+        if (renderMode === 'table-only' && resultsRegion) {
+            setLoading(resultsRegion);
+        } else {
+            setLoading(container);
+        }
+
+        var targetPage = typeof page === 'number' ? page : (state.currentComplianceDrilldownPage || 0);
+        var targetPerPage = typeof perpage === 'number' ? perpage : (state.currentComplianceDrilldownPerPage || 20);
+        var overrides = typeof filterOverrides !== 'undefined' ? filterOverrides : state.currentComplianceDrilldownOverrides;
+
+        return call('block_dashboardanalytics_get_drilldown', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            drilldownkey: drilldownkey,
+            filters: JSON.stringify(readFilters(root, state, overrides)),
+            page: targetPage,
+            perpage: targetPerPage
+        }).then(function(response) {
+            state.currentComplianceDrilldown = drilldownkey;
+            state.currentComplianceDrilldownOverrides = overrides || null;
+            state.currentComplianceDrilldownPage = targetPage;
+            state.currentComplianceDrilldownPerPage = targetPerPage;
+            renderComplianceInlineDrilldown(root, response, state, renderMode);
+            persistState(root, state);
+            commitBrowserHistoryState(root, state, historyMode || 'push');
+            if (shouldScroll !== false) {
+                scrollToComplianceInlineDrilldown(root);
+            }
+        }).catch(Notification.exception);
+    };
+
     var loadVisuals = function(root, state, tabkey, overrides, historyMode) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
@@ -4488,6 +4639,19 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             renderVisuals(root, response, state);
             persistState(root, state);
             commitBrowserHistoryState(root, state, historyMode || 'push');
+            if (tabkey === 'compliance' && state.currentComplianceDrilldown) {
+                loadComplianceInlineDrilldown(
+                    root,
+                    state,
+                    state.currentComplianceDrilldown,
+                    state.currentComplianceDrilldownOverrides,
+                    state.currentComplianceDrilldownPage,
+                    state.currentComplianceDrilldownPerPage,
+                    'skip',
+                    undefined,
+                    false
+                );
+            }
         }).catch(Notification.exception);
     };
 
@@ -4690,6 +4854,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }));
                 }
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 updateFilterCounts(root, state);
                 refresh(root, state);
                 return;
@@ -4698,6 +4863,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             if (event.target.matches('[data-filter-search]')) {
                 rememberCurrentState(root, state);
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 syncSearchableFilter(event.target);
                 updateFilterCounts(root, state);
                 refresh(root, state);
@@ -4713,6 +4879,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     delete state.currentVisualOverrides.compliancecritical;
                 }
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 refresh(root, state);
                 return;
             }
@@ -4720,6 +4887,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             if (event.target.matches('[data-filter-custom]')) {
                 rememberCurrentState(root, state);
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 refresh(root, state);
                 return;
             }
@@ -4730,6 +4898,26 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 state.currentDrilldownPerPage = Number(event.target.value) || 20;
                 if (state.currentDrilldown) {
                     loadDrilldown(root, state, state.currentDrilldown, undefined, 0, state.currentDrilldownPerPage);
+                }
+                return;
+            }
+
+            if (event.target.matches('[data-action="compliance-inline-perpage"]')) {
+                rememberCurrentState(root, state);
+                state.currentComplianceDrilldownPage = 0;
+                state.currentComplianceDrilldownPerPage = Number(event.target.value) || 20;
+                if (state.currentComplianceDrilldown) {
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        state.currentComplianceDrilldown,
+                        undefined,
+                        0,
+                        state.currentComplianceDrilldownPerPage,
+                        'push',
+                        'table-only',
+                        false
+                    );
                 }
                 return;
             }
@@ -4875,6 +5063,42 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }, 250);
                 return;
             }
+            if (event.target.matches('[data-action="compliance-inline-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    rememberCurrentState(root, state);
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        state.currentComplianceDrilldown || 'company_compliance',
+                        Object.assign({}, state.currentComplianceDrilldownOverrides || {}, {
+                            search: event.target.value || ''
+                        }),
+                        0,
+                        state.currentComplianceDrilldownPerPage || 20,
+                        'push',
+                        'table-only',
+                        false
+                    );
+                }, 250);
+                return;
+            }
+            if (event.target.matches('[data-action="forecast-table-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    var forecastTable = event.target.closest('[data-region="forecast-workload"]');
+                    var forecastPanelKey = forecastTable ? (forecastTable.getAttribute('data-panel-key') || 'forecastworkload') : 'forecastworkload';
+                    rememberCurrentState(root, state);
+                    var forecastSearchOverrides = {};
+                    forecastSearchOverrides['forecastsearch_' + forecastPanelKey] = event.target.value || '';
+                    forecastSearchOverrides['forecastpage_' + forecastPanelKey] = 0;
+                    state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, forecastSearchOverrides);
+                    loadForecastInlineTable(root, state, forecastPanelKey);
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                }, 250);
+                return;
+            }
             if (event.target.matches('[data-action="expiry-workflow-course-search"]')) {
                 window.clearTimeout(timer);
                 timer = window.setTimeout(function() {
@@ -5015,6 +5239,27 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     loadForecastInlineTable(root, state, forecastPanelKey);
                     persistState(root, state);
                     commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
+
+                var complianceInlineTable = drilldownSort.closest('[data-region="compliance-inline-panel"]');
+                if (complianceInlineTable) {
+                    rememberCurrentState(root, state);
+                    state.currentComplianceDrilldownPage = 0;
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        state.currentComplianceDrilldown || 'company_compliance',
+                        Object.assign({}, state.currentComplianceDrilldownOverrides || {}, {
+                            sortkey: drilldownSort.getAttribute('data-sort-key') || 'lastname',
+                            sortdir: drilldownSort.getAttribute('data-sort-dir') === 'desc' ? 'desc' : 'asc'
+                        }),
+                        0,
+                        state.currentComplianceDrilldownPerPage || 20,
+                        'push',
+                        'table-only',
+                        false
+                    );
                     return;
                 }
 
@@ -5430,6 +5675,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     renderFilters(root, state, Object.keys(state.filterGroups).map(function(key) {
                         return state.filterGroups[key];
                     }));
+                    state.currentComplianceDrilldownPage = 0;
                     refresh(root, state);
                 }
                 var addMenu = root.querySelector('[data-region="add-filter-menu"]');
@@ -5452,6 +5698,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     return state.filterGroups[key];
                 }));
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 refresh(root, state);
                 return;
             }
@@ -5478,6 +5725,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     input.value = '';
                 });
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 updateFilterCounts(root, state);
                 refresh(root, state);
                 return;
@@ -5708,16 +5956,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 } else if (heatmapCompanyName !== '') {
                     heatmapOverrides.companies = [heatmapCompanyName];
                 }
-                state.currentDrilldown = heatmapCell.getAttribute('data-drilldown') || 'company_compliance';
+                var heatmapDrilldown = heatmapCell.getAttribute('data-drilldown') || 'company_compliance';
+                if (state.currentTab === 'compliance') {
+                    state.currentComplianceDrilldownPage = 0;
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        heatmapDrilldown,
+                        heatmapOverrides,
+                        0,
+                        state.currentComplianceDrilldownPerPage || 20
+                    );
+                    return;
+                }
+                state.currentDrilldown = heatmapDrilldown;
                 state.currentDrilldownPage = 0;
-                loadDrilldown(
-                    root,
-                    state,
-                    state.currentDrilldown,
-                    heatmapOverrides,
-                    0,
-                    state.currentDrilldownPerPage || 20
-                );
+                loadDrilldown(root, state, state.currentDrilldown, heatmapOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
             }
 
@@ -5732,7 +5986,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 } else if (groupedCompanyName !== '') {
                     groupedOverrides.companies = [groupedCompanyName];
                 }
-                state.currentDrilldown = groupedDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                var groupedKey = groupedDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                if (state.currentTab === 'compliance') {
+                    state.currentComplianceDrilldownPage = 0;
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        groupedKey,
+                        groupedOverrides,
+                        0,
+                        state.currentComplianceDrilldownPerPage || 20
+                    );
+                    return;
+                }
+                state.currentDrilldown = groupedKey;
                 state.currentDrilldownPage = 0;
                 loadDrilldown(root, state, state.currentDrilldown, groupedOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
@@ -5744,7 +6011,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 var donutOverrides = {
                     status: donutStatusDrilldown.getAttribute('data-status') || ''
                 };
-                state.currentDrilldown = donutStatusDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                var donutKey = donutStatusDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                if (state.currentTab === 'compliance') {
+                    state.currentComplianceDrilldownPage = 0;
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        donutKey,
+                        donutOverrides,
+                        0,
+                        state.currentComplianceDrilldownPerPage || 20
+                    );
+                    return;
+                }
+                state.currentDrilldown = donutKey;
                 state.currentDrilldownPage = 0;
                 loadDrilldown(root, state, state.currentDrilldown, donutOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
@@ -5765,7 +6045,20 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 if (barCourseId !== '0') {
                     barOverrides.courseids = [barCourseId];
                 }
-                state.currentDrilldown = barDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                var barKey = barDrilldown.getAttribute('data-drilldown') || 'company_compliance';
+                if (state.currentTab === 'compliance') {
+                    state.currentComplianceDrilldownPage = 0;
+                    loadComplianceInlineDrilldown(
+                        root,
+                        state,
+                        barKey,
+                        barOverrides,
+                        0,
+                        state.currentComplianceDrilldownPerPage || 20
+                    );
+                    return;
+                }
+                state.currentDrilldown = barKey;
                 state.currentDrilldownPage = 0;
                 loadDrilldown(root, state, state.currentDrilldown, barOverrides, 0, state.currentDrilldownPerPage || 20);
                 return;
@@ -5785,12 +6078,31 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            var complianceInlinePager = event.target.closest('[data-action="compliance-inline-page"]');
+            if (complianceInlinePager && root.contains(complianceInlinePager) && !complianceInlinePager.disabled
+                    && state.currentComplianceDrilldown) {
+                rememberCurrentState(root, state);
+                loadComplianceInlineDrilldown(
+                    root,
+                    state,
+                    state.currentComplianceDrilldown,
+                    undefined,
+                    Number(complianceInlinePager.getAttribute('data-page')) || 0,
+                    state.currentComplianceDrilldownPerPage || 20,
+                    'push',
+                    'table-only',
+                    false
+                );
+                return;
+            }
+
             var kpi = event.target.closest('[data-drilldown]');
             if (kpi && root.contains(kpi)) {
                 rememberCurrentState(root, state);
                 state.currentTab = 'kpis';
                 setActiveTab(root, 'kpis');
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 var kpiOverrides = undefined;
                 if (kpi.getAttribute('data-filter-status')) {
                     kpiOverrides = {status: kpi.getAttribute('data-filter-status')};
@@ -5806,6 +6118,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 setActiveTab(root, tabkey);
                 state.currentTab = tabkey;
                 state.currentDrilldownPage = 0;
+                state.currentComplianceDrilldownPage = 0;
                 scrollToMainPanel(root);
                 if (tabkey === 'kpis') {
                     state.currentDrilldown = defaultDrilldownKey(state);
@@ -5894,6 +6207,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             currentDrilldownPage: 0,
             currentDrilldownPerPage: 20,
             currentDrilldownOverrides: null,
+            currentComplianceDrilldown: '',
+            currentComplianceDrilldownPage: 0,
+            currentComplianceDrilldownPerPage: 20,
+            currentComplianceDrilldownOverrides: null,
             currentVisualOverrides: {}
         };
 
@@ -5901,6 +6218,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         state.activeFilterKeys = Array.isArray(saved.activeFilterKeys) ? saved.activeFilterKeys : [];
         state.persistedFilters = saved.filters || {};
         state.currentTab = saved.currentTab || state.currentTab;
+        state.currentComplianceDrilldown = saved.currentComplianceDrilldown || '';
+        state.currentComplianceDrilldownPage = Math.max(0, Number(saved.currentComplianceDrilldownPage) || 0);
+        state.currentComplianceDrilldownPerPage = Math.max(10, Number(saved.currentComplianceDrilldownPerPage) || 20);
+        state.currentComplianceDrilldownOverrides = saved.currentComplianceDrilldownOverrides || null;
         state.currentVisualOverrides = saved.visualOverrides || {};
         if (!root.querySelector('[data-tab="' + state.currentTab + '"]')) {
             state.currentTab = activeTab ? activeTab.getAttribute('data-tab') : 'overview';

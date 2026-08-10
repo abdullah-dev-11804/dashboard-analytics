@@ -601,6 +601,10 @@
     padding: .75rem;
 }
 
+.block-dashboardanalytics .da-compliance-inline-panel {
+    margin-top: 1rem;
+}
+
 .block-dashboardanalytics .da-description {
     border-left: 4px solid var(--da-blue);
     background: #f7fbff;
