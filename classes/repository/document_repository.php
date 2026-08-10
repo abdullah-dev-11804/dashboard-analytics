@@ -84,6 +84,7 @@ class document_repository {
                 'validusers' => 0,
                 'compliance' => 0.0,
                 'status' => 'muted',
+                'statuskey' => 'muted',
             ];
         }
 
@@ -97,6 +98,7 @@ class document_repository {
             'validusers' => (int)$summary['compliant'],
             'compliance' => $compliance,
             'status' => $this->compliance_status($compliance, $filters),
+            'statuskey' => $this->compliance_status_key($compliance, $filters),
         ];
     }
 
@@ -389,7 +391,7 @@ class document_repository {
                 'label' => (string)$record->label,
                 'value' => $summary['compliance'] . '%',
                 'percent' => (float)$summary['compliance'],
-                'status' => strtolower($summary['status']),
+                'status' => $summary['statuskey'],
                 'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
                     'compliant' => $summary['validusers'],
                     'total' => $summary['totalactiveusers'],
@@ -1453,6 +1455,19 @@ class document_repository {
         }
 
         return get_string('label:red', 'block_dashboardanalytics');
+    }
+
+    private function compliance_status_key(float $compliance, array $filters): string {
+        $thresholds = \block_dashboardanalytics\filters::compliance_thresholds($filters);
+        if ($compliance >= $thresholds['compliant']) {
+            return 'ok';
+        }
+
+        if ($compliance >= $thresholds['critical']) {
+            return 'warning';
+        }
+
+        return 'danger';
     }
 
     private function has_completion_sql(string $alias): string {

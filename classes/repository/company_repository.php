@@ -226,6 +226,7 @@ class company_repository {
             $summary = $documents->compliance_summary($companyfilters);
             $compliance = $summary['compliance'];
             $status = $summary['status'];
+            $statuskey = $summary['statuskey'] ?? strtolower((string)$status);
 
             $rows[] = [
                 'cells' => [
@@ -233,7 +234,7 @@ class company_repository {
                     ['key' => 'company', 'value' => (string)$record->companyname],
                     ['key' => 'activeusers', 'value' => (string)(int)$record->activeusers],
                     ['key' => 'compliance', 'value' => $compliance . '%'],
-                    ['key' => 'status', 'value' => $status],
+                    ['key' => 'status', 'value' => $status, 'statuskey' => $statuskey],
                     ['key' => 'action', 'value' => 'View full report'],
                 ],
             ];
@@ -283,7 +284,7 @@ class company_repository {
                 'label' => (string)$record->companyname,
                 'value' => $summary['compliance'] . '%',
                 'percent' => (float)$summary['compliance'],
-                'status' => strtolower($summary['status']),
+                'status' => $summary['statuskey'],
                 'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
                     'compliant' => $summary['validusers'],
                     'total' => $summary['totalactiveusers'],
