@@ -519,6 +519,7 @@ $string['panel:coursecoverage:title'] = 'Курстарды аяқтаумен �
 $string['panel:coursecoverage:description'] = 'Курсқа тіркелу мен үлгерімді қамту визуализациясы LMS курс талаптары көзіне қосылады.';
 
 $string['meta:percentofchecks'] = 'Тексерулердің {$a}%-ы';
+$string['meta:percentofusers'] = 'Пайдаланушылардың {$a}%-ы';
 $string['meta:expiredexpiring'] = '{$a->expired} мерзімі өткен, {$a->expiring} мерзімі аяқталуға жақын';
 $string['meta:expiredorsoon'] = 'Мерзімі өткен немесе жақында аяқталады';
 $string['meta:coursewithoutvaliddoc'] = '{$a->affected} адамда жарамды құжат жоқ / {$a->total} тіркелген';

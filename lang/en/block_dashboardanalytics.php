@@ -519,6 +519,7 @@ $string['panel:coursecoverage:title'] = 'Course completion coverage';
 $string['panel:coursecoverage:description'] = 'Progress and enrolment coverage visual will be connected with the LMS course requirement source.';
 
 $string['meta:percentofchecks'] = '{$a}% of checks';
+$string['meta:percentofusers'] = '{$a}% of users';
 $string['meta:expiredexpiring'] = '{$a->expired} expired, {$a->expiring} expiring';
 $string['meta:expiredorsoon'] = 'Expired or expiring soon';
 $string['meta:coursewithoutvaliddoc'] = '{$a->affected} without valid doc / {$a->total} enrolled';

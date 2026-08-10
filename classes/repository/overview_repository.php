@@ -94,7 +94,7 @@ class overview_repository {
 
     public function overall_employee_compliance_summary(array $filters, ?int $reportdate = null): array {
         $reportdate = $reportdate ?? $this->current_report_date();
-        return $this->compliance_rollup_from_rows($this->enrolment_status_rows($filters, $reportdate));
+        return $this->compliance_rollup_from_rows($this->enrolment_status_rows($this->course_status_filters($filters), $reportdate));
     }
 
     public function status_counts(array $filters, ?int $reportdate = null): array {
@@ -107,14 +107,23 @@ class overview_repository {
             'nodocument' => 0,
         ];
 
+        $seenusers = [];
         foreach ($rows as $row) {
-            if ($row['status'] === 'Active') {
+            if (($filters['statusmode'] ?? 'course') === 'employee') {
+                $userid = (int)($row['userid'] ?? 0);
+                if ($userid <= 0 || isset($seenusers[$userid])) {
+                    continue;
+                }
+                $seenusers[$userid] = true;
+            }
+
+            if (($row['status'] ?? '') === 'Active') {
                 $counts['active']++;
-            } else if ($row['status'] === 'Expiring') {
+            } else if (($row['status'] ?? '') === 'Expiring') {
                 $counts['expiring']++;
-            } else if ($row['status'] === 'Expired') {
+            } else if (($row['status'] ?? '') === 'Expired') {
                 $counts['expired']++;
-            } else if ($row['status'] === 'No document') {
+            } else if (($row['status'] ?? '') === 'No document') {
                 $counts['nodocument']++;
             }
         }
@@ -196,32 +205,32 @@ class overview_repository {
     }
 
     public function status_distribution_items(array $filters): array {
-        $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
-        $counts = [
-            'Active' => 0,
-            'Expiring' => 0,
-            'Expired' => 0,
-            'No document' => 0,
-        ];
-
-        foreach ($rows as $row) {
-            $counts[$row['status']]++;
-        }
-
+        $counts = $this->status_counts($filters, $this->current_report_date());
+        $metakey = ($filters['statusmode'] ?? 'course') === 'employee' ? 'meta:percentofusers' : 'meta:percentofchecks';
         $total = max(1, array_sum($counts));
         return [
-            $this->status_item(get_string('label:active', 'block_dashboardanalytics'), $counts['Active'], $total, 'ok'),
-            $this->status_item(get_string('label:expiring', 'block_dashboardanalytics'), $counts['Expiring'], $total, 'warning'),
-            $this->status_item(get_string('label:expired', 'block_dashboardanalytics'), $counts['Expired'], $total, 'danger'),
-            $this->status_item(get_string('label:inprogress', 'block_dashboardanalytics'), $counts['No document'], $total, 'muted'),
+            $this->status_item(get_string('label:active', 'block_dashboardanalytics'), $counts['active'], $total, 'ok', $metakey),
+            $this->status_item(get_string('label:expiring', 'block_dashboardanalytics'), $counts['expiring'], $total, 'warning', $metakey),
+            $this->status_item(get_string('label:expired', 'block_dashboardanalytics'), $counts['expired'], $total, 'danger', $metakey),
+            $this->status_item(get_string('label:inprogress', 'block_dashboardanalytics'), $counts['nodocument'], $total, 'muted', $metakey),
         ];
     }
 
     public function expired_expiring_by_company_items(array $filters, int $limit = 10): array {
         $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
         $companies = [];
+        $employeemode = ($filters['statusmode'] ?? 'course') === 'employee';
+        $seenusers = [];
         foreach ($rows as $row) {
             $company = $row['company'] ?: get_string('label:unassigned', 'block_dashboardanalytics');
+            if ($employeemode) {
+                $userid = (int)($row['userid'] ?? 0);
+                $userkey = $company . ':' . $userid;
+                if ($userid <= 0 || isset($seenusers[$userkey])) {
+                    continue;
+                }
+                $seenusers[$userkey] = true;
+            }
             if (!isset($companies[$company])) {
                 $companies[$company] = ['expired' => 0, 'expiring' => 0];
             }
@@ -268,6 +277,7 @@ class overview_repository {
     }
 
     public function course_non_compliance_items(array $filters, int $limit = 10): array {
+        $filters = $this->course_status_filters($filters);
         $rows = $this->enrolment_status_rows($filters, $this->current_report_date());
         $courses = [];
         foreach ($rows as $row) {
@@ -672,6 +682,7 @@ class overview_repository {
     }
 
     private function company_summaries(array $filters, int $reportdate): array {
+        $filters = $this->course_status_filters($filters);
         $cachekey = $this->cache_key($filters, $reportdate);
         if (isset(self::$companysummariescache[$cachekey])) {
             return self::$companysummariescache[$cachekey];
@@ -1236,6 +1247,11 @@ class overview_repository {
         return array_keys($items) !== range(0, count($items) - 1);
     }
 
+    private function course_status_filters(array $filters): array {
+        $filters['statusmode'] = 'course';
+        return $filters;
+    }
+
     private function apply_status_mode(array $rows, array $filters): array {
         if (($filters['statusmode'] ?? 'course') !== 'employee' || !$rows) {
             return $rows;
@@ -1301,14 +1317,14 @@ class overview_repository {
         return 'No document';
     }
 
-    private function status_item(string $label, int $count, int $total, string $status): array {
+    private function status_item(string $label, int $count, int $total, string $status, string $metakey = 'meta:percentofchecks'): array {
         $percent = round(($count / max(1, $total)) * 100, 1);
         return [
             'label' => $label,
             'value' => (string)$count,
             'percent' => $percent,
             'status' => $status,
-            'meta' => get_string('meta:percentofchecks', 'block_dashboardanalytics', $percent),
+            'meta' => get_string($metakey, 'block_dashboardanalytics', $percent),
         ];
     }
 

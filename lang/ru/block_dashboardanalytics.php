@@ -519,6 +519,7 @@ $string['panel:coursecoverage:title'] = 'Покрытие завершения �
 $string['panel:coursecoverage:description'] = 'Визуализация прогресса и охвата зачислений будет подключена к источнику требований по курсам LMS.';
 
 $string['meta:percentofchecks'] = '{$a}% проверок';
+$string['meta:percentofusers'] = '{$a}% пользователей';
 $string['meta:expiredexpiring'] = '{$a->expired} просрочено, {$a->expiring} истекает';
 $string['meta:expiredorsoon'] = 'Просрочено или скоро истекает';
 $string['meta:coursewithoutvaliddoc'] = '{$a->affected} без действительного документа / {$a->total} зачислено';

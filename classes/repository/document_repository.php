@@ -46,23 +46,7 @@ class document_repository {
             ];
         }
 
-        $counts = [
-            'active' => 0,
-            'expiring' => 0,
-            'expired' => 0,
-            'nodocument' => 0,
-        ];
-        foreach ($this->overview_rows($filters) as $row) {
-            if ($row['status'] === 'Active') {
-                $counts['active']++;
-            } else if ($row['status'] === 'Expiring') {
-                $counts['expiring']++;
-            } else if ($row['status'] === 'Expired') {
-                $counts['expired']++;
-            } else {
-                $counts['nodocument']++;
-            }
-        }
+        $counts = (new overview_repository())->status_counts($filters);
 
         return [
             'configured' => true,
@@ -134,8 +118,18 @@ class document_repository {
         }
 
         $companies = [];
+        $employeemode = ($filters['statusmode'] ?? 'course') === 'employee';
+        $seenusers = [];
         foreach ($this->overview_rows($filters) as $row) {
             $companyname = trim((string)($row['company'] ?? '')) !== '' ? (string)$row['company'] : 'Unassigned';
+            if ($employeemode) {
+                $userid = (int)($row['userid'] ?? 0);
+                $userkey = $companyname . ':' . $userid;
+                if ($userid <= 0 || isset($seenusers[$userkey])) {
+                    continue;
+                }
+                $seenusers[$userkey] = true;
+            }
             if (!isset($companies[$companyname])) {
                 $companies[$companyname] = [
                     'companyid' => (int)($row['companyid'] ?? 0),
@@ -222,6 +216,7 @@ class document_repository {
 
         foreach ([$selectedtab] as $tab) {
             $scopefilters = $this->heatmap_tab_filters($filters, $tab);
+            $scopefilters['statusmode'] = 'course';
             $rows = $overview->enrolment_status_snapshot_rows($scopefilters);
             $courses = [];
 
