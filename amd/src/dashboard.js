@@ -71,6 +71,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         heatmapCorner: 'Personnel category',
         searchPlaceholder: 'Search {$a}',
         currentCompliance: 'Current compliance',
+        monthLabel: 'Month',
+        complianceLabel: 'Compliance',
+        compliantLabel: 'Compliant',
+        complianceLine: 'Compliance line',
         compliantThresholdTitle: 'Compliant threshold',
         criticalThresholdTitle: 'Critical threshold',
         pointsVsLastMonth: '{$a} pts vs last month',
@@ -209,6 +213,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:heatmapcorner', component: 'block_dashboardanalytics'},
         {key: 'js:searchplaceholder', component: 'block_dashboardanalytics'},
         {key: 'js:currentcompliance', component: 'block_dashboardanalytics'},
+        {key: 'js:monthlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:compliancelabel', component: 'block_dashboardanalytics'},
+        {key: 'js:compliantlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:complianceline', component: 'block_dashboardanalytics'},
         {key: 'js:compliantthreshold', component: 'block_dashboardanalytics'},
         {key: 'js:criticalthresholdtitle', component: 'block_dashboardanalytics'},
         {key: 'js:pointsvslastmonth', component: 'block_dashboardanalytics'},
@@ -348,6 +356,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'heatmapCorner',
         'searchPlaceholder',
         'currentCompliance',
+        'monthLabel',
+        'complianceLabel',
+        'compliantLabel',
+        'complianceLine',
         'compliantThresholdTitle',
         'criticalThresholdTitle',
         'pointsVsLastMonth',
@@ -469,9 +481,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var atriskUpper = Math.max(thresholds.critical, thresholds.compliant - 1);
 
         return {
-            compliant: '>=' + formatPercent(thresholds.compliant) + '% Compliant',
-            risk: formatPercent(thresholds.critical) + '–' + formatPercent(atriskUpper) + '% At risk',
-            critical: '<' + formatPercent(thresholds.critical) + '% Critical'
+            compliant: '>=' + formatPercent(thresholds.compliant) + '% ' + text('compliantLabel', 'Compliant'),
+            risk: formatPercent(thresholds.critical) + '–' + formatPercent(atriskUpper) + '% ' + text('atRiskLabel', 'At risk'),
+            critical: '<' + formatPercent(thresholds.critical) + '% ' + text('criticalState', 'Critical')
         };
     };
 
@@ -3034,7 +3046,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         return (visibleSeries || []).map(function(series) {
                             var point = (series.segments || [])[index] || null;
                             return {
-                                label: series.label || text('currentCompliance', 'Current compliance'),
+                                label: visibleSeries.length === 1
+                                    ? text('complianceLabel', 'Compliance')
+                                    : (series.label || text('complianceLabel', 'Compliance')),
                                 value: formatPercent(point ? point.percent : 0) + '%'
                             };
                         });
@@ -3168,7 +3182,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + seriesLegend
                         + '</div>'
                         + '<div class="da-compliance-trendline-footer">'
-                        + '<span class="da-compliance-trendline-footer-chip"><span class="da-compliance-trendline-footer-line"></span>Compliance line</span>'
+                        + '<span class="da-compliance-trendline-footer-chip"><span class="da-compliance-trendline-footer-line"></span>' + escapeHtml(text('complianceLine', 'Compliance line')) + '</span>'
                         + '<label class="da-compliance-trendline-threshold-control"><span class="da-dot da-dot-ok"></span>' + escapeHtml(text('compliantThresholdTitle', 'Compliant threshold'))
                         + '<input type="number" min="0" max="100" step="1" value="' + escapeHtml(formatPercent(compliantThreshold)) + '" data-action="compliance-threshold" data-threshold-key="compliancenorm">%</label>'
                         + '<label class="da-compliance-trendline-threshold-control"><span class="da-dot da-dot-danger"></span>' + escapeHtml(text('criticalThresholdTitle', 'Critical threshold'))
@@ -4875,16 +4889,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
             if (!tooltipPayload.length) {
                 var complianceValue = target.getAttribute('data-value') || '';
-                tooltipPayload = [{label: 'Compliance', value: complianceValue}];
+                tooltipPayload = [{label: text('complianceLabel', 'Compliance'), value: complianceValue}];
             }
 
             crosshair.style.left = left;
             crosshair.hidden = false;
             crosshair.classList.add('is-visible');
 
-            tooltip.innerHTML = '<strong>' + escapeHtml('Month ' + monthLabel) + '</strong>'
+            tooltip.innerHTML = '<strong>' + escapeHtml(text('monthLabel', 'Month') + ' ' + monthLabel) + '</strong>'
                 + tooltipPayload.map(function(line) {
-                    return '<span>' + escapeHtml((line.label || 'Compliance') + ': ' + (line.value || '0%')) + '</span>';
+                    return '<span>' + escapeHtml((line.label || text('complianceLabel', 'Compliance')) + ': ' + (line.value || '0%')) + '</span>';
                 }).join('');
             tooltip.hidden = false;
             tooltip.style.left = left;
