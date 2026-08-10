@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\name_formatter;
+
 defined('MOODLE_INTERNAL') || die();
 
 class employee_repository {
@@ -42,7 +44,7 @@ class employee_repository {
                 'cells' => [
                     [
                         'key' => 'employee',
-                        'value' => $showidentity ? fullname($record) : get_string('hiddenuser'),
+                        'value' => $showidentity ? name_formatter::last_first($record) : get_string('hiddenuser'),
                         'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false) : '',
                     ],
                     ['key' => 'department', 'value' => (string)$record->departmentname],
@@ -302,7 +304,17 @@ class employee_repository {
 
         if (!empty($filters['search'])) {
             $searchkey = $prefix . 'search';
-            $searchfields = $DB->sql_concat("{$alias}.firstname", "' '", "{$alias}.lastname", "' '", "{$alias}.email");
+            $searchfields = $DB->sql_concat(
+                "{$alias}.firstname",
+                "' '",
+                "{$alias}.lastname",
+                "' '",
+                "{$alias}.lastname",
+                "' '",
+                "{$alias}.firstname",
+                "' '",
+                "{$alias}.email"
+            );
             $where[] = $DB->sql_like($searchfields, ":{$searchkey}", false, false);
             $params[$searchkey] = '%' . $DB->sql_like_escape($filters['search']) . '%';
         }

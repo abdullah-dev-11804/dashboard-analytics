@@ -3,6 +3,7 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\name_formatter;
 use block_dashboardanalytics\permissions;
 
 defined('MOODLE_INTERNAL') || die();
@@ -178,7 +179,7 @@ class dimension_repository {
         $records = $DB->get_records_sql($sql, $filter['params'], 0, 1000);
         $options = [];
         foreach ($records as $record) {
-            $name = trim((string)$record->firstname . ' ' . (string)$record->lastname);
+            $name = name_formatter::last_first($record, (string)$record->email);
             $label = $name !== '' ? $name : (string)$record->email;
             if ((string)$record->email !== '' && stripos($label, (string)$record->email) === false) {
                 $label .= ' (' . (string)$record->email . ')';

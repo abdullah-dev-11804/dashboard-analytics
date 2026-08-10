@@ -203,6 +203,8 @@ $string['nodata'] = 'Пока нет данных для отображения.
 $string['privacy:metadata'] = 'Блок аналитики не хранит персональные данные. Он читает Moodle и настроенные данные отчетности только при построении панелей.';
 
 $string['label:employee'] = 'Сотрудник';
+$string['label:lastname'] = 'Фамилия';
+$string['label:firstname'] = 'Имя';
 $string['label:department'] = 'Подразделение';
 $string['label:location'] = 'Регион';
 $string['label:position'] = 'Должность';

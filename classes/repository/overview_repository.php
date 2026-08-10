@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\name_formatter;
+
 defined('MOODLE_INTERNAL') || die();
 class overview_repository {
     /** @var array<string, array> */
@@ -1768,8 +1770,7 @@ class overview_repository {
     }
 
     private function format_person_name(string $firstname, string $lastname): string {
-        $fullname = trim($firstname . ' ' . $lastname);
-        return $fullname !== '' ? $fullname : get_string('hiddenuser');
+        return name_formatter::last_first_from_parts($firstname, $lastname);
     }
 
     private function truncate_text(string $value, int $limit): string {

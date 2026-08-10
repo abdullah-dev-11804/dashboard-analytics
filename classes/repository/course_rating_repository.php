@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\name_formatter;
+
 defined('MOODLE_INTERNAL') || die();
 
 class course_rating_repository {
@@ -195,7 +197,7 @@ class course_rating_repository {
                 continue;
             }
 
-            $author = trim(fullname($record));
+            $author = name_formatter::last_first($record, '');
             if ($author !== '') {
                 $review .= ' - ' . $author;
             }

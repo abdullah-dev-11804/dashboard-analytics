@@ -203,6 +203,8 @@ $string['nodata'] = 'Әзірге көрсетуге арналған дерек
 $string['privacy:metadata'] = 'Аналитика блогы дербес деректерді сақтамайды. Ол тақталарды құру кезінде тек Moodle деректерін және бапталған есептілік деректерін оқиды.';
 
 $string['label:employee'] = 'Қызметкер';
+$string['label:lastname'] = 'Тегі';
+$string['label:firstname'] = 'Аты';
 $string['label:department'] = 'Бөлімше';
 $string['label:location'] = 'Аймақ';
 $string['label:position'] = 'Лауазым';

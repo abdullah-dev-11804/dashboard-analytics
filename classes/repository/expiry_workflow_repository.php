@@ -3,6 +3,7 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\name_formatter;
 use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\service\recompletion_bridge;
 
@@ -259,7 +260,7 @@ class expiry_workflow_repository {
         foreach ($DB->get_records_sql($sql, ['companyid' => $companyid]) as $record) {
             $options[] = [
                 'value' => (string)$record->id,
-                'label' => fullname($record) . ' · ' . $record->email,
+                'label' => name_formatter::last_first($record) . ' · ' . $record->email,
             ];
         }
 
@@ -375,6 +376,7 @@ class expiry_workflow_repository {
                 . $DB->sql_like('u.firstname', ':caseq1', false)
                 . ' OR ' . $DB->sql_like('u.lastname', ':caseq2', false)
                 . ' OR ' . $DB->sql_like($DB->sql_concat('u.firstname', "' '", 'u.lastname'), ':caseq3', false)
+                . ' OR ' . $DB->sql_like($DB->sql_concat('u.lastname', "' '", 'u.firstname'), ':caseq7', false)
                 . ' OR ' . $DB->sql_like('u.email', ':caseq4', false)
                 . ' OR ' . $DB->sql_like('c.fullname', ':caseq5', false)
                 . ' OR ' . $DB->sql_like('co.name', ':caseq6', false)
@@ -385,6 +387,7 @@ class expiry_workflow_repository {
             $params['caseq4'] = $like;
             $params['caseq5'] = $like;
             $params['caseq6'] = $like;
+            $params['caseq7'] = $like;
         }
 
         $sql = "SELECT ec.id,
@@ -415,7 +418,7 @@ class expiry_workflow_repository {
 
         $rows = [];
         foreach ($DB->get_records_sql($sql, $params, $page * $perpage, $perpage) as $record) {
-            $fullname = fullname($record);
+            $fullname = name_formatter::last_first($record);
             $rows[] = [
                 'caseid' => (int)$record->id,
                 'userid' => (int)$record->userid,
@@ -799,7 +802,7 @@ class expiry_workflow_repository {
                 $recipients['user:' . (int)$record->id] = [
                     'type' => 'user',
                     'id' => (int)$record->id,
-                    'name' => fullname($record),
+                    'name' => name_formatter::last_first($record),
                     'email' => (string)$record->email,
                 ];
             }
@@ -826,7 +829,7 @@ class expiry_workflow_repository {
         $htmlrows = '';
         $textrows = [];
         foreach ($rows as $row) {
-            $employee = fullname($row);
+            $employee = name_formatter::last_first($row);
             $course = format_string((string)$row->coursename);
             $company = trim((string)$row->companyname) !== '' ? format_string((string)$row->companyname) : get_string('label:unassigned', 'block_dashboardanalytics');
             $issuedate = !empty($row->issuedate) ? userdate((int)$row->issuedate, get_string('strftimedate')) : '—';

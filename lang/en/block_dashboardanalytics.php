@@ -203,6 +203,8 @@ $string['nodata'] = 'No data to display yet.';
 $string['privacy:metadata'] = 'The analytics block does not store personal data. It reads Moodle and configured reporting data only when rendering dashboards.';
 
 $string['label:employee'] = 'Employee';
+$string['label:lastname'] = 'Last Name';
+$string['label:firstname'] = 'First Name';
 $string['label:department'] = 'Department';
 $string['label:location'] = 'Region';
 $string['label:position'] = 'Position';

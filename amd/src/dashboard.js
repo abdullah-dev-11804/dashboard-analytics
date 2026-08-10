@@ -122,7 +122,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         expiryNotifyNowTitle: 'Send expiry digest',
         confirmSend: 'Send now',
         cancel: 'Cancel',
-        issueDate: 'Issue date'
+        issueDate: 'Issue date',
+        lastName: 'Last Name',
+        firstName: 'First Name'
     };
 
     var stringList = [
@@ -255,7 +257,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:expirynotifynowtitle', component: 'block_dashboardanalytics'},
         {key: 'js:confirmsend', component: 'block_dashboardanalytics'},
         {key: 'modal:close', component: 'block_dashboardanalytics'},
-        {key: 'label:issuedate', component: 'block_dashboardanalytics'}
+        {key: 'label:issuedate', component: 'block_dashboardanalytics'},
+        {key: 'label:lastname', component: 'block_dashboardanalytics'},
+        {key: 'label:firstname', component: 'block_dashboardanalytics'}
     ];
 
     var stringTargets = [
@@ -388,7 +392,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'expiryNotifyNowTitle',
         'confirmSend',
         'cancel',
-        'issueDate'
+        'issueDate',
+        'lastName',
+        'firstName'
     ];
 
     var call = function(methodname, args) {
@@ -944,6 +950,71 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
     };
 
+    var employeeHeaderMarkup = function() {
+        return '<span class="da-employee-header" aria-label="' + escapeHtml(text('label:employee', 'Employee')) + '">'
+            + '<button type="button" class="da-employee-sort" data-action="employee-name-sort" data-name-part="lastname">'
+            + escapeHtml(text('lastName', 'Last Name')) + '</button>'
+            + '<button type="button" class="da-employee-sort" data-action="employee-name-sort" data-name-part="firstname">'
+            + escapeHtml(text('firstName', 'First Name')) + '</button>'
+            + '</span>';
+    };
+
+    var employeeNamePart = function(value, part) {
+        var pieces = String(value || '').trim().split(/\s+/).filter(Boolean);
+        if (!pieces.length) {
+            return '';
+        }
+
+        if (part === 'firstname') {
+            return pieces.slice(1).join(' ') || pieces[0];
+        }
+
+        return pieces[0];
+    };
+
+    var sortRowsByEmployeePart = function(button) {
+        var table = button.closest('table');
+        if (!table || !table.tBodies || !table.tBodies[0]) {
+            return;
+        }
+
+        var tbody = table.tBodies[0];
+        var direction = button.getAttribute('data-sort-direction') === 'asc' ? 'desc' : 'asc';
+        Array.prototype.slice.call(table.querySelectorAll('[data-action="employee-name-sort"]')).forEach(function(item) {
+            item.removeAttribute('data-sort-direction');
+            item.setAttribute('aria-sort', 'none');
+        });
+        button.setAttribute('data-sort-direction', direction);
+        button.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
+
+        var part = button.getAttribute('data-name-part') || 'lastname';
+        var groups = [];
+        var currentGroup = null;
+        Array.prototype.slice.call(tbody.querySelectorAll('tr')).forEach(function(row) {
+            if (row.getAttribute('data-rowtype') === 'course' && currentGroup) {
+                currentGroup.rows.push(row);
+                return;
+            }
+
+            currentGroup = {
+                rows: [row],
+                key: employeeNamePart(((row.cells && row.cells[0]) ? row.cells[0].textContent : ''), part).toLowerCase()
+            };
+            groups.push(currentGroup);
+        });
+
+        groups.sort(function(a, b) {
+            var comparison = a.key.localeCompare(b.key);
+            return direction === 'asc' ? comparison : -comparison;
+        });
+
+        groups.forEach(function(group) {
+            group.rows.forEach(function(row) {
+                tbody.appendChild(row);
+            });
+        });
+    };
+
     var activeFilterDefaults = function(state) {
         var defaults = [state.companyFilterKey, 'locations', 'sites', 'departments', 'personnelcategories', 'positions'];
         return defaults.filter(function(key) {
@@ -1255,6 +1326,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var exporturl = data.exporturl || drilldownExportUrlFor(root, state, 'visible', drilldownkey, overrides, currentPage, perpage);
         var exportallurl = drilldownExportUrlFor(root, state, 'all', drilldownkey, overrides, currentPage, perpage);
         var head = columns.map(function(column) {
+            if (column.key === 'employee') {
+                return '<th scope="col">' + employeeHeaderMarkup() + '</th>';
+            }
             return '<th scope="col">' + escapeHtml(column.label) + '</th>';
         }).join('');
 
@@ -1919,7 +1993,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</tr>';
             }).join('');
 
-            return '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + escapeHtml('Employee') + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
+            return '<div class="da-table-wrap"><table class="da-table"><thead><tr><th scope="col">' + employeeHeaderMarkup() + '</th><th scope="col">' + escapeHtml('Company') + '</th><th scope="col">' + escapeHtml('Course') + '</th><th scope="col">' + escapeHtml(text('issueDate', 'Issue date')) + '</th><th scope="col">' + escapeHtml('Expiry date') + '</th><th scope="col">' + escapeHtml('Status') + '</th><th scope="col">' + escapeHtml('Actions') + '</th></tr></thead><tbody>'
                 + (caseRows || '<tr><td colspan="7"><div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div></td></tr>')
                 + '</tbody></table></div>'
                 + expiryWorkflowPagination('expiry-workflow-case', cases.page || 0, cases.perpage || 20, cases.totalcount || 0);
@@ -4940,6 +5014,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }, true);
 
         root.addEventListener('click', function(event) {
+            var employeeSort = event.target.closest('[data-action="employee-name-sort"]');
+            if (employeeSort && root.contains(employeeSort)) {
+                sortRowsByEmployeePart(employeeSort);
+                return;
+            }
+
             var recipientToggle = event.target.closest('[data-action="expiry-recipient-toggle"]');
             if (recipientToggle && root.contains(recipientToggle)) {
                 var recipientPicker = recipientToggle.closest('[data-expiry-recipient-picker]');
