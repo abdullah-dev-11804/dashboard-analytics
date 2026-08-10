@@ -373,7 +373,7 @@
 }
 
 .block-dashboardanalytics .da-kpi-muted {
-    border-left-color: #a9b2bf;
+    border-left-color: #B4B2A9;
 }
 
 .block-dashboardanalytics .da-kpi-label,
@@ -422,7 +422,7 @@
 }
 
 .block-dashboardanalytics .da-kpi-strip-appendix {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 10px;
 }
 
@@ -565,6 +565,10 @@
 
 .block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-expired {
     --da-kpi-accent: #c62a1e;
+}
+
+.block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-inprogress {
+    --da-kpi-accent: #B4B2A9;
 }
 
 .block-dashboardanalytics .da-kpi-strip-appendix .da-kpi-appendix-edsqueue {

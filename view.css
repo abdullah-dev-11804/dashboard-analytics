@@ -171,7 +171,7 @@
 }
 
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-kpi-strip-appendix {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 10px;
 }
 

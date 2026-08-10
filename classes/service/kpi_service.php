@@ -71,6 +71,17 @@ class kpi_service {
                     'help' => get_string('kpi:help:personaldocuments30', 'block_dashboardanalytics'),
                 ],
                 [
+                    'key' => 'inprogress',
+                    'label' => get_string('kpi:inprogress', 'block_dashboardanalytics'),
+                    'value' => $documentcounts['configured'] ? (string)$documentcounts['nodocument'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
+                    'unit' => '',
+                    'status' => 'muted',
+                    'trend' => $documentcounts['configured'] ? get_string('label:inprogress', 'block_dashboardanalytics') : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
+                    'drilldownkey' => 'employee_documents',
+                    'filterstatus' => 'nodocument',
+                    'help' => get_string('kpi:help:inprogress', 'block_dashboardanalytics'),
+                ],
+                [
                     'key' => 'courses',
                     'label' => get_string('kpi:courses', 'block_dashboardanalytics'),
                     'value' => get_string('kpi:value:pending', 'block_dashboardanalytics'),
@@ -147,6 +158,7 @@ class kpi_service {
                 'drilldownkey' => 'company_expired_documents',
                 'help' => '',
             ];
+            $cards[] = $this->in_progress_card($statuscounts, $totalchecks, 'company_compliance');
             if (!$iscompanyowner) {
                 $cards[] = [
                     'key' => 'edsqueue',
@@ -240,6 +252,7 @@ class kpi_service {
                 'drilldownkey' => 'client_expired_documents',
                 'help' => '',
             ],
+            $this->in_progress_card($statuscounts, $totalchecks, 'client_compliance'),
             [
                 'key' => 'edsqueue',
                 'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
@@ -265,5 +278,24 @@ class kpi_service {
         }
 
         return get_string('kpi:trend:down', 'block_dashboardanalytics', (object)['delta' => abs($delta), 'suffix' => $suffix]);
+    }
+
+    private function in_progress_card(array $statuscounts, int $totalchecks, string $drilldownkey): array {
+        $count = (int)($statuscounts['nodocument'] ?? 0);
+        $percent = round(($count / max(1, $totalchecks)) * 100, 1);
+
+        return [
+            'key' => 'inprogress',
+            'label' => get_string('kpi:inprogress', 'block_dashboardanalytics'),
+            'value' => (string)$count,
+            'unit' => '',
+            'status' => 'muted',
+            'railpercent' => $percent,
+            'trend' => $percent . '%',
+            'trendstyle' => 'plain',
+            'drilldownkey' => $drilldownkey,
+            'filterstatus' => 'nodocument',
+            'help' => '',
+        ];
     }
 }
