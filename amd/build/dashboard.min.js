@@ -1,6 +1,7 @@
 define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notification, Str) {
     var SELECTOR = '[data-region="dashboardanalytics"]';
     var modalEventsBound = false;
+    var stringsLoaded = false;
     var strings = {
         loading: 'Loading...',
         details: 'Details',
@@ -709,11 +710,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var storage = 'block_dashboardanalytics:view:stretch';
         var apply = function(enabled) {
             if (button) {
+                var showLabel = stringsLoaded
+                    ? text('showSidebar', button.getAttribute('data-label-show') || 'Show sidebar')
+                    : (button.getAttribute('data-label-show') || text('showSidebar', 'Show sidebar'));
+                var hideLabel = stringsLoaded
+                    ? text('hideSidebar', button.getAttribute('data-label-hide') || 'Hide sidebar')
+                    : (button.getAttribute('data-label-hide') || text('hideSidebar', 'Hide sidebar'));
                 document.body.classList.toggle('da-view-stretched', !!enabled);
                 button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-                button.textContent = enabled
-                    ? text('showSidebar', 'Show sidebar')
-                    : text('hideSidebar', 'Hide sidebar');
+                button.textContent = enabled ? showLabel : hideLabel;
             }
         };
 
@@ -6241,6 +6246,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             stringTargets.forEach(function(target, index) {
                 strings[target] = values[index];
             });
+            stringsLoaded = true;
             strings.allLabels = {
                 companies: strings.allcompanieslabel,
                 courses: strings.allcourseslabel,
@@ -6253,6 +6259,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 educations: strings.alleducationslabel
             };
 
+            initViewStretchToggle(root, state);
             bindEvents(root, state);
             refresh(root, state, 'replace').then(function() {
                 updateFilterCounts(root, state);

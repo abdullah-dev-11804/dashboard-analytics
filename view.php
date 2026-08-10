@@ -13,6 +13,7 @@ use block_dashboardanalytics\permissions;
 
 require_login();
 
+$lang = optional_param('lang', '', PARAM_LANG);
 $context = context_system::instance();
 if (!permissions::can_view_block($context)) {
     throw new required_capability_exception($context, 'block/dashboardanalytics:view', 'nopermissions', '');
@@ -21,7 +22,11 @@ if (!permissions::can_view_block($context)) {
 $dashboardkey = permissions::resolve_dashboard_key($context);
 $dashboardname = $dashboardkey !== null ? permissions::dashboard_name($dashboardkey) : get_string('pluginname', 'block_dashboardanalytics');
 
-$url = new moodle_url('/blocks/dashboardanalytics/view.php');
+$urlparams = [];
+if ($lang !== '') {
+    $urlparams['lang'] = $lang;
+}
+$url = new moodle_url('/blocks/dashboardanalytics/view.php', $urlparams);
 $PAGE->set_url($url);
 $PAGE->set_context($context);
 $PAGE->set_pagelayout('report');
@@ -80,6 +85,8 @@ echo html_writer::tag(
         'type' => 'button',
         'class' => 'dashboardanalytics-page-toolbar-button dashboardanalytics-page-toolbar-button-secondary',
         'data-action' => 'view-stretch-toggle',
+        'data-label-hide' => get_string('view:hidesidebar', 'block_dashboardanalytics'),
+        'data-label-show' => get_string('view:showsidebar', 'block_dashboardanalytics'),
         'aria-pressed' => 'false',
     ]
 );
