@@ -9,6 +9,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         noMatchingRows: 'No matching rows.',
         noKpi: 'No KPI data found.',
         pluginName: 'Analytics',
+        dashboardCompany: 'Company Dashboard',
+        dashboardClient: 'Client Dashboard',
+        dashboardEmployee: 'Employee Dashboard',
         noVisualData: 'No visual data available.',
         dashboardVisuals: 'Dashboard visuals',
         noFilterOptions: 'No filter options found.',
@@ -136,6 +139,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:nomatchingrows', component: 'block_dashboardanalytics'},
         {key: 'js:nokpi', component: 'block_dashboardanalytics'},
         {key: 'pluginname', component: 'block_dashboardanalytics'},
+        {key: 'dashboard:company', component: 'block_dashboardanalytics'},
+        {key: 'dashboard:client', component: 'block_dashboardanalytics'},
+        {key: 'dashboard:employee', component: 'block_dashboardanalytics'},
         {key: 'js:novisualdata', component: 'block_dashboardanalytics'},
         {key: 'js:dashboardvisuals', component: 'block_dashboardanalytics'},
         {key: 'js:nofilteroptions', component: 'block_dashboardanalytics'},
@@ -272,6 +278,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'noMatchingRows',
         'noKpi',
         'pluginName',
+        'dashboardCompany',
+        'dashboardClient',
+        'dashboardEmployee',
         'noVisualData',
         'dashboardVisuals',
         'noFilterOptions',
@@ -4483,54 +4492,31 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         updateReportsActPreview(root);
     };    
 
-    var renderBootstrap = function(root, state, data) {
+    var dashboardTitleForKey = function(dashboardkey) {
+        if (dashboardkey === 'company') {
+            return text('dashboardCompany', 'Company Dashboard');
+        }
+        if (dashboardkey === 'client') {
+            return text('dashboardClient', 'Client Dashboard');
+        }
+        if (dashboardkey === 'employee') {
+            return text('dashboardEmployee', 'Employee Dashboard');
+        }
+        return text('pluginName', 'Analytics');
+    };
+
+    var renderDashboardChrome = function(root, state) {
         var title = root.querySelector('[data-region="dashboard-title"]');
         var subtitle = root.querySelector('[data-region="dashboard-subtitle"]');
-        var tabs = root.querySelector('[data-region="tabs"]');
-        var tabItems = Array.isArray(data.tabs) ? data.tabs : [];
+        var dashboardkey = state.dashboardkey || root.getAttribute('data-dashboardkey') || '';
 
-        if (data.dashboardkey) {
-            state.dashboardkey = data.dashboardkey;
-            root.setAttribute('data-dashboardkey', data.dashboardkey);
-        }
-
-        if (title && data.dashboardname) {
-            title.textContent = data.dashboardname;
+        if (title) {
+            title.textContent = dashboardTitleForKey(dashboardkey);
         }
 
         if (subtitle) {
             subtitle.textContent = text('pluginName', 'Analytics');
         }
-
-        if (tabs && tabItems.length) {
-            tabs.innerHTML = tabItems.map(function(tab) {
-                var active = tab.key === state.currentTab;
-                return '<button type="button"'
-                    + ' class="da-tab' + (active ? ' is-active' : '') + '"'
-                    + ' data-tab="' + escapeHtml(tab.key || '') + '"'
-                    + ' role="tab"'
-                    + ' aria-selected="' + (active ? 'true' : 'false') + '">'
-                    + escapeHtml(tab.label || tab.key || '')
-                    + '</button>';
-            }).join('');
-
-            if (!root.querySelector('[data-tab="' + state.currentTab + '"]')) {
-                var activeTab = tabItems.find(function(tab) {
-                    return !!tab.active;
-                }) || tabItems[0];
-                state.currentTab = activeTab ? activeTab.key : state.currentTab;
-            }
-            setActiveTab(root, state.currentTab);
-        }
-    };
-
-    var loadBootstrap = function(root, state) {
-        return call('block_dashboardanalytics_get_bootstrap', {
-            contextid: state.contextid
-        }).then(function(response) {
-            renderBootstrap(root, state, response || {});
-            persistState(root, state);
-        });
     };
 
     var loadFilters = function(root, state, requestFilters) {
@@ -6313,14 +6299,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             };
 
             initViewStretchToggle(root, state);
-            loadBootstrap(root, state).catch(Notification.exception).then(function() {
-                bindEvents(root, state);
-                refresh(root, state, 'replace').then(function() {
-                    updateFilterCounts(root, state);
-                    if (matchesBrowserHistoryState(window.history.state, state)) {
-                        restoreBrowserHistoryState(root, state, window.history.state);
-                    }
-                });
+            renderDashboardChrome(root, state);
+            bindEvents(root, state);
+            refresh(root, state, 'replace').then(function() {
+                updateFilterCounts(root, state);
+                if (matchesBrowserHistoryState(window.history.state, state)) {
+                    restoreBrowserHistoryState(root, state, window.history.state);
+                }
             });
         }).catch(Notification.exception);
     };
