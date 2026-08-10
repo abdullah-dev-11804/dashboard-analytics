@@ -137,7 +137,8 @@ if ($diagnose) {
     cli_writeln('Now: ' . userdate($now, '%Y-%m-%d %H:%M:%S'));
     cli_writeln('Rows: ' . count($rows));
     foreach ($statuscounts as $status => $count) {
-        cli_writeln('  Status ' . $status . ': ' . (int)$count);
+        $displaystatus = ($status === 'No document') ? 'In Progress' : $status;
+        cli_writeln('  Status ' . $displaystatus . ': ' . (int)$count);
     }
     foreach ($sourcecounts as $sourcekind => $count) {
         cli_writeln('  Source ' . ($sourcekind !== '' ? $sourcekind : '[empty]') . ': ' . (int)$count);

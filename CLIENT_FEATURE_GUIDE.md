@@ -184,7 +184,7 @@ Document records are classified into:
 - Active
 - Expiring
 - Expired
-- No document
+- In Progress
 
 The plugin uses document issue and expiry dates from the available document source and combines them with course validity logic where applicable.
 

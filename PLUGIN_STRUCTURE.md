@@ -437,7 +437,7 @@ Cards should load collapsed by default except the KPI strip, matching the deck.
 ### Phase 3: KPI and Compliance Foundation
 
 - Implement KPI strip
-- Implement document status logic: active, expiring, expired, no document
+- Implement document status logic: active, expiring, expired, in progress
 - Implement compliance action table and drilldowns
 
 ### Phase 4: Role-Specific Charts
