@@ -754,7 +754,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return 'employee_documents';
     };
 
-    var companyOwnerSingleCompanyAutoSummary = function(state, data, mode) {
+    var companyOwnerSingleCompanyAutoReport = function(state, data, mode) {
         if (mode === 'table-only') {
             return null;
         }
@@ -763,7 +763,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return null;
         }
 
-        if (state.singleCompanySummaryAutoOpened) {
+        if (state.singleCompanyReportAutoOpened) {
             return null;
         }
 
@@ -789,10 +789,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             cells[cell.key] = cell.value;
         });
 
-        return {
-            companyName: String(cells.company || ''),
-            companyId: Number(cells.companyid) || 0
-        };
+        if (cells.companyid && String(cells.companyid) !== '0') {
+            return {companyids: [String(cells.companyid)], status: ''};
+        }
+
+        if (cells.company) {
+            return {companies: [String(cells.company)], status: ''};
+        }
+
+        return null;
     };
 
     var getStatusModeInput = function(root) {
@@ -1385,7 +1390,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var perpage = Math.max(10, Number(state.currentDrilldownPerPage) || 20);
         var totalcount = Math.max(0, Number(data.totalcount) || 0);
         var totalpages = Math.max(1, Math.ceil(totalcount / perpage));
-        var autoSummary = companyOwnerSingleCompanyAutoSummary(state, data, mode);
+        var autoReportOverrides = companyOwnerSingleCompanyAutoReport(state, data, mode);
 
         if (title) {
             title.textContent = data.title || text('details', 'Details');
@@ -1472,9 +1477,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             actionPrefix: 'drilldown'
         });
 
-        if (autoSummary && autoSummary.companyName) {
-            state.singleCompanySummaryAutoOpened = true;
-            loadCompanySummaryModal(root, state, autoSummary.companyName, autoSummary.companyId);
+        if (autoReportOverrides) {
+            state.singleCompanyReportAutoOpened = true;
+            state.currentDrilldown = 'company_compliance';
+            state.currentDrilldownPage = 0;
+            loadDrilldown(root, state, 'company_compliance', autoReportOverrides, 0, state.currentDrilldownPerPage || 20, 'replace');
         }
     };
 
