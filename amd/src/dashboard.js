@@ -4492,17 +4492,44 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         updateReportsActPreview(root);
     };    
 
-    var dashboardTitleForKey = function(dashboardkey) {
+    var dashboardLanguageKey = function() {
+        var language = '';
+        var match = window.location.search.match(/[?&]lang=([^&]+)/);
+        if (match) {
+            language = decodeURIComponent(match[1] || '');
+        } else if (document.documentElement) {
+            language = document.documentElement.getAttribute('lang') || '';
+        }
+
+        if (!language && window.M && M.cfg && M.cfg.language) {
+            language = M.cfg.language;
+        }
+
+        language = String(language || '').toLowerCase().replace('_', '-').split('-')[0];
+        if (language === 'ru' || language === 'kk') {
+            return language;
+        }
+        return 'en';
+    };
+
+    var dashboardTitleAttribute = function(root, key) {
+        var language = dashboardLanguageKey();
+        return root.getAttribute('data-title-' + key + '-' + language)
+            || root.getAttribute('data-title-' + key + '-en')
+            || '';
+    };
+
+    var dashboardTitleForKey = function(root, dashboardkey) {
         if (dashboardkey === 'company') {
-            return text('dashboardCompany', 'Company Dashboard');
+            return dashboardTitleAttribute(root, 'company') || text('dashboardCompany', 'Company Dashboard');
         }
         if (dashboardkey === 'client') {
-            return text('dashboardClient', 'Client Dashboard');
+            return dashboardTitleAttribute(root, 'client') || text('dashboardClient', 'Client Dashboard');
         }
         if (dashboardkey === 'employee') {
-            return text('dashboardEmployee', 'Employee Dashboard');
+            return dashboardTitleAttribute(root, 'employee') || text('dashboardEmployee', 'Employee Dashboard');
         }
-        return text('pluginName', 'Analytics');
+        return dashboardTitleAttribute(root, 'plugin') || text('pluginName', 'Analytics');
     };
 
     var renderDashboardChrome = function(root, state) {
@@ -4511,11 +4538,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var dashboardkey = state.dashboardkey || root.getAttribute('data-dashboardkey') || '';
 
         if (title) {
-            title.textContent = dashboardTitleForKey(dashboardkey);
+            title.textContent = dashboardTitleForKey(root, dashboardkey);
         }
 
         if (subtitle) {
-            subtitle.textContent = text('pluginName', 'Analytics');
+            subtitle.textContent = dashboardTitleAttribute(root, 'plugin') || text('pluginName', 'Analytics');
         }
     };
 

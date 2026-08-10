@@ -25,6 +25,7 @@ class dashboard implements \renderable, \templatable {
                 'contextid' => $this->context->id,
                 'dashboardkey' => '',
                 'dashboardname' => '',
+                'dashboardtitles' => $this->dashboard_title_strings(),
                 'fullpage' => $this->fullpage,
                 'tabs' => [],
             ];
@@ -35,9 +36,35 @@ class dashboard implements \renderable, \templatable {
             'contextid' => $this->context->id,
             'dashboardkey' => $dashboardkey,
             'dashboardname' => permissions::dashboard_name($dashboardkey),
+            'dashboardtitles' => $this->dashboard_title_strings(),
             'fullpage' => $this->fullpage,
             'showstatusmode' => $dashboardkey !== permissions::DASHBOARD_EMPLOYEE,
             'tabs' => permissions::dashboard_tabs($dashboardkey, $this->context),
         ];
+    }
+
+    private function dashboard_title_strings(): array {
+        $manager = \get_string_manager();
+        $languages = ['en', 'ru', 'kk'];
+        $keys = [
+            'company' => 'dashboard:company',
+            'client' => 'dashboard:client',
+            'employee' => 'dashboard:employee',
+            'plugin' => 'pluginname',
+        ];
+        $strings = [];
+
+        foreach ($keys as $key => $identifier) {
+            foreach ($languages as $language) {
+                $strings[$key . '_' . $language] = $manager->get_string(
+                    $identifier,
+                    'block_dashboardanalytics',
+                    null,
+                    $language
+                );
+            }
+        }
+
+        return $strings;
     }
 }
