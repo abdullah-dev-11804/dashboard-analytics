@@ -122,11 +122,16 @@ class visual_service {
         $documents = new document_repository();
         $iscompanyowner = permissions::is_company_owner(\context_system::instance());
         $thresholds = filters::compliance_thresholds($filters);
+        $currentcompliance = $overview->overall_employee_compliance_summary($filters);
+        $previousmonth = (new \DateTimeImmutable('last day of previous month 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
+        $previouscompliance = $overview->overall_employee_compliance_summary($filters, $previousmonth);
 
         $panels = [
             $this->panel('compliancetrend', get_string('panel:compliancetrendchart:title', 'block_dashboardanalytics'), 'compliancetrendline', '', $overview->compliance_trend_items($filters), [
                 'threshold' => $thresholds['compliant'],
                 'secondarythreshold' => $thresholds['critical'],
+                'currentpercent' => (float)$currentcompliance['percent'],
+                'currentdelta' => (float)$currentcompliance['percent'] - (float)$previouscompliance['percent'],
             ]),
             $this->panel('complianceheatmap', get_string('panel:complianceheatmap:title', 'block_dashboardanalytics'), 'heatmap', get_string('panel:complianceheatmap:description', 'block_dashboardanalytics'), $documents->compliance_heatmap_items($filters, 6), [
                 'tabs' => $documents->compliance_heatmap_tabs($filters, 8),
@@ -477,7 +482,7 @@ class visual_service {
             'items' => array_values($items),
         ];
 
-        foreach (['threshold', 'secondarythreshold'] as $option) {
+        foreach (['threshold', 'secondarythreshold', 'currentpercent', 'currentdelta'] as $option) {
             if (array_key_exists($option, $options)) {
                 $panel[$option] = (float)$options[$option];
             }

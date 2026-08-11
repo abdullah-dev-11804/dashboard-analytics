@@ -3010,8 +3010,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var displayedSegments = summarySeries.segments || [];
                     var lastSegment = displayedSegments[displayedSegments.length - 1] || {percent: 0, label: ''};
                     var previousSegment = displayedSegments.length > 1 ? displayedSegments[displayedSegments.length - 2] : null;
-                    var currentPercent = Number(lastSegment.percent) || 0;
-                    var delta = previousSegment ? currentPercent - (Number(previousSegment.percent) || 0) : 0;
+                    var trendCurrentPercent = Number(lastSegment.percent) || 0;
+                    var hasPanelCurrentPercent = panel.currentpercent !== undefined
+                        && panel.currentpercent !== null
+                        && panel.currentpercent !== '';
+                    var currentPercent = hasPanelCurrentPercent ? (Number(panel.currentpercent) || 0) : trendCurrentPercent;
+                    var delta = previousSegment ? trendCurrentPercent - (Number(previousSegment.percent) || 0) : 0;
+                    if (panel.currentdelta !== undefined && panel.currentdelta !== null && panel.currentdelta !== '') {
+                        delta = Number(panel.currentdelta) || 0;
+                    }
                     var currentStatus = currentPercent >= compliantThreshold ? 'ok' : (currentPercent >= criticalThreshold ? 'warning' : 'danger');
                     var yTicksTrend = [0, 20, 40, 60, 80, 100];
                     var chartLeftTrend = 3.2;

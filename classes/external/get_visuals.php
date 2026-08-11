@@ -60,6 +60,8 @@ class get_visuals extends \external_api {
                 'description' => new \external_value(PARAM_TEXT, 'Description'),
                 'threshold' => new \external_value(PARAM_FLOAT, 'Optional reference threshold', VALUE_OPTIONAL),
                 'secondarythreshold' => new \external_value(PARAM_FLOAT, 'Optional second reference threshold', VALUE_OPTIONAL),
+                'currentpercent' => new \external_value(PARAM_FLOAT, 'Optional current KPI percent', VALUE_OPTIONAL),
+                'currentdelta' => new \external_value(PARAM_FLOAT, 'Optional current KPI percent delta', VALUE_OPTIONAL),
                 'thresholdlabel' => new \external_value(PARAM_TEXT, 'Optional reference threshold label', VALUE_OPTIONAL),
                 'secondarythresholdlabel' => new \external_value(PARAM_TEXT, 'Optional second reference threshold label', VALUE_OPTIONAL),
                 'emptymessage' => new \external_value(PARAM_TEXT, 'Optional empty-state message', VALUE_OPTIONAL),
