@@ -3051,11 +3051,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             return xForTrend(index, displayedSegments.length).toFixed(2) + ',' + yForTrend(segment.percent).toFixed(2);
                         }).join(' ');
                         var seriesColour = series.colour || zoneColorForValue(series.currentpercent || 0);
-                        var strokeWidth = series.isaggregate ? 1.9 : 1.2;
+                        var strokeWidth = 1.15;
                         var dashArray = series.isaggregate && visibleSeries.length > 1 ? '4 1.8' : 'none';
                         return '<polyline points="' + escapeHtml(points) + '" class="da-compliance-trendline-path'
                             + (series.isaggregate ? ' da-compliance-trendline-path-average' : '')
                             + '" style="stroke:' + escapeHtml(seriesColour) + ';stroke-width:' + strokeWidth + ';stroke-dasharray:' + dashArray + '"></polyline>';
+                    }).join('');
+                    var intervalMarkers = visibleSeries.map(function(series) {
+                        var seriesColour = series.colour || zoneColorForValue(series.currentpercent || 0);
+                        return (series.segments || []).map(function(segment, index) {
+                            return '<span class="da-compliance-trendline-point'
+                                + (series.isaggregate ? ' is-aggregate' : '')
+                                + '" style="left:' + xForTrend(index, displayedSegments.length).toFixed(2)
+                                + '%; top:' + yForTrend(segment.percent).toFixed(2)
+                                + '%; background:' + escapeHtml(seriesColour)
+                                + '; border-color:' + escapeHtml(seriesColour) + '"></span>';
+                        }).join('');
                     }).join('');
                     var xLabelsTrend = displayedSegments.map(function(segment, index) {
                         return '<span class="da-compliance-trendline-x-label" style="left:' + xForTrend(index, displayedSegments.length).toFixed(2) + '%">'
@@ -3191,6 +3202,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + hoverTargetsTrend
                         + '<span class="da-compliance-trendline-threshold-label da-text-ok" style="top:' + thresholdNormY + '%">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</span>'
                         + '<span class="da-compliance-trendline-threshold-label da-text-danger" style="top:' + thresholdCriticalY + '%">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</span>'
+                        + intervalMarkers
                         + currentMarkers
                         + '</div>'
                         + '</div>'
