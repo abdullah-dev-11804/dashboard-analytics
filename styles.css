@@ -4401,6 +4401,48 @@ body.da-modal-open {
     color: #fff;
 }
 
+.block-dashboardanalytics .da-forecast-custom-range {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: .45rem;
+    margin-left: .5rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-forecast-custom-range label {
+    display: inline-flex;
+    flex-direction: column;
+    gap: .2rem;
+    margin: 0;
+    color: #60728c;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.block-dashboardanalytics .da-forecast-custom-range input {
+    min-height: 2rem;
+    width: 9.5rem;
+    border: 1px solid #d2dfec;
+    border-radius: 6px;
+    padding: .35rem .5rem;
+    color: #15304b;
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.block-dashboardanalytics .da-forecast-custom-apply {
+    min-height: 2rem;
+    border: 1px solid #1f4f96;
+    border-radius: 6px;
+    background: #1f4f96;
+    color: #fff;
+    padding: .4rem .72rem;
+    font-size: .76rem;
+    font-weight: 800;
+}
+
 .block-dashboardanalytics .da-forecast-layout {
     display: flex;
     gap: 0;

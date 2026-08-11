@@ -140,6 +140,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         forecastUsersLabel: '{$a} users',
         forecastInWindowLabel: 'In this window',
         forecastRenewalsLabel: '{$a} renewals',
+        forecastPeriodCustomRange: 'Custom range',
+        forecastCustomStart: 'Start date',
+        forecastCustomEnd: 'End date',
+        forecastApplyRange: 'Apply range',
         forecastClearCourseLabel: 'Clear course filter',
         forecastPeriodLabel: 'Period',
         forecastCompanyLabel: 'Company',
@@ -213,6 +217,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'forecast:period:6months', component: 'block_dashboardanalytics'},
         {key: 'forecast:period:12months', component: 'block_dashboardanalytics'},
         {key: 'forecast:period:3years', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:customrange', component: 'block_dashboardanalytics'},
         {key: 'js:barchartlabel', component: 'block_dashboardanalytics'},
         {key: 'js:interactivelabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allcompanieslabel', component: 'block_dashboardanalytics'},
@@ -466,6 +471,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'forecastUsersLabel',
         'forecastInWindowLabel',
         'forecastRenewalsLabel',
+        'forecastCustomStart',
+        'forecastCustomEnd',
+        'forecastApplyRange',
         'forecastClearCourseLabel',
         'forecastPeriodLabel',
         'forecastCompanyLabel',
@@ -2302,7 +2310,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
-    var forecastPeriodOrder = ['30days', '60days', '90days', '6months', '12months', '3years'];
+    var forecastPeriodOrder = ['30days', '60days', '90days', '6months', '12months', '3years', 'customrange'];
 
     var forecastPeriodOptions = function(items) {
         var map = {};
@@ -2321,6 +2329,27 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var forecastSelectionMatches = function(selection, tabKey, periodKey) {
         return selection && selection.tabkey === tabKey && selection.periodkey === periodKey;
+    };
+
+    var defaultForecastSelection = function(items, tabKey, periodKey) {
+        if (!items || !items.length) {
+            return null;
+        }
+
+        var selected = items.filter(function(item) {
+            return (Number(item.value) || 0) > 0;
+        })[0] || items[0];
+
+        return {
+            tabkey: tabKey || '',
+            periodkey: periodKey || '',
+            fromts: Number(selected.fromts) || 0,
+            tots: Number(selected.tots) || 0,
+            courseid: 0,
+            course: '',
+            coursecolour: '',
+            label: selected.label || ''
+        };
     };
 
     var getForecastSelection = function(state, panelKey, tabKey, periodKey) {
@@ -2345,6 +2374,15 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         var selection = getForecastSelection(state, panel.key, selectedPanelTab || '', selectedPeriod);
+        if (!selection) {
+            selection = defaultForecastSelection(periodItems, selectedPanelTab || '', selectedPeriod);
+            if (selection) {
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastselection_' + panel.key]: selection,
+                    ['forecastpage_' + panel.key]: 0
+                });
+            }
+        }
         var selectedBar = selection ? periodItems.find(function(item) {
             return Number(item.fromts || 0) === Number(selection.fromts || 0)
                 && Number(item.tots || 0) === Number(selection.tots || 0);
@@ -2361,6 +2399,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 + '" data-period="' + escapeHtml(option.key) + '">'
                 + escapeHtml(option.label) + '</button>';
         }).join('') + '</div>';
+        var customStart = String(overrides.forecastcustomstart || '');
+        var customEnd = String(overrides.forecastcustomend || '');
+        var customControls = selectedPeriod === 'customrange'
+            ? '<div class="da-forecast-custom-range">'
+                + '<label><span>' + escapeHtml(text('forecastCustomStart', 'Start date')) + '</span>'
+                + '<input type="date" data-forecast-custom-start value="' + escapeHtml(customStart) + '"></label>'
+                + '<label><span>' + escapeHtml(text('forecastCustomEnd', 'End date')) + '</span>'
+                + '<input type="date" data-forecast-custom-end value="' + escapeHtml(customEnd) + '"></label>'
+                + '<button type="button" class="da-forecast-custom-apply" data-action="forecast-custom-range" data-panel="'
+                + escapeHtml(panel.key) + '">' + escapeHtml(text('forecastApplyRange', 'Apply range')) + '</button>'
+                + '</div>'
+            : '';
 
         var companyButtons = companyTabs.length
             ? '<div class="da-forecast-segmented da-forecast-companies">' + companyTabs.map(function(tab) {
@@ -2458,7 +2508,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         return '<div class="da-forecast-workload" data-region="forecast-workload" data-panel-key="' + escapeHtml(panel.key) + '">'
             + '<div class="da-forecast-toolbar">'
             + '<div class="da-forecast-toolbar-group"><span class="da-forecast-toolbar-label">'
-            + escapeHtml(text('forecastPeriodLabel', 'Period')) + '</span>' + periodButtons + '</div>'
+            + escapeHtml(text('forecastPeriodLabel', 'Period')) + '</span>' + periodButtons + customControls + '</div>'
             + (companyButtons ? '<div class="da-forecast-toolbar-group"><span class="da-forecast-toolbar-label">'
                 + escapeHtml(text('forecastCompanyLabel', 'Company')) + '</span>' + companyButtons + '</div>' : '')
             + '<div class="da-forecast-toolbar-spacer"></div>'
@@ -6194,6 +6244,24 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     ['forecastperiod_' + forecastPanelKey]: forecastPeriod.getAttribute('data-period') || '30days',
                     ['forecastselection_' + forecastPanelKey]: null,
                     ['forecastpage_' + forecastPanelKey]: 0
+                });
+                loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
+                return;
+            }
+
+            var forecastCustomRange = event.target.closest('[data-action="forecast-custom-range"]');
+            if (forecastCustomRange && root.contains(forecastCustomRange)) {
+                rememberCurrentState(root, state);
+                var forecastCustomPanelKey = forecastCustomRange.getAttribute('data-panel') || 'forecastworkload';
+                var customPanel = forecastCustomRange.closest('[data-region="forecast-workload"]') || root;
+                var startInput = customPanel.querySelector('[data-forecast-custom-start]');
+                var endInput = customPanel.querySelector('[data-forecast-custom-end]');
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    ['forecastperiod_' + forecastCustomPanelKey]: 'customrange',
+                    forecastcustomstart: startInput ? startInput.value : '',
+                    forecastcustomend: endInput ? endInput.value : '',
+                    ['forecastselection_' + forecastCustomPanelKey]: null,
+                    ['forecastpage_' + forecastCustomPanelKey]: 0
                 });
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;

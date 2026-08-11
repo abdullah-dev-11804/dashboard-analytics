@@ -380,6 +380,9 @@ class document_repository {
         foreach ($this->forecast_scope_tabs($filters, $limit) as $tab) {
             $scopefilters = $this->heatmap_tab_filters($filters, $tab);
             foreach ($this->forecast_period_definitions() as $periodkey => $definition) {
+                if ($periodkey === 'customrange') {
+                    $definition = $this->custom_forecast_period_definition($filters, $definition);
+                }
                 $intervalitems = $this->forecast_interval_items($scopefilters, $periodkey, $definition);
                 foreach ($intervalitems as $intervalitem) {
                     $intervalitem['groupkey'] = (string)$tab['key'];
@@ -876,12 +879,59 @@ class document_repository {
                 'count' => 3,
                 'label' => get_string('forecast:period:3years', 'block_dashboardanalytics'),
             ],
+            'customrange' => [
+                'interval' => 'custom',
+                'count' => 0,
+                'label' => get_string('forecast:period:customrange', 'block_dashboardanalytics'),
+            ],
         ];
+    }
+
+    private function custom_forecast_period_definition(array $filters, array $definition): array {
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $start = $this->parse_forecast_custom_date((string)($filters['forecastcustomstart'] ?? ''), true, $timezone);
+        $end = $this->parse_forecast_custom_date((string)($filters['forecastcustomend'] ?? ''), false, $timezone);
+
+        if ($start <= 0 && $end <= 0) {
+            $today = new \DateTimeImmutable('today', $timezone);
+            $start = $today->setTime(0, 0, 0)->getTimestamp();
+            $end = $today->modify('+29 days')->setTime(23, 59, 59)->getTimestamp();
+        } else if ($start <= 0) {
+            $start = (new \DateTimeImmutable('@' . $end))->setTimezone($timezone)->modify('-29 days')->setTime(0, 0, 0)->getTimestamp();
+        } else if ($end <= 0) {
+            $end = (new \DateTimeImmutable('@' . $start))->setTimezone($timezone)->modify('+29 days')->setTime(23, 59, 59)->getTimestamp();
+        }
+
+        if ($start > $end) {
+            [$start, $end] = [$end, $start];
+            $start = (new \DateTimeImmutable('@' . $start))->setTimezone($timezone)->setTime(0, 0, 0)->getTimestamp();
+            $end = (new \DateTimeImmutable('@' . $end))->setTimezone($timezone)->setTime(23, 59, 59)->getTimestamp();
+        }
+
+        $definition['startts'] = $start;
+        $definition['endts'] = $end;
+        return $definition;
+    }
+
+    private function parse_forecast_custom_date(string $value, bool $startofday, \DateTimeZone $timezone): int {
+        $value = trim($value);
+        if ($value === '') {
+            return 0;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value, $timezone);
+        if (!$date) {
+            return 0;
+        }
+
+        return $startofday
+            ? $date->setTime(0, 0, 0)->getTimestamp()
+            : $date->setTime(23, 59, 59)->getTimestamp();
     }
 
     private function forecast_interval_items(array $filters, string $periodkey, array $definition): array {
         $intervals = $this->forecast_intervals($definition);
-        $rows = $this->forecast_candidate_rows($filters);
+        $rows = $this->forecast_candidate_rows($filters, ($definition['interval'] ?? '') === 'custom');
         $groupmax = 1;
         $items = [];
 
@@ -970,12 +1020,74 @@ class document_repository {
                 $tentativeend = $start->modify('+6 days');
                 $absoluteend = $today->modify('+' . ($days - 1) . ' days');
                 $end = $tentativeend < $absoluteend ? $tentativeend : $absoluteend;
+                $label = $this->forecast_week_label($start, $end);
+                $meta = userdate($start->getTimestamp(), '%e %b %Y') . ' - ' . userdate($end->getTimestamp(), '%e %b %Y');
                 $intervals[] = [
-                    'label' => userdate($start->getTimestamp(), '%d %b'),
-                    'meta' => userdate($start->getTimestamp(), '%d %b %Y') . ' - ' . userdate($end->getTimestamp(), '%d %b %Y'),
+                    'label' => $label,
+                    'meta' => $meta,
                     'fromts' => $start->setTime(0, 0, 0)->getTimestamp(),
                     'tots' => $end->setTime(23, 59, 59)->getTimestamp(),
                 ];
+            }
+            return $intervals;
+        }
+
+        if (($definition['interval'] ?? '') === 'custom') {
+            $start = (new \DateTimeImmutable('@' . (int)($definition['startts'] ?? time())))->setTimezone($timezone)->setTime(0, 0, 0);
+            $end = (new \DateTimeImmutable('@' . (int)($definition['endts'] ?? time())))->setTimezone($timezone)->setTime(23, 59, 59);
+            $days = max(1, (int)ceil(($end->getTimestamp() - $start->getTimestamp() + 1) / DAYSECS));
+
+            if ($days <= 90) {
+                $cursor = $start;
+                while ($cursor->getTimestamp() <= $end->getTimestamp()) {
+                    $windowend = $cursor->modify('+6 days')->setTime(23, 59, 59);
+                    if ($windowend->getTimestamp() > $end->getTimestamp()) {
+                        $windowend = $end;
+                    }
+                    $intervals[] = [
+                        'label' => $this->forecast_week_label($cursor, $windowend),
+                        'meta' => userdate($cursor->getTimestamp(), '%e %b %Y') . ' - ' . userdate($windowend->getTimestamp(), '%e %b %Y'),
+                        'fromts' => $cursor->getTimestamp(),
+                        'tots' => $windowend->getTimestamp(),
+                    ];
+                    $cursor = $windowend->modify('+1 second');
+                }
+                return $intervals;
+            }
+
+            if ($days <= 730) {
+                $cursor = $start->modify('first day of this month')->setTime(0, 0, 0);
+                while ($cursor->getTimestamp() <= $end->getTimestamp()) {
+                    $windowstart = $cursor->getTimestamp() < $start->getTimestamp() ? $start : $cursor;
+                    $windowend = $cursor->modify('last day of this month')->setTime(23, 59, 59);
+                    if ($windowend->getTimestamp() > $end->getTimestamp()) {
+                        $windowend = $end;
+                    }
+                    $intervals[] = [
+                        'label' => userdate($windowstart->getTimestamp(), '%b'),
+                        'meta' => userdate($windowstart->getTimestamp(), '%B %Y'),
+                        'fromts' => $windowstart->getTimestamp(),
+                        'tots' => $windowend->getTimestamp(),
+                    ];
+                    $cursor = $cursor->modify('+1 month');
+                }
+                return $intervals;
+            }
+
+            $cursor = $start->setDate((int)$start->format('Y'), 1, 1)->setTime(0, 0, 0);
+            while ($cursor->getTimestamp() <= $end->getTimestamp()) {
+                $windowstart = $cursor->getTimestamp() < $start->getTimestamp() ? $start : $cursor;
+                $windowend = $cursor->modify('last day of December this year')->setTime(23, 59, 59);
+                if ($windowend->getTimestamp() > $end->getTimestamp()) {
+                    $windowend = $end;
+                }
+                $intervals[] = [
+                    'label' => $windowstart->format('Y'),
+                    'meta' => $windowstart->format('Y'),
+                    'fromts' => $windowstart->getTimestamp(),
+                    'tots' => $windowend->getTimestamp(),
+                ];
+                $cursor = $cursor->modify('+1 year');
             }
             return $intervals;
         }
@@ -1013,12 +1125,24 @@ class document_repository {
         return $intervals;
     }
 
-    private function forecast_candidate_rows(array $filters): array {
+    private function forecast_week_label(\DateTimeImmutable $start, \DateTimeImmutable $end): string {
+        if ($start->format('Y-m') === $end->format('Y-m')) {
+            return trim(userdate($start->getTimestamp(), '%e')) . ' - ' . trim(userdate($end->getTimestamp(), '%e %b'));
+        }
+
+        if ($start->format('Y') === $end->format('Y')) {
+            return trim(userdate($start->getTimestamp(), '%e %b')) . ' - ' . trim(userdate($end->getTimestamp(), '%e %b'));
+        }
+
+        return trim(userdate($start->getTimestamp(), '%e %b %Y')) . ' - ' . trim(userdate($end->getTimestamp(), '%e %b %Y'));
+    }
+
+    private function forecast_candidate_rows(array $filters, bool $includepast = false): array {
         $now = time();
 
-        return array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now): bool {
+        return array_values(array_filter($this->overview_rows($filters), static function(array $row) use ($now, $includepast): bool {
             $expiry = (int)($row['expirytime'] ?? 0);
-            return $expiry > $now;
+            return $expiry > 0 && ($includepast || $expiry > $now);
         }));
     }
 
