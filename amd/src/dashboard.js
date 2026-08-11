@@ -310,6 +310,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'forecast:tooltip:count', component: 'block_dashboardanalytics'},
         {key: 'forecast:toolbar:window', component: 'block_dashboardanalytics'},
         {key: 'forecast:toolbar:renewals', component: 'block_dashboardanalytics'},
+        {key: 'js:forecastcustomstart', component: 'block_dashboardanalytics'},
+        {key: 'js:forecastcustomend', component: 'block_dashboardanalytics'},
+        {key: 'js:forecastapplyrange', component: 'block_dashboardanalytics'},
         {key: 'forecast:table:clearcourse', component: 'block_dashboardanalytics'},
         {key: 'forecast:label:period', component: 'block_dashboardanalytics'},
         {key: 'forecast:label:company', component: 'block_dashboardanalytics'},
@@ -383,6 +386,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'forecastPeriod6months',
         'forecastPeriod12months',
         'forecastPeriod3years',
+        'forecastPeriodCustomRange',
         'barChartLabel',
         'interactiveLabel',
         'allcompanieslabel',
@@ -510,6 +514,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var formatString = function(template, value) {
         return String(template).replace('{$a}', value);
+    };
+
+    var learningMatrixSearchPlaceholder = function() {
+        var value = text('learningMatrixSearchPlaceholder', 'Search employee, email, or course');
+        return String(value).indexOf('{$a}') === -1 ? value : 'Search employee, email, or course';
     };
 
     var formatPercent = function(value) {
@@ -1507,7 +1516,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '<div class="da-table-search">'
             + '<input type="search" class="da-course-analytics-search" data-action="' + escapeHtml(actionPrefix) + '-search"'
             + ' value="' + escapeHtml(localSearchValue) + '"'
-            + ' placeholder="' + escapeHtml(text('learningMatrixSearchPlaceholder', 'Search employee, email, or course')) + '">'
+            + ' placeholder="' + escapeHtml(learningMatrixSearchPlaceholder()) + '">'
             + '</div>'
             + actions
             + '</div>';
@@ -2552,7 +2561,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '<div class="da-forecast-table-toolbar">'
             + '<input type="search" class="da-course-analytics-search" data-action="forecast-table-search"'
             + ' value="' + escapeHtml(tableSearchValue) + '"'
-            + ' placeholder="' + escapeHtml(text('learningMatrixSearchPlaceholder', 'Search employee, email, or course')) + '">'
+            + ' placeholder="' + escapeHtml(learningMatrixSearchPlaceholder()) + '">'
             + '</div>'
             + '<div class="da-forecast-table-body" data-region="forecast-table-body">'
             + '<div class="da-empty">' + escapeHtml(text('forecastTableEmpty',
