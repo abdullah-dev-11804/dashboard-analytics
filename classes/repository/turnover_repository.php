@@ -183,7 +183,18 @@ class turnover_repository {
                        u.timemodified,
                        u.suspended,
                        u.deleted,
-                       hiredata.data AS hiredateprofile
+                       hiredata.data AS hiredateprofile,
+                       CASE
+                           WHEN hiredata.data REGEXP '^[0-9]+$' AND CAST(hiredata.data AS UNSIGNED) > 0
+                               THEN CAST(hiredata.data AS UNSIGNED)
+                           WHEN hiredata.data IS NOT NULL AND hiredata.data <> '' AND hiredata.data <> '0'
+                               THEN UNIX_TIMESTAMP(hiredata.data)
+                           ELSE u.timecreated
+                       END AS hiretimestamp,
+                       CASE
+                           WHEN u.suspended = 1 OR u.deleted = 1 THEN u.timemodified
+                           ELSE 0
+                       END AS exittimestamp
                   FROM {user} u
              LEFT JOIN {user_info_field} hirefield
                     ON hirefield.shortname = :{$prefix}hirefield
@@ -512,6 +523,10 @@ class turnover_repository {
     }
 
     private function record_hire_timestamp(\stdClass $record): int {
+        if (isset($record->hiretimestamp) && (int)$record->hiretimestamp > 0) {
+            return (int)$record->hiretimestamp;
+        }
+
         $profilevalue = trim((string)($record->hiredateprofile ?? ''));
         if ($profilevalue !== '') {
             if (ctype_digit($profilevalue)) {
@@ -533,6 +548,10 @@ class turnover_repository {
     }
 
     private function record_exit_timestamp(\stdClass $record): int {
+        if (isset($record->exittimestamp)) {
+            return (int)$record->exittimestamp;
+        }
+
         if ($this->is_deactivated_record($record)) {
             return (int)$record->timemodified;
         }
