@@ -140,6 +140,7 @@ $string['js:heatmapcorner'] = 'Категория персонала';
 $string['js:heatmapsiteaxis'] = 'Объект';
 $string['js:heatmappersonnelaxis'] = 'Категория персонала';
 $string['js:searchplaceholder'] = 'Поиск: {$a}';
+$string['js:learningmatrixsearchplaceholder'] = 'Поиск по сотруднику, email или курсу';
 $string['js:currentcompliance'] = 'Текущее соответствие';
 $string['js:monthlabel'] = 'Месяц';
 $string['js:compliancelabel'] = 'Соответствие';

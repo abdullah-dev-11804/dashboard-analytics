@@ -362,6 +362,17 @@
     max-width: none;
 }
 
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-toolbar {
+    display: flex;
+    padding: 0 22px 14px;
+    background: #f7f9fb;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-toolbar .da-course-analytics-search {
+    width: min(100%, 420px);
+    max-width: 100%;
+}
+
 .path-block-dashboardanalytics-view .dashboardanalytics-page .da-table thead th {
     position: sticky;
     top: 0;
@@ -806,7 +817,8 @@
     }
 
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-head,
-    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-filters {
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-filters,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-forecast-table-toolbar {
         padding-left: 16px;
         padding-right: 16px;
     }

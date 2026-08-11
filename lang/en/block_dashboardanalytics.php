@@ -140,6 +140,7 @@ $string['js:heatmapcorner'] = 'Personnel category';
 $string['js:heatmapsiteaxis'] = 'Site';
 $string['js:heatmappersonnelaxis'] = 'Personnel Category';
 $string['js:searchplaceholder'] = 'Search {$a}';
+$string['js:learningmatrixsearchplaceholder'] = 'Search employee, email, or course';
 $string['js:currentcompliance'] = 'Current compliance';
 $string['js:monthlabel'] = 'Month';
 $string['js:compliancelabel'] = 'Compliance';

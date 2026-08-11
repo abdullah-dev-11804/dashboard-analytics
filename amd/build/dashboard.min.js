@@ -82,6 +82,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         heatmapCriticalLegend: '<70% Critical',
         heatmapCorner: 'Personnel category',
         searchPlaceholder: 'Search {$a}',
+        learningMatrixSearchPlaceholder: 'Search employee, email, or course',
         currentCompliance: 'Current compliance',
         monthLabel: 'Month',
         complianceLabel: 'Compliance',
@@ -249,6 +250,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:heatmapsiteaxis', component: 'block_dashboardanalytics'},
         {key: 'js:heatmappersonnelaxis', component: 'block_dashboardanalytics'},
         {key: 'js:searchplaceholder', component: 'block_dashboardanalytics'},
+        {key: 'js:learningmatrixsearchplaceholder', component: 'block_dashboardanalytics'},
         {key: 'js:currentcompliance', component: 'block_dashboardanalytics'},
         {key: 'js:monthlabel', component: 'block_dashboardanalytics'},
         {key: 'js:compliancelabel', component: 'block_dashboardanalytics'},
@@ -412,6 +414,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'heatmapSiteAxis',
         'heatmapPersonnelAxis',
         'searchPlaceholder',
+        'learningMatrixSearchPlaceholder',
         'currentCompliance',
         'monthLabel',
         'complianceLabel',
@@ -1504,7 +1507,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '<div class="da-table-search">'
             + '<input type="search" class="da-course-analytics-search" data-action="' + escapeHtml(actionPrefix) + '-search"'
             + ' value="' + escapeHtml(localSearchValue) + '"'
-            + ' placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), text('filter:employees', 'Employee'))) + '">'
+            + ' placeholder="' + escapeHtml(text('learningMatrixSearchPlaceholder', 'Search employee, email, or course')) + '">'
             + '</div>'
             + actions
             + '</div>';
@@ -2501,6 +2504,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var selectedMeta = selectedBar ? selectedBar.meta : '';
         var tableHeadline = selectedBar ? escapeHtml(selectedBar.label || '') : '';
         var tableCourse = selection && selection.course ? escapeHtml(selection.course) : '';
+        var tableSearchValue = String(overrides['forecastsearch_' + panel.key] || '');
         var totalInWindow = periodItems.reduce(function(sum, item) {
             return sum + (Number(item.value) || 0);
         }, 0);
@@ -2545,6 +2549,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '<button type="button" class="da-forecast-clear" data-action="forecast-clear-course" data-panel="'
             + escapeHtml(panel.key) + '"' + (tableCourse ? '' : ' hidden') + '>'
             + escapeHtml(text('forecastClearCourseLabel', 'Clear course filter')) + '</button></div>'
+            + '<div class="da-forecast-table-toolbar">'
+            + '<input type="search" class="da-course-analytics-search" data-action="forecast-table-search"'
+            + ' value="' + escapeHtml(tableSearchValue) + '"'
+            + ' placeholder="' + escapeHtml(text('learningMatrixSearchPlaceholder', 'Search employee, email, or course')) + '">'
+            + '</div>'
             + '<div class="da-forecast-table-body" data-region="forecast-table-body">'
             + '<div class="da-empty">' + escapeHtml(text('forecastTableEmpty',
                 'Click a bar or a course segment to open The Learning Matrix.')) + '</div>'
@@ -2635,13 +2644,14 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             if (countNode) {
                 countNode.textContent = formatString(text('rows', '{$a} rows'), String(response.totalcount || 0));
             }
-            tableBody.innerHTML = buildDrilldownTableMarkup(root, response, state, {
+            var tableParts = buildDrilldownTableResultsMarkup(root, response, state, {
                 page: currentPage,
                 perpage: perpage,
                 drilldownkey: drilldownkey,
                 overrides: filterOverrides,
                 actionPrefix: 'forecast-table'
             });
+            tableBody.innerHTML = tableParts.description + '<div data-region="drilldown-results">' + tableParts.results + '</div>';
         }).catch(function(error) {
             Notification.exception(error);
             tableBody.innerHTML = '<div class="da-empty">' + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>';

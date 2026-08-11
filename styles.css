@@ -4732,6 +4732,17 @@ body.da-modal-open {
     background: #f7f9fb;
 }
 
+.block-dashboardanalytics .da-forecast-table-toolbar {
+    display: flex;
+    padding: 0 22px 14px;
+    background: #f7f9fb;
+}
+
+.block-dashboardanalytics .da-forecast-table-toolbar .da-course-analytics-search {
+    width: min(100%, 420px);
+    max-width: 100%;
+}
+
 .block-dashboardanalytics .da-forecast-filterchip {
     display: inline-flex;
     align-items: center;
@@ -5290,7 +5301,8 @@ body.da-modal-open {
     }
 
     .block-dashboardanalytics .da-forecast-table-head,
-    .block-dashboardanalytics .da-forecast-table-filters {
+    .block-dashboardanalytics .da-forecast-table-filters,
+    .block-dashboardanalytics .da-forecast-table-toolbar {
         padding-left: 16px;
         padding-right: 16px;
     }

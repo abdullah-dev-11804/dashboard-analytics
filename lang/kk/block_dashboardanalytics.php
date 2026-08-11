@@ -140,6 +140,7 @@ $string['js:heatmapcorner'] = 'Персонал санаты';
 $string['js:heatmapsiteaxis'] = 'Нысан';
 $string['js:heatmappersonnelaxis'] = 'Персонал санаты';
 $string['js:searchplaceholder'] = 'Іздеу: {$a}';
+$string['js:learningmatrixsearchplaceholder'] = 'Қызметкер, email немесе курс бойынша іздеу';
 $string['js:currentcompliance'] = 'Ағымдағы сәйкестік';
 $string['js:monthlabel'] = 'Ай';
 $string['js:compliancelabel'] = 'Сәйкестік';
