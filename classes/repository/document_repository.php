@@ -229,12 +229,18 @@ class document_repository {
                         'label' => $coursename,
                         'total' => 0,
                         'valid' => 0,
+                        'inprogress' => 0,
+                        'expired' => 0,
                     ];
                 }
 
                 $courses[$courseid]['total']++;
                 if ($row['status'] === 'Active' || $row['status'] === 'Expiring') {
                     $courses[$courseid]['valid']++;
+                } else if ($row['status'] === 'Expired') {
+                    $courses[$courseid]['expired']++;
+                } else {
+                    $courses[$courseid]['inprogress']++;
                 }
             }
 
@@ -245,6 +251,8 @@ class document_repository {
                 }
 
                 $percent = round(($course['valid'] / $course['total']) * 100, 1);
+                $inprogresspercent = round(($course['inprogress'] / $course['total']) * 100, 1);
+                $expiredpercent = round(($course['expired'] / $course['total']) * 100, 1);
                 $courseitems[] = [
                     'courseid' => (int)$course['courseid'],
                     'label' => (string)$course['label'],
@@ -255,6 +263,32 @@ class document_repository {
                         'valid' => $course['valid'],
                         'total' => $course['total'],
                     ]),
+                    'segments' => [
+                        [
+                            'label' => get_string('label:valid', 'block_dashboardanalytics'),
+                            'value' => (string)$course['valid'],
+                            'percent' => $percent,
+                            'status' => 'ok',
+                            'drilldownkey' => 'company_course_noncompliance',
+                            'courseid' => (int)$course['courseid'],
+                        ],
+                        [
+                            'label' => get_string('label:inprogress', 'block_dashboardanalytics'),
+                            'value' => (string)$course['inprogress'],
+                            'percent' => $inprogresspercent,
+                            'status' => 'muted',
+                            'drilldownkey' => 'company_course_noncompliance',
+                            'courseid' => (int)$course['courseid'],
+                        ],
+                        [
+                            'label' => get_string('label:expired', 'block_dashboardanalytics'),
+                            'value' => (string)$course['expired'],
+                            'percent' => $expiredpercent,
+                            'status' => 'danger',
+                            'drilldownkey' => 'company_course_noncompliance',
+                            'courseid' => (int)$course['courseid'],
+                        ],
+                    ],
                 ];
             }
 
@@ -267,6 +301,10 @@ class document_repository {
                 $item['drilldownkey'] = 'company_course_noncompliance';
                 $item['companyid'] = (int)($tab['companyid'] ?? 0);
                 $item['companyname'] = (string)($tab['companyname'] ?? '');
+                foreach ($item['segments'] as $segmentindex => $segment) {
+                    $item['segments'][$segmentindex]['companyid'] = (int)$item['companyid'];
+                    $item['segments'][$segmentindex]['companyname'] = (string)$item['companyname'];
+                }
                 $items[] = $item;
             }
         }
@@ -1063,6 +1101,10 @@ class document_repository {
         } else if ($status === 'active') {
             $records = array_values(array_filter($records, static function(array $row): bool {
                 return $row['status'] === 'Active';
+            }));
+        } else if ($status === 'valid') {
+            $records = array_values(array_filter($records, static function(array $row): bool {
+                return $row['status'] === 'Active' || $row['status'] === 'Expiring';
             }));
         } else if ($status === 'noncompliant') {
             $records = array_values(array_filter($records, static function(array $row): bool {

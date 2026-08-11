@@ -90,6 +90,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         trendAverageLabel: 'Average',
         sortWorstBest: 'Worst to best',
         sortBestWorst: 'Best to worst',
+        riskCourseEnrolled: 'enrolled',
+        labelStatus: 'Status',
         qualityCourseHeader: 'Course',
         qualityRatingHeader: 'Rating',
         qualityReviewsHeader: 'Reviews',
@@ -215,6 +217,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcriticallegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcorner', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmapsiteaxis', component: 'block_dashboardanalytics'},
+        {key: 'js:heatmappersonnelaxis', component: 'block_dashboardanalytics'},
         {key: 'js:searchplaceholder', component: 'block_dashboardanalytics'},
         {key: 'js:currentcompliance', component: 'block_dashboardanalytics'},
         {key: 'js:monthlabel', component: 'block_dashboardanalytics'},
@@ -236,6 +240,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:trendaveragelabel', component: 'block_dashboardanalytics'},
         {key: 'js:sortworstbest', component: 'block_dashboardanalytics'},
         {key: 'js:sortbestworst', component: 'block_dashboardanalytics'},
+        {key: 'panel:riskcourse:enrolled', component: 'block_dashboardanalytics'},
+        {key: 'label:status', component: 'block_dashboardanalytics'},
         {key: 'js:qualitycourseheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityratingheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityreviewsheader', component: 'block_dashboardanalytics'},
@@ -362,6 +368,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'heatmapRiskLegend',
         'heatmapCriticalLegend',
         'heatmapCorner',
+        'heatmapSiteAxis',
+        'heatmapPersonnelAxis',
         'searchPlaceholder',
         'currentCompliance',
         'monthLabel',
@@ -383,6 +391,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'trendAverageLabel',
         'sortWorstBest',
         'sortBestWorst',
+        'riskCourseEnrolled',
+        'labelStatus',
         'qualityCourseHeader',
         'qualityRatingHeader',
         'qualityReviewsHeader',
@@ -3471,7 +3481,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + escapeHtml(panel.description || text('heatmapAllCombined', 'Click a cell for the employee list.'))
                     + '</div>'
                     + '<div class="da-heatmap-table-wrap"><table class="da-heatmap-table">'
-                    + '<thead><tr><th>' + escapeHtml(text('heatmapCorner', 'Personnel category')) + '</th>' + columnLabels.map(function(label) {
+                    + '<thead><tr><th class="da-heatmap-corner-cell"><span class="da-heatmap-corner-site">'
+                    + escapeHtml(text('heatmapSiteAxis', 'Site'))
+                    + '</span><span class="da-heatmap-corner-personnel">'
+                    + escapeHtml(text('heatmapPersonnelAxis', text('heatmapCorner', 'Personnel category')))
+                    + '</span></th>' + columnLabels.map(function(label) {
                         return '<th scope="col">' + escapeHtml(label) + '</th>';
                     }).join('') + '</tr></thead><tbody>'
                     + rowLabels.map(function(rowLabel) {
@@ -3869,7 +3883,67 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '" data-action="course-compliance-sort" data-sort="desc">' + escapeHtml(text('sortBestWorst', 'Best to worst')) + '</button>'
                         + '</div>';
                 }
-                body = panelTabMarkup + barSortMarkup + '<div class="da-bars">' + renderedBarItems.map(function(item) {
+                if (panel.key === 'riskcourse') {
+                    var firstSegments = ((renderedBarItems[0] || {}).segments || []);
+                    var segmentStatusFilter = function(status) {
+                        if (status === 'ok') {
+                            return 'valid';
+                        }
+                        if (status === 'danger') {
+                            return 'expired';
+                        }
+                        if (status === 'muted') {
+                            return 'nodocument';
+                        }
+                        return '';
+                    };
+                    var segmentLegend = firstSegments.length
+                        ? '<div class="da-risk-course-legend"><span class="da-risk-course-legend-label">' + escapeHtml(text('labelStatus', 'Status')) + ':</span>'
+                            + firstSegments.map(function(segment) {
+                                return '<span class="da-risk-course-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status || 'muted') + '"></span>'
+                                    + escapeHtml(segment.label || '') + '</span>';
+                            }).join('') + '</div>'
+                        : '';
+                    body = panelTabMarkup + barSortMarkup + segmentLegend + '<div class="da-risk-course-list">' + renderedBarItems.map(function(item) {
+                        var segments = item.segments || [];
+                        var total = segments.reduce(function(sum, segment) {
+                            return sum + (Number(segment.value) || 0);
+                        }, 0);
+                        var baseAttrs = ' data-drilldown="' + escapeHtml(item.drilldownkey || 'company_course_noncompliance') + '"'
+                            + ' data-companyid="' + escapeHtml(String(item.companyid || 0)) + '"'
+                            + ' data-companyname="' + escapeHtml(item.companyname || '') + '"'
+                            + ' data-courseid="' + escapeHtml(String(item.courseid || 0)) + '"';
+                        return '<div class="da-risk-course-row">'
+                            + '<button type="button" class="da-risk-course-head" data-action="bar-drilldown"' + baseAttrs + ' title="' + escapeHtml(item.label || '') + '">'
+                            + '<span>' + escapeHtml(item.label || '') + '</span></button>'
+                            + '<div class="da-risk-course-track">'
+                            + segments.map(function(segment) {
+                                var count = Number(segment.value) || 0;
+                                var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                                var statusFilter = segmentStatusFilter(segment.status || '');
+                                var tooltip = (segment.label || '') + ': ' + count + ' / ' + total + ' (' + formatPercent(width) + '%)';
+                                return '<button type="button" class="da-risk-course-segment da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
+                                    + ' data-action="bar-drilldown"' + baseAttrs
+                                    + ' data-status="' + escapeHtml(statusFilter) + '"'
+                                    + ' style="flex-basis:' + width.toFixed(1) + '%"'
+                                    + ' title="' + escapeHtml(tooltip) + '"'
+                                    + ' aria-label="' + escapeHtml((item.label || '') + ' ' + tooltip) + '">'
+                                    + (width >= 8 ? '<span>' + escapeHtml(formatPercent(width) + '%') + '</span>' : '')
+                                    + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + '<div class="da-risk-course-meta">'
+                            + segments.map(function(segment) {
+                                var count = Number(segment.value) || 0;
+                                return '<span class="da-risk-course-meta-' + escapeHtml(segment.status || 'muted') + '">'
+                                    + '<strong>' + escapeHtml(String(count)) + '</strong> ' + escapeHtml((segment.label || '').toLowerCase()) + '</span>';
+                            }).join('<span class="da-risk-course-meta-separator">·</span>')
+                            + '<span class="da-risk-course-meta-total">/ <strong>' + escapeHtml(String(total)) + '</strong> ' + escapeHtml(text('riskCourseEnrolled', 'enrolled')) + '</span>'
+                            + '</div>'
+                            + '</div>';
+                    }).join('') + '</div>';
+                } else {
+                    body = panelTabMarkup + barSortMarkup + '<div class="da-bars">' + renderedBarItems.map(function(item) {
                     var width = Math.max(0, Math.min(100, Number(item.percent) || 0));
                     var isBarClickable = !!item.drilldownkey;
                     var barTag = isBarClickable ? 'button' : 'div';
@@ -3883,7 +3957,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<' + barTag + (isBarClickable ? ' type="button"' : '') + ' class="da-bar-track"' + barAttrs + '><div class="da-bar-fill da-bar-fill-' + escapeHtml(item.status) + '" style="width:' + width + '%"><span class="da-bar-fill-value">' + escapeHtml(item.value) + '</span></div></' + barTag + '>'
                         + '<div class="da-bar-meta">' + escapeHtml(item.meta) + '</div>'
                         + '</div>';
-                }).join('') + '</div>';
+                    }).join('') + '</div>';
+                }
             }
 
             var isQualityPrototypePanel = ['qualitypassrate', 'qualityengagementtime', 'qualityratingtable'].indexOf(panel.type) !== -1;
@@ -6253,6 +6328,10 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 }
                 if (barCourseId !== '0') {
                     barOverrides.courseids = [barCourseId];
+                }
+                var barStatus = barDrilldown.getAttribute('data-status') || '';
+                if (barStatus !== '') {
+                    barOverrides.status = barStatus;
                 }
                 var barKey = barDrilldown.getAttribute('data-drilldown') || 'company_compliance';
                 if (state.currentTab === 'compliance') {

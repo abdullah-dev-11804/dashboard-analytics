@@ -53,9 +53,10 @@ class compliance_service {
         }
 
         if ($drilldownkey === 'company_course_noncompliance') {
+            $status = !empty($filters['status']) ? (string)$filters['status'] : '';
             return $this->result(
                 get_string('complianceactiontable', 'block_dashboardanalytics'),
-                (new document_repository())->document_rows($filters, 'noncompliant', $page, $perpage, $showidentity)
+                (new document_repository())->document_rows($filters, $status, $page, $perpage, $showidentity)
             );
         }
 
