@@ -476,6 +476,7 @@ class turnover_repository {
                 ['key' => 'headcount', 'label' => get_string('turnover:headcount', 'block_dashboardanalytics'), 'value' => (string)$count['headcount'], 'status' => 'neutral'],
             ];
             $items[] = [
+                'key' => $window['key'],
                 'label' => $window['label'],
                 'value' => (string)$count['net'],
                 'percent' => 0.0,

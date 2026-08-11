@@ -1755,10 +1755,14 @@
     grid-template-columns: repeat(var(--da-turnover-cols, 12), minmax(0, 1fr));
     gap: 0;
     margin: .65rem 4.6rem 1.4rem 3.8rem;
+    width: auto;
+    align-items: stretch;
 }
 
 .block-dashboardanalytics .da-turnover-axis-label {
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
     border: 0;
     border-radius: 6px;
     background: transparent;
