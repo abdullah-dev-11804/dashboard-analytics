@@ -2065,6 +2065,7 @@
     stroke-width: .75;
     stroke-dasharray: 1.2 1.8;
     vector-effect: non-scaling-stroke;
+    opacity: .58;
 }
 
 .block-dashboardanalytics .da-compliance-trendline-axis {

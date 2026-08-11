@@ -3098,7 +3098,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         var y = yForTrend(tick).toFixed(2);
                         return '<line x1="' + chartLeftTrend + '" y1="' + y + '" x2="' + (100 - chartRightTrend) + '" y2="' + y + '" class="da-compliance-trendline-grid"></line>';
                     }).join('');
-                    var joinMarkerKeys = {};
+                    var joinMarkerCounts = {};
                     var joinMarkers = visibleSeries.map(function(series) {
                         if (series.isaggregate || !series.periodkey) {
                             return '';
@@ -3106,13 +3106,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         var joinIndex = displayedSegments.findIndex(function(segment) {
                             return String(segment.periodkey || '') === String(series.periodkey || '');
                         });
-                        if (joinIndex < 0 || joinMarkerKeys[series.periodkey]) {
+                        if (joinIndex < 0) {
                             return '';
                         }
-                        joinMarkerKeys[series.periodkey] = true;
-                        var x = xForTrend(joinIndex, displayedSegments.length).toFixed(2);
+                        joinMarkerCounts[series.periodkey] = (joinMarkerCounts[series.periodkey] || 0) + 1;
+                        var offset = (joinMarkerCounts[series.periodkey] - 1) * 0.28;
+                        var x = Math.min(100 - chartRightTrend, xForTrend(joinIndex, displayedSegments.length) + offset).toFixed(2);
+                        var markerColour = series.colour || zoneColorForValue(series.currentpercent || 0);
                         return '<line x1="' + x + '" y1="' + chartTopTrend + '" x2="' + x + '" y2="'
-                            + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-join-marker"></line>';
+                            + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-join-marker"'
+                            + ' style="stroke:' + escapeHtml(markerColour) + '"></line>';
                     }).join('');
                     var yLabelsTrend = yTicksTrend.map(function(tick) {
                         return '<span class="da-compliance-trendline-y-label" style="top:' + yForTrend(tick).toFixed(2) + '%">' + escapeHtml(tick + '%') + '</span>';
