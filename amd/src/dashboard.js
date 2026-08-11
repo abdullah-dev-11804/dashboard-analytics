@@ -3115,7 +3115,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         var markerColour = series.colour || zoneColorForValue(series.currentpercent || 0);
                         return '<line x1="' + x + '" y1="' + chartTopTrend + '" x2="' + x + '" y2="'
                             + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-join-marker"'
-                            + ' style="stroke:' + escapeHtml(markerColour) + '"></line>';
+                            + ' style="stroke:' + escapeHtml(markerColour) + '"><title>'
+                            + escapeHtml(series.label || '') + '</title></line>';
                     }).join('');
                     var yLabelsTrend = yTicksTrend.map(function(tick) {
                         return '<span class="da-compliance-trendline-y-label" style="top:' + yForTrend(tick).toFixed(2) + '%">' + escapeHtml(tick + '%') + '</span>';
