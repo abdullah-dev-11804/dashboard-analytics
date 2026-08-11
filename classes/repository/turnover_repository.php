@@ -515,11 +515,17 @@ class turnover_repository {
         $profilevalue = trim((string)($record->hiredateprofile ?? ''));
         if ($profilevalue !== '') {
             if (ctype_digit($profilevalue)) {
-                return (int)$profilevalue;
+                $timestamp = (int)$profilevalue;
+                if ($timestamp > 0) {
+                    return $timestamp;
+                }
             }
             $parsed = strtotime($profilevalue);
             if ($parsed !== false) {
-                return (int)$parsed;
+                $timestamp = (int)$parsed;
+                if ($timestamp > 0) {
+                    return $timestamp;
+                }
             }
         }
 
