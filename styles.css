@@ -2179,6 +2179,11 @@
     border-radius: 8px;
 }
 
+.block-dashboardanalytics .da-compliance-trendline-join-target {
+    width: 18px;
+    z-index: 2;
+}
+
 .block-dashboardanalytics .da-compliance-trendline-crosshair {
     position: absolute;
     top: 10%;

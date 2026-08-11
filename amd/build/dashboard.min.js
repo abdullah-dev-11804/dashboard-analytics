@@ -3099,6 +3099,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         return '<line x1="' + chartLeftTrend + '" y1="' + y + '" x2="' + (100 - chartRightTrend) + '" y2="' + y + '" class="da-compliance-trendline-grid"></line>';
                     }).join('');
                     var joinMarkerCounts = {};
+                    var joinHoverTargets = [];
                     var joinMarkers = visibleSeries.map(function(series) {
                         if (series.isaggregate || !series.periodkey) {
                             return '';
@@ -3113,6 +3114,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         var offset = (joinMarkerCounts[series.periodkey] - 1) * 0.28;
                         var x = Math.min(100 - chartRightTrend, xForTrend(joinIndex, displayedSegments.length) + offset).toFixed(2);
                         var markerColour = series.colour || zoneColorForValue(series.currentpercent || 0);
+                        var joinSegment = displayedSegments[joinIndex] || {};
+                        var joinPayload = JSON.stringify([{
+                            label: text('monthLabel', 'Month'),
+                            value: joinSegment.label || ''
+                        }]);
+                        joinHoverTargets.push('<button type="button" class="da-compliance-trendline-hover-target da-compliance-trendline-join-target"'
+                            + ' data-action="compliance-hover"'
+                            + ' data-label="' + escapeHtml(joinSegment.label || '') + '"'
+                            + ' data-tooltip-title="' + escapeHtml(series.label || '') + '"'
+                            + ' data-tooltip="' + escapeHtml(joinPayload) + '"'
+                            + ' style="left:' + x + '%"'
+                            + ' aria-label="' + escapeHtml((series.label || '') + ' ' + (joinSegment.label || '')) + '"></button>');
                         return '<line x1="' + x + '" y1="' + chartTopTrend + '" x2="' + x + '" y2="'
                             + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-join-marker"'
                             + ' style="stroke:' + escapeHtml(markerColour) + '"><title>'
@@ -3222,6 +3235,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<span class="da-compliance-trendline-crosshair" data-region="compliance-crosshair" hidden></span>'
                         + '<span class="da-compliance-trendline-tooltip" data-region="compliance-tooltip" hidden></span>'
                         + hoverTargetsTrend
+                        + joinHoverTargets.join('')
                         + '<span class="da-compliance-trendline-threshold-label da-text-ok" style="top:' + thresholdNormY + '%">' + escapeHtml(formatPercent(compliantThreshold) + '%') + '</span>'
                         + '<span class="da-compliance-trendline-threshold-label da-text-danger" style="top:' + thresholdCriticalY + '%">' + escapeHtml(formatPercent(criticalThreshold) + '%') + '</span>'
                         + intervalMarkers
@@ -4946,6 +4960,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var left = target.style.left || '0%';
             var tooltipPayload = [];
             var monthLabel = target.getAttribute('data-label') || '';
+            var tooltipTitle = target.getAttribute('data-tooltip-title') || '';
 
             try {
                 tooltipPayload = JSON.parse(target.getAttribute('data-tooltip') || '[]');
@@ -4962,7 +4977,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             crosshair.hidden = false;
             crosshair.classList.add('is-visible');
 
-            tooltip.innerHTML = '<strong>' + escapeHtml(text('monthLabel', 'Month') + ' ' + monthLabel) + '</strong>'
+            tooltip.innerHTML = '<strong>' + escapeHtml(tooltipTitle || (text('monthLabel', 'Month') + ' ' + monthLabel)) + '</strong>'
                 + tooltipPayload.map(function(line) {
                     return '<span>' + escapeHtml((line.label || text('complianceLabel', 'Compliance')) + ': ' + (line.value || '0%')) + '</span>';
                 }).join('');
