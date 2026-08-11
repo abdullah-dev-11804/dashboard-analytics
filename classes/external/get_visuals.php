@@ -119,6 +119,7 @@ class get_visuals extends \external_api {
                         'companyname' => new \external_value(PARAM_TEXT, 'Optional company name', VALUE_OPTIONAL),
                         'courseid' => new \external_value(PARAM_INT, 'Optional course id', VALUE_OPTIONAL),
                         'colour' => new \external_value(PARAM_RAW, 'Optional colour token', VALUE_OPTIONAL),
+                        'periodkey' => new \external_value(PARAM_TEXT, 'Optional period key', VALUE_OPTIONAL),
                         'fromts' => new \external_value(PARAM_INT, 'Optional interval start timestamp', VALUE_OPTIONAL),
                         'tots' => new \external_value(PARAM_INT, 'Optional interval end timestamp', VALUE_OPTIONAL),
                     ]), 'Optional grouped/stacked chart segments', VALUE_OPTIONAL),

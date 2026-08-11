@@ -135,6 +135,7 @@ class overview_repository {
         $months = $this->month_windows($filters);
         $current = $this->company_compliance_items($filters, 50);
         $companies = array_column($current, 'label');
+        $joinmonths = $this->company_join_month_map($filters);
         $seriesstatuses = ['danger', 'warning', 'ok', 'info', 'muted'];
         $monthlabels = array_column($months, 'label');
         $monthkeys = array_column($months, 'key');
@@ -157,6 +158,11 @@ class overview_repository {
                 }
             }
 
+            $companyid = (int)($currentitem['companyid'] ?? 0);
+            $normalizedcompanyname = class_exists('\core_text') ? \core_text::strtolower($company) : strtolower($company);
+            $companykey = $companyid > 0 ? 'id:' . $companyid : 'name:' . $normalizedcompanyname;
+            $joinmonth = $joinmonths[$companykey] ?? [];
+
             $segments = [];
             foreach ($monthkeys as $monthindex => $monthkey) {
                 $summary = $monthsummarymap[$monthkey][$company] ?? ['percent' => 0.0, 'total' => 0, 'compliant' => 0];
@@ -165,6 +171,7 @@ class overview_repository {
                     'value' => $summary['total'] > 0 ? round((float)$summary['percent'], 1) . '%' : '0%',
                     'percent' => (float)$summary['percent'],
                     'status' => $seriesstatuses[$index % count($seriesstatuses)],
+                    'periodkey' => (string)$monthkey,
                 ];
             }
 
@@ -174,6 +181,9 @@ class overview_repository {
                 'percent' => $currentitem ? (float)$currentitem['percent'] : 0.0,
                 'status' => $seriesstatuses[$index % count($seriesstatuses)],
                 'meta' => get_string('panel:compliancetrendchart:meta', 'block_dashboardanalytics'),
+                'companyid' => $companyid,
+                'periodkey' => (string)($joinmonth['monthkey'] ?? ''),
+                'fromts' => (int)($joinmonth['timecreated'] ?? 0),
                 'segments' => $segments,
             ];
         }
@@ -194,6 +204,7 @@ class overview_repository {
                 'value' => $summary['total'] > 0 ? $summary['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics'),
                 'percent' => (float)$summary['percent'],
                 'status' => $summary['total'] > 0 ? $this->status_for_percent((float)$summary['percent'], $filters) : 'muted',
+                'companyid' => (int)$summary['companyid'],
                 'meta' => get_string('meta:fullycompliantemployees', 'block_dashboardanalytics', (object)[
                     'compliant' => $summary['compliant'],
                     'total' => $summary['total'],
@@ -702,6 +713,7 @@ class overview_repository {
             if (!isset($companies[$companykey])) {
                 $companies[$companykey] = [
                     'label' => $companyname,
+                    'companyid' => $companyid,
                     'rows' => [],
                 ];
             }
@@ -713,6 +725,7 @@ class overview_repository {
             $summary = $this->compliance_rollup_from_rows($company['rows']);
             $summaries[] = [
                 'label' => $company['label'],
+                'companyid' => (int)$company['companyid'],
                 'total' => $summary['total'],
                 'compliant' => $summary['compliant'],
                 'percent' => $summary['percent'],
@@ -1427,6 +1440,65 @@ class overview_repository {
         return array_map(static function(array $summary): array {
             return ['id' => 0, 'name' => (string)$summary['label']];
         }, $summaries);
+    }
+
+    private function company_join_month_map(array $filters): array {
+        global $DB;
+
+        $joinfilters = $filters;
+        foreach ([
+            'userids',
+            'courseids',
+            'departments',
+            'locations',
+            'positions',
+            'personnelcategories',
+            'sites',
+            'educations',
+            'status',
+            'search',
+        ] as $key) {
+            unset($joinfilters[$key]);
+        }
+
+        $employee = new employee_repository();
+        $companyrepo = new company_repository();
+        $userfilter = $employee->user_filter_sql($joinfilters, 'u', 'companyjoin');
+        $companysql = $companyrepo->company_name_sql('u', 'companyjoin');
+
+        $sql = "SELECT COALESCE({$companysql['idexpr']}, 0) AS companyid,
+                       COALESCE({$companysql['expr']}, :unassigned) AS companyname,
+                       MIN(u.timecreated) AS firstusercreated
+                  FROM {user} u
+                       {$companysql['join']}
+                 WHERE {$userfilter['sql']}
+              GROUP BY COALESCE({$companysql['idexpr']}, 0),
+                       COALESCE({$companysql['expr']}, :unassignedgroup)";
+
+        $params = $userfilter['params'] + [
+            'unassigned' => get_string('label:unassigned', 'block_dashboardanalytics'),
+            'unassignedgroup' => get_string('label:unassigned', 'block_dashboardanalytics'),
+        ];
+
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $map = [];
+        foreach ($DB->get_records_sql($sql, $params) as $record) {
+            $companyid = (int)$record->companyid;
+            $companyname = (string)$record->companyname;
+            $normalizedcompanyname = class_exists('\core_text') ? \core_text::strtolower($companyname) : strtolower($companyname);
+            $companykey = $companyid > 0 ? 'id:' . $companyid : 'name:' . $normalizedcompanyname;
+            $timecreated = (int)$record->firstusercreated;
+            if ($timecreated <= 0) {
+                continue;
+            }
+
+            $map[$companykey] = [
+                'timecreated' => $timecreated,
+                'monthkey' => (new \DateTimeImmutable('@' . $timecreated))->setTimezone($timezone)->format('Y-m'),
+            ];
+        }
+
+        return $map;
     }
 
     private function company_scoped_filters(array $filters, string $companyname, int $companyid = 0): array {

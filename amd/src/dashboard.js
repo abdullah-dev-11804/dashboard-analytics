@@ -2953,7 +2953,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
                         aggregateSegments.push({
                             label: monthPoints[0].label || '',
-                            percent: averagePercent
+                            percent: averagePercent,
+                            periodkey: monthPoints[0].periodkey || ''
                         });
                     }
                 }
@@ -3097,6 +3098,22 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         var y = yForTrend(tick).toFixed(2);
                         return '<line x1="' + chartLeftTrend + '" y1="' + y + '" x2="' + (100 - chartRightTrend) + '" y2="' + y + '" class="da-compliance-trendline-grid"></line>';
                     }).join('');
+                    var joinMarkerKeys = {};
+                    var joinMarkers = visibleSeries.map(function(series) {
+                        if (series.isaggregate || !series.periodkey) {
+                            return '';
+                        }
+                        var joinIndex = displayedSegments.findIndex(function(segment) {
+                            return String(segment.periodkey || '') === String(series.periodkey || '');
+                        });
+                        if (joinIndex < 0 || joinMarkerKeys[series.periodkey]) {
+                            return '';
+                        }
+                        joinMarkerKeys[series.periodkey] = true;
+                        var x = xForTrend(joinIndex, displayedSegments.length).toFixed(2);
+                        return '<line x1="' + x + '" y1="' + chartTopTrend + '" x2="' + x + '" y2="'
+                            + (chartTopTrend + chartHeightTrend) + '" class="da-compliance-trendline-join-marker"></line>';
+                    }).join('');
                     var yLabelsTrend = yTicksTrend.map(function(tick) {
                         return '<span class="da-compliance-trendline-y-label" style="top:' + yForTrend(tick).toFixed(2) + '%">' + escapeHtml(tick + '%') + '</span>';
                     }).join('');
@@ -3188,6 +3205,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + '<rect x="' + chartLeftTrend + '" y="' + thresholdNormY + '" width="' + chartWidthTrend + '" height="' + warningZoneHeight + '" class="da-compliance-trendline-zone-warning"></rect>'
                         + '<rect x="' + chartLeftTrend + '" y="' + thresholdCriticalY + '" width="' + chartWidthTrend + '" height="' + dangerZoneHeight + '" class="da-compliance-trendline-zone-danger"></rect>'
                         + yGridTrend
+                        + joinMarkers
                         + '<line x1="' + chartLeftTrend + '" y1="' + thresholdNormY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdNormY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-ok"></line>'
                         + '<line x1="' + chartLeftTrend + '" y1="' + thresholdCriticalY + '" x2="' + (100 - chartRightTrend) + '" y2="' + thresholdCriticalY + '" class="da-compliance-trendline-threshold da-compliance-trendline-threshold-danger"></line>'
                         + lineSegments

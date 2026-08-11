@@ -2060,6 +2060,13 @@
     stroke-width: .35;
 }
 
+.block-dashboardanalytics .da-compliance-trendline-join-marker {
+    stroke: rgba(15, 23, 42, .32);
+    stroke-width: .75;
+    stroke-dasharray: 1.2 1.8;
+    vector-effect: non-scaling-stroke;
+}
+
 .block-dashboardanalytics .da-compliance-trendline-axis {
     stroke: #d7deea;
     stroke-width: .5;
