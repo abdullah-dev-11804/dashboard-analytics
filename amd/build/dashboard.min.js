@@ -3083,7 +3083,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 value: formatPercent(point ? point.percent : 0) + '%'
                             };
                         });
-                        var joinedCompanies = (visibleSeries || []).filter(function(series) {
+                        var joinedCompanies = (sourceSeries || []).filter(function(series) {
                             return !series.isaggregate
                                 && String(series.periodkey || '') !== ''
                                 && String(series.periodkey || '') === String(segment.periodkey || '');
