@@ -56,6 +56,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         period1Year: '1 year',
         period2Years: '2 years',
         periodAllTime: 'All time',
+        forecastPeriod30days: '30 days',
+        forecastPeriod60days: '60 days',
+        forecastPeriod90days: '90 days',
+        forecastPeriod6months: '6 months',
+        forecastPeriod12months: '12 months',
+        forecastPeriod3years: '3 years',
         barChartLabel: 'Bar chart',
         interactiveLabel: 'interactive',
         comboBarLineLabel: 'Combo bar-line',
@@ -64,6 +70,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         turnoverGood: '<5% Good',
         turnoverMonitor: '5–10% Monitor',
         turnoverHigh: '>10% High',
+        turnoverPeriod: 'Period',
+        turnoverCompany: 'Company',
+        turnoverJoined: 'Joined',
+        turnoverLeft: 'Left',
+        turnoverNetChange: 'Net change',
+        turnoverRate: 'Turnover',
         heatmapAllCombined: 'All companies combined',
         heatmapCompliantLegend: '>=80% Compliant',
         heatmapRiskLegend: '70–79% At risk',
@@ -195,6 +207,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:period1year', component: 'block_dashboardanalytics'},
         {key: 'js:period2years', component: 'block_dashboardanalytics'},
         {key: 'js:periodalltime', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:30days', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:60days', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:90days', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:6months', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:12months', component: 'block_dashboardanalytics'},
+        {key: 'forecast:period:3years', component: 'block_dashboardanalytics'},
         {key: 'js:barchartlabel', component: 'block_dashboardanalytics'},
         {key: 'js:interactivelabel', component: 'block_dashboardanalytics'},
         {key: 'filter:allcompanieslabel', component: 'block_dashboardanalytics'},
@@ -212,6 +230,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:turnovergood', component: 'block_dashboardanalytics'},
         {key: 'js:turnovermonitor', component: 'block_dashboardanalytics'},
         {key: 'js:turnoverhigh', component: 'block_dashboardanalytics'},
+        {key: 'turnover:period', component: 'block_dashboardanalytics'},
+        {key: 'turnover:company', component: 'block_dashboardanalytics'},
+        {key: 'turnover:joined', component: 'block_dashboardanalytics'},
+        {key: 'turnover:left', component: 'block_dashboardanalytics'},
+        {key: 'turnover:netchange', component: 'block_dashboardanalytics'},
+        {key: 'turnover:turnoverrate', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapallcombined', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcompliantlegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
@@ -346,6 +370,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'period1Year',
         'period2Years',
         'periodAllTime',
+        'forecastPeriod30days',
+        'forecastPeriod60days',
+        'forecastPeriod90days',
+        'forecastPeriod6months',
+        'forecastPeriod12months',
+        'forecastPeriod3years',
         'barChartLabel',
         'interactiveLabel',
         'allcompanieslabel',
@@ -363,6 +393,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'turnoverGood',
         'turnoverMonitor',
         'turnoverHigh',
+        'turnoverPeriod',
+        'turnoverCompany',
+        'turnoverJoined',
+        'turnoverLeft',
+        'turnoverNetChange',
+        'turnoverRate',
         'heatmapAllCombined',
         'heatmapCompliantLegend',
         'heatmapRiskLegend',
@@ -2582,7 +2618,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow', 'turnovercombo'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
                 || panel.type === 'analyticscourses';
         };
@@ -2680,60 +2716,120 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + '</div>';
                     }).join('') + '</div>';
             } else if (panel.type === 'turnovercombo') {
-                var turnoverLegend = (((visibleItems[0] || {}).segments) || []).slice(0, 3).map(function(segment) {
-                    return '<span class="da-turnover-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status) + '"></span>'
+                var turnoverPeriod = ((((state || {}).currentVisualOverrides) || {}).turnoverperiod_staffdynamics || '12months').toLowerCase();
+                var turnoverItems = visibleItems.filter(function(item) {
+                    return (item.periodkey || '') === turnoverPeriod;
+                });
+                if (!turnoverItems.length) {
+                    turnoverPeriod = ((visibleItems[0] || {}).periodkey || '12months').toLowerCase();
+                    turnoverItems = visibleItems.filter(function(item) {
+                        return (item.periodkey || '') === turnoverPeriod;
+                    });
+                }
+                var turnoverPeriods = [
+                    {key: '30days', label: text('forecastPeriod30days', '30 days')},
+                    {key: '60days', label: text('forecastPeriod60days', '60 days')},
+                    {key: '90days', label: text('forecastPeriod90days', '90 days')},
+                    {key: '6months', label: text('forecastPeriod6months', '6 months')},
+                    {key: '12months', label: text('forecastPeriod12months', '12 months')},
+                    {key: '3years', label: text('forecastPeriod3years', '3 years')}
+                ];
+                var turnoverTabs = panelTabs.length ? panelTabs : [{key: selectedPanelTab || 'all', label: '', active: true}];
+                var turnoverKpis = ((turnoverItems[0] || {}).kpis || []);
+                var selectedIntervalKey = ((((state || {}).currentVisualOverrides) || {}).turnoverinterval_staffdynamics || '');
+                var selectedInterval = turnoverItems.filter(function(item) {
+                    return item.key === selectedIntervalKey;
+                })[0] || null;
+                if (selectedInterval) {
+                    turnoverKpis = selectedInterval.intervalkpis || turnoverKpis;
+                }
+                var turnoverLegend = (((turnoverItems[0] || {}).segments) || []).map(function(segment) {
+                    var dotclass = segment.status === 'purple' ? 'purple' : segment.status;
+                    return '<span class="da-turnover-legend-item"><span class="da-turnover-legend-mark da-turnover-legend-mark-' + escapeHtml(dotclass) + '"></span>'
                         + escapeHtml(segment.label) + '</span>';
                 }).join('');
-                var comboMax = 1;
-                visibleItems.forEach(function(item) {
-                    (item.segments || []).forEach(function(segment) {
-                        comboMax = Math.max(comboMax, Math.abs(Number(segment.value) || 0));
-                    });
-                });
-                var topY = 14;
-                var zeroY = 54;
-                var bottomY = 94;
+                var maxMovement = Math.max(1, Number((turnoverItems[0] || {}).maxmovement) || 1);
+                var maxRate = Math.max(1, Number((turnoverItems[0] || {}).maxrate) || 1);
+                var topY = 8;
+                var zeroY = 50;
+                var bottomY = 92;
                 var halfHeight = zeroY - topY;
-                var barWidth = 4;
-                var step = visibleItems.length > 0 ? (100 / visibleItems.length) : 100;
+                var step = turnoverItems.length > 0 ? (100 / turnoverItems.length) : 100;
+                var barWidth = Math.max(2.8, Math.min(8, step * 0.54));
                 var blueBars = [];
                 var redBars = [];
                 var netPoints = [];
-                var axisLabels = [];
+                var ratePoints = [];
+                var xButtons = [];
 
-                visibleItems.forEach(function(item, index) {
+                turnoverItems.forEach(function(item, index) {
                     var center = (step * index) + (step / 2);
-                    var segments = item.segments || [];
-                    var newSegment = segments[0] || {value: '0', percent: 0, status: 'info'};
-                    var deactivatedSegment = segments[1] || {value: '0', percent: 0, status: 'danger'};
-                    var netSegment = segments[2] || {value: '0', percent: 0, status: 'ok'};
-                    var newHeight = ((Number(newSegment.percent) || 0) / 100) * halfHeight;
-                    var deactivatedHeight = ((Number(deactivatedSegment.percent) || 0) / 100) * halfHeight;
-                    var netValue = Number(netSegment.value) || 0;
-                    var netHeight = ((Number(netSegment.percent) || 0) / 100) * halfHeight;
-                    var netY = zeroY - (netValue >= 0 ? netHeight : (-1 * netHeight));
-
-                    blueBars.push('<rect x="' + (center - barWidth - 0.5).toFixed(1) + '" y="' + (zeroY - newHeight).toFixed(1)
-                        + '" width="' + barWidth + '" height="' + Math.max(2, newHeight).toFixed(1)
-                        + '" rx="1.2" class="da-turnover-bar-positive"></rect>');
-                    redBars.push('<rect x="' + (center + 0.5).toFixed(1) + '" y="' + zeroY.toFixed(1)
-                        + '" width="' + barWidth + '" height="' + Math.max(2, deactivatedHeight).toFixed(1)
-                        + '" rx="1.2" class="da-turnover-bar-negative"></rect>');
-                    netPoints.push(center.toFixed(1) + ',' + netY.toFixed(1));
-                    axisLabels.push('<div class="da-turnover-axis-label" style="left:' + center.toFixed(1) + '%">' + escapeHtml(item.label) + '</div>');
+                    var joined = Number(item.joined) || 0;
+                    var left = Number(item.left) || 0;
+                    var net = Number(item.net) || 0;
+                    var rate = Number(item.turnover) || 0;
+                    var joinedHeight = (joined / maxMovement) * halfHeight;
+                    var leftHeight = (left / maxMovement) * halfHeight;
+                    var netY = zeroY - ((net / maxMovement) * halfHeight);
+                    var rateY = bottomY - ((rate / maxRate) * (bottomY - topY));
+                    var selectedClass = item.key === selectedIntervalKey ? ' is-selected' : '';
+                    var tooltip = item.label + '\n'
+                        + text('turnoverPeriod', 'Period') + ': ' + item.label + '\n'
+                        + text('turnoverJoined', 'Joined') + ': ' + joined + '\n'
+                        + text('turnoverLeft', 'Left') + ': ' + left + '\n'
+                        + text('turnoverNetChange', 'Net change') + ': ' + (net >= 0 ? '+' : '') + net + '\n'
+                        + text('turnoverRate', 'Turnover') + ': ' + formatPercent(rate) + '%';
+                    blueBars.push('<button type="button" class="da-turnover-hit' + selectedClass + '" data-action="turnover-interval" data-key="' + escapeHtml(item.key)
+                        + '" title="' + escapeHtml(tooltip) + '" style="left:' + (step * index).toFixed(4) + '%;width:' + step.toFixed(4) + '%"></button>');
+                    blueBars.push('<span class="da-turnover-value da-turnover-value-in" style="left:' + center.toFixed(4) + '%;bottom:' + (50 + joinedHeight).toFixed(4) + '%">' + escapeHtml(String(joined)) + '</span>');
+                    blueBars.push('<span class="da-turnover-bar da-turnover-bar-positive" style="left:calc(' + center.toFixed(4) + '% - ' + (barWidth / 2).toFixed(2) + '%);width:' + barWidth.toFixed(2) + '%;height:' + joinedHeight.toFixed(4) + '%"></span>');
+                    redBars.push('<span class="da-turnover-bar da-turnover-bar-negative" style="left:calc(' + center.toFixed(4) + '% - ' + (barWidth / 2).toFixed(2) + '%);width:' + barWidth.toFixed(2) + '%;height:' + leftHeight.toFixed(4) + '%"></span>');
+                    redBars.push('<span class="da-turnover-value da-turnover-value-out" style="left:' + center.toFixed(4) + '%;top:' + (50 + leftHeight).toFixed(4) + '%">' + escapeHtml(String(left)) + '</span>');
+                    netPoints.push(center.toFixed(4) + ',' + Math.max(topY, Math.min(bottomY, netY)).toFixed(4));
+                    ratePoints.push(center.toFixed(4) + ',' + Math.max(topY, Math.min(bottomY, rateY)).toFixed(4));
+                    xButtons.push('<button type="button" class="da-turnover-axis-label' + selectedClass + '" data-action="turnover-interval" data-key="' + escapeHtml(item.key)
+                        + '" title="' + escapeHtml(tooltip) + '">' + escapeHtml(item.label) + '</button>');
                 });
 
-                body = '<div class="da-turnover-combo-wrap">'
-                    + '<div class="da-turnover-combo-chart">'
-                    + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
-                    + '<line x1="0" y1="' + zeroY + '" x2="100" y2="' + zeroY + '" class="da-turnover-zero-line"></line>'
-                    + blueBars.join('')
-                    + redBars.join('')
-                    + '<polyline points="' + escapeHtml(netPoints.join(' ')) + '" class="da-turnover-net-line"></polyline>'
-                    + '</svg>'
-                    + '<div class="da-turnover-axis-labels">' + axisLabels.join('') + '</div>'
+                body = '<div class="da-turnover-prototype" style="--da-turnover-cols:' + turnoverItems.length + '">'
+                    + '<div class="da-turnover-tools">'
+                    + '<span class="da-turnover-tool-label">' + escapeHtml(text('turnoverPeriod', 'Period')) + '</span>'
+                    + '<span class="da-turnover-segmented">' + turnoverPeriods.map(function(option) {
+                        return '<button type="button" class="da-turnover-period' + (turnoverPeriod === option.key ? ' is-active' : '')
+                            + '" data-action="turnover-period" data-period="' + escapeHtml(option.key) + '">' + escapeHtml(option.label) + '</button>';
+                    }).join('') + '</span>'
+                    + (turnoverTabs.length > 1 ? '<span class="da-turnover-tool-label">' + escapeHtml(text('turnoverCompany', 'Company')) + '</span>'
+                        + '<span class="da-turnover-segmented">' + turnoverTabs.map(function(tab) {
+                            return '<button type="button" class="da-turnover-company' + (tab.key === selectedPanelTab ? ' is-active' : '')
+                                + '" data-action="panel-tab" data-panel="' + escapeHtml(panel.key)
+                                + '" data-tabkey="' + escapeHtml(tab.key) + '">' + escapeHtml(tab.label) + '</button>';
+                        }).join('') + '</span>' : '')
                     + '</div>'
+                    + '<div class="da-turnover-kpis">' + turnoverKpis.map(function(kpi) {
+                        return '<article class="da-turnover-kpi da-turnover-kpi-' + escapeHtml(kpi.status || 'neutral') + '">'
+                            + '<span>' + escapeHtml(kpi.label || '') + '</span><strong>' + escapeHtml(kpi.value || '') + '</strong></article>';
+                    }).join('') + '</div>'
                     + '<div class="da-turnover-legend">' + turnoverLegend + '</div>'
+                    + '<div class="da-turnover-combo-chart">'
+                    + '<div class="da-turnover-grid da-turnover-grid-top"><span>' + escapeHtml(String(maxMovement)) + '</span><b>' + escapeHtml(formatPercent(maxRate) + '%') + '</b></div>'
+                    + '<div class="da-turnover-grid da-turnover-grid-mid"><span>0</span><b>' + escapeHtml(formatPercent(maxRate / 2) + '%') + '</b></div>'
+                    + '<div class="da-turnover-grid da-turnover-grid-bottom"><span>' + escapeHtml(String(maxMovement)) + '</span><b>0%</b></div>'
+                    + '<div class="da-turnover-zero-line"></div>'
+                    + blueBars.join('') + redBars.join('')
+                    + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+                    + '<polyline points="' + escapeHtml(netPoints.join(' ')) + '" class="da-turnover-net-line"></polyline>'
+                    + '<polyline points="' + escapeHtml(ratePoints.join(' ')) + '" class="da-turnover-rate-line"></polyline>'
+                    + netPoints.map(function(point) {
+                        var parts = point.split(',');
+                        return '<circle cx="' + escapeHtml(parts[0]) + '" cy="' + escapeHtml(parts[1]) + '" r=".9" class="da-turnover-net-point"></circle>';
+                    }).join('')
+                    + ratePoints.map(function(point) {
+                        var parts = point.split(',');
+                        return '<circle cx="' + escapeHtml(parts[0]) + '" cy="' + escapeHtml(parts[1]) + '" r=".9" class="da-turnover-rate-point"></circle>';
+                    }).join('')
+                    + '</svg>'
+                    + '</div>'
+                    + '<div class="da-turnover-axis-labels">' + xButtons.join('') + '</div>'
                     + '</div>';
             } else if (panel.type === 'turnoverbars') {
                 body = '<div class="da-turnover-bars-wrap">'
@@ -6199,6 +6295,29 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 loadForecastInlineTable(root, state, 'forecastworkload');
                 persistState(root, state);
                 commitBrowserHistoryState(root, state, 'push');
+                return;
+            }
+
+            var turnoverPeriod = event.target.closest('[data-action="turnover-period"]');
+            if (turnoverPeriod && root.contains(turnoverPeriod)) {
+                rememberCurrentState(root, state);
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    turnoverperiod_staffdynamics: turnoverPeriod.getAttribute('data-period') || '12months',
+                    turnoverinterval_staffdynamics: ''
+                });
+                loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
+                return;
+            }
+
+            var turnoverInterval = event.target.closest('[data-action="turnover-interval"]');
+            if (turnoverInterval && root.contains(turnoverInterval)) {
+                rememberCurrentState(root, state);
+                var intervalKey = turnoverInterval.getAttribute('data-key') || '';
+                var currentInterval = ((state.currentVisualOverrides || {}).turnoverinterval_staffdynamics || '');
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    turnoverinterval_staffdynamics: currentInterval === intervalKey ? '' : intervalKey
+                });
+                loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
                 return;
             }
 

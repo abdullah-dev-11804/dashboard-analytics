@@ -7,74 +7,34 @@ defined('MOODLE_INTERNAL') || die();
 
 class turnover_repository {
 
-    public function staff_dynamics_items(array $filters, int $months = 12): array {
-        $windows = $this->rolling_month_windows($months);
-        $records = $this->scoped_user_lifecycle_records($filters, $windows[0]['start'], $windows[count($windows) - 1]['end'], 'turnoverdynamics');
-        $monthly = [];
-
-        foreach ($windows as $window) {
-            $monthly[$window['key']] = ['new' => 0, 'deactivated' => 0];
-        }
-
-        foreach ($records as $record) {
-            $createdkey = $this->month_key((int)$record->timecreated);
-            if (isset($monthly[$createdkey])) {
-                $monthly[$createdkey]['new']++;
-            }
-
-            if ($this->is_deactivated_record($record)) {
-                $modifiedkey = $this->month_key((int)$record->timemodified);
-                if (isset($monthly[$modifiedkey])) {
-                    $monthly[$modifiedkey]['deactivated']++;
-                }
-            }
-        }
-
-        $max = 1;
-        foreach ($monthly as $counts) {
-            $net = $counts['new'] - $counts['deactivated'];
-            $max = max($max, $counts['new'], $counts['deactivated'], abs($net));
-        }
-
+    public function staff_dynamics_items(array $filters): array {
+        $periods = $this->turnover_period_options();
+        $tabs = $this->turnover_company_tabs($filters);
         $items = [];
-        foreach ($windows as $window) {
-            $counts = $monthly[$window['key']];
-            $net = $counts['new'] - $counts['deactivated'];
 
-            $items[] = [
-                'label' => $window['label'],
-                'value' => (string)$net,
-                'percent' => 0.0,
-                'status' => $net >= 0 ? 'ok' : 'danger',
-                'meta' => get_string('turnover:monthsummary', 'block_dashboardanalytics', (object)[
-                    'new' => $counts['new'],
-                    'deactivated' => $counts['deactivated'],
-                    'net' => $net,
-                ]),
-                'segments' => [
-                    [
-                        'label' => get_string('turnover:newemployees', 'block_dashboardanalytics'),
-                        'value' => (string)$counts['new'],
-                        'percent' => round(($counts['new'] / $max) * 100, 1),
-                        'status' => 'info',
-                    ],
-                    [
-                        'label' => get_string('turnover:deactivatedemployees', 'block_dashboardanalytics'),
-                        'value' => (string)$counts['deactivated'],
-                        'percent' => round(($counts['deactivated'] / $max) * 100, 1),
-                        'status' => 'danger',
-                    ],
-                    [
-                        'label' => get_string('turnover:nettrend', 'block_dashboardanalytics'),
-                        'value' => (string)$net,
-                        'percent' => round((abs($net) / $max) * 100, 1),
-                        'status' => $net > 0 ? 'ok' : ($net < 0 ? 'danger' : 'warning'),
-                    ],
-                ],
-            ];
+        foreach ($tabs as $tab) {
+            $tabfilters = $tab['key'] === 'all'
+                ? $filters
+                : $this->company_scoped_filters($filters, $tab['label'], (int)$tab['companyid']);
+            $records = $this->scoped_user_lifecycle_records($tabfilters, 0, time(), 'turnoverdynamics' . preg_replace('/[^a-z0-9]/i', '', $tab['key']));
+
+            foreach ($periods as $period) {
+                $windows = $this->turnover_windows($period['key']);
+                $perioditems = $this->build_staff_dynamics_period_items($records, $windows, $period['key'], $tab['key']);
+                $items = array_merge($items, $perioditems);
+            }
         }
 
-        return $items;
+        return [
+            'tabs' => array_map(static function(array $tab): array {
+                return [
+                    'key' => $tab['key'],
+                    'label' => $tab['label'],
+                    'active' => !empty($tab['active']),
+                ];
+            }, $tabs),
+            'items' => $items,
+        ];
     }
 
     public function turnover_rate_by_company_items(array $filters, int $months = 12, int $limit = 8): array {
@@ -203,6 +163,7 @@ class turnover_repository {
             'includedeleted' => true,
         ]);
         $params = $filter['params'];
+        $params[$prefix . 'hirefield'] = 'Date';
         $where = [$filter['sql']];
 
         if ($start > 0) {
@@ -221,8 +182,14 @@ class turnover_repository {
                        u.timecreated,
                        u.timemodified,
                        u.suspended,
-                       u.deleted
+                       u.deleted,
+                       hiredata.data AS hiredateprofile
                   FROM {user} u
+             LEFT JOIN {user_info_field} hirefield
+                    ON hirefield.shortname = :{$prefix}hirefield
+             LEFT JOIN {user_info_data} hiredata
+                    ON hiredata.fieldid = hirefield.id
+                   AND hiredata.userid = u.id
                  WHERE " . implode(' AND ', $where);
 
         return $DB->get_records_sql($sql, $params);
@@ -318,6 +285,251 @@ class turnover_repository {
         return "SELECT 1
                   FROM {{$source['table']}} d
                  WHERE " . implode(' AND ', $where);
+    }
+
+    private function turnover_period_options(): array {
+        return [
+            ['key' => '30days', 'label' => get_string('forecast:period:30days', 'block_dashboardanalytics')],
+            ['key' => '60days', 'label' => get_string('forecast:period:60days', 'block_dashboardanalytics')],
+            ['key' => '90days', 'label' => get_string('forecast:period:90days', 'block_dashboardanalytics')],
+            ['key' => '6months', 'label' => get_string('forecast:period:6months', 'block_dashboardanalytics')],
+            ['key' => '12months', 'label' => get_string('forecast:period:12months', 'block_dashboardanalytics')],
+            ['key' => '3years', 'label' => get_string('forecast:period:3years', 'block_dashboardanalytics')],
+        ];
+    }
+
+    private function turnover_company_tabs(array $filters): array {
+        $companies = $this->company_scope_options($filters);
+        $tabs = [];
+
+        if (count($companies) > 1) {
+            $tabs[] = [
+                'key' => 'all',
+                'label' => get_string('filter:allcompanieslabel', 'block_dashboardanalytics'),
+                'companyid' => 0,
+                'active' => true,
+            ];
+        }
+
+        foreach ($companies as $index => $company) {
+            $tabs[] = [
+                'key' => 'company_' . (int)$company['id'],
+                'label' => $company['name'],
+                'companyid' => (int)$company['id'],
+                'active' => empty($tabs) && $index === 0,
+            ];
+        }
+
+        if (!$tabs) {
+            $tabs[] = [
+                'key' => 'all',
+                'label' => get_string('filter:allcompanieslabel', 'block_dashboardanalytics'),
+                'companyid' => 0,
+                'active' => true,
+            ];
+        }
+
+        return $tabs;
+    }
+
+    private function turnover_windows(string $periodkey): array {
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $today = new \DateTimeImmutable('today 23:59:59', $timezone);
+
+        if (in_array($periodkey, ['30days', '60days', '90days'], true)) {
+            $days = $periodkey === '30days' ? 30 : ($periodkey === '60days' ? 60 : 90);
+            $start = $today->modify('-' . ($days - 1) . ' days')->setTime(0, 0, 0);
+            return $this->chunk_windows($start, $today, 7);
+        }
+
+        if (in_array($periodkey, ['6months', '12months'], true)) {
+            $months = $periodkey === '6months' ? 6 : 12;
+            $base = new \DateTimeImmutable('first day of this month 00:00:00', $timezone);
+            $windows = [];
+            for ($offset = $months - 1; $offset >= 0; $offset--) {
+                $start = $base->modify('-' . $offset . ' months');
+                $end = $start->modify('last day of this month 23:59:59');
+                $windows[] = [
+                    'key' => $start->format('Y-m'),
+                    'label' => $this->turnover_interval_label($start, $end, $months <= 6 || $start->format('n') === '1' || $offset === $months - 1),
+                    'start' => $start->getTimestamp(),
+                    'end' => $end->getTimestamp(),
+                ];
+            }
+            return $windows;
+        }
+
+        $base = new \DateTimeImmutable('first day of January this year 00:00:00', $timezone);
+        $windows = [];
+        for ($offset = 2; $offset >= 0; $offset--) {
+            $start = $base->modify('-' . $offset . ' years');
+            $end = $start->modify('last day of December 23:59:59');
+            $windows[] = [
+                'key' => $start->format('Y'),
+                'label' => $start->format('Y'),
+                'start' => $start->getTimestamp(),
+                'end' => $end->getTimestamp(),
+            ];
+        }
+        return $windows;
+    }
+
+    private function chunk_windows(\DateTimeImmutable $start, \DateTimeImmutable $end, int $days): array {
+        $windows = [];
+        $cursor = $start;
+        $index = 0;
+        while ($cursor->getTimestamp() <= $end->getTimestamp()) {
+            $windowend = $cursor->modify('+' . ($days - 1) . ' days')->setTime(23, 59, 59);
+            if ($windowend->getTimestamp() > $end->getTimestamp()) {
+                $windowend = $end;
+            }
+            $windows[] = [
+                'key' => $cursor->format('Y-m-d'),
+                'label' => $this->turnover_interval_label($cursor, $windowend, count($windows) < 2 || $cursor->format('n') === '1'),
+                'start' => $cursor->getTimestamp(),
+                'end' => $windowend->getTimestamp(),
+            ];
+            $cursor = $windowend->modify('+1 second');
+            $index++;
+            if ($index > 60) {
+                break;
+            }
+        }
+        return $windows;
+    }
+
+    private function turnover_interval_label(\DateTimeImmutable $start, \DateTimeImmutable $end, bool $showyear): string {
+        if ($start->format('Y-m') === $end->format('Y-m') && $start->format('j') === '1' && (int)$end->format('j') >= 28) {
+            return userdate($start->getTimestamp(), $showyear ? '%b %Y' : '%b');
+        }
+
+        $startformat = $showyear ? '%e %b %Y' : '%e %b';
+        $endformat = $showyear || $start->format('Y') !== $end->format('Y') ? '%e %b %Y' : '%e %b';
+        return trim(userdate($start->getTimestamp(), $startformat)) . ' - ' . trim(userdate($end->getTimestamp(), $endformat));
+    }
+
+    private function build_staff_dynamics_period_items(array $records, array $windows, string $periodkey, string $groupkey): array {
+        $counts = [];
+        $maxmovement = 1;
+        $maxrate = 1.0;
+        $totaljoined = 0;
+        $totalleft = 0;
+        $headcounttotal = 0;
+
+        foreach ($windows as $window) {
+            $joined = 0;
+            $left = 0;
+            $headcount = 0;
+
+            foreach ($records as $record) {
+                $hiredate = $this->record_hire_timestamp($record);
+                $exitdate = $this->record_exit_timestamp($record);
+
+                if ($hiredate >= $window['start'] && $hiredate <= $window['end']) {
+                    $joined++;
+                }
+
+                if ($exitdate > 0 && $exitdate >= $window['start'] && $exitdate <= $window['end']) {
+                    $left++;
+                }
+
+                if ($hiredate > 0 && $hiredate <= $window['end'] && ($exitdate <= 0 || $exitdate > $window['end'])) {
+                    $headcount++;
+                }
+            }
+
+            $net = $joined - $left;
+            $turnover = $headcount > 0 ? round(($left / $headcount) * 100, 1) : 0.0;
+            $counts[$window['key']] = [
+                'joined' => $joined,
+                'left' => $left,
+                'net' => $net,
+                'turnover' => $turnover,
+                'headcount' => $headcount,
+            ];
+            $maxmovement = max($maxmovement, $joined, $left, abs($net));
+            $maxrate = max($maxrate, $turnover);
+            $totaljoined += $joined;
+            $totalleft += $left;
+            $headcounttotal += $headcount;
+        }
+
+        $averageheadcount = count($windows) > 0 ? $headcounttotal / count($windows) : 0;
+        $periodturnover = $averageheadcount > 0 ? round(($totalleft / $averageheadcount) * 100, 1) : 0.0;
+        $latestheadcount = $windows ? $counts[$windows[count($windows) - 1]['key']]['headcount'] : 0;
+        $periodkpis = [
+            ['key' => 'joined', 'label' => get_string('turnover:joined', 'block_dashboardanalytics'), 'value' => (string)$totaljoined, 'status' => 'info'],
+            ['key' => 'left', 'label' => get_string('turnover:left', 'block_dashboardanalytics'), 'value' => (string)$totalleft, 'status' => 'danger'],
+            ['key' => 'net', 'label' => get_string('turnover:netchange', 'block_dashboardanalytics'), 'value' => ($totaljoined - $totalleft >= 0 ? '+' : '') . ($totaljoined - $totalleft), 'status' => $totaljoined >= $totalleft ? 'ok' : 'danger'],
+            ['key' => 'turnover', 'label' => get_string('turnover:turnoverrate', 'block_dashboardanalytics'), 'value' => round($periodturnover, 1) . '%', 'status' => $this->turnover_status($periodturnover)],
+            ['key' => 'headcount', 'label' => get_string('turnover:headcount', 'block_dashboardanalytics'), 'value' => (string)$latestheadcount, 'status' => 'neutral'],
+        ];
+
+        $items = [];
+        foreach ($windows as $window) {
+            $count = $counts[$window['key']];
+            $intervalkpis = [
+                ['key' => 'joined', 'label' => get_string('turnover:joined', 'block_dashboardanalytics'), 'value' => (string)$count['joined'], 'status' => 'info'],
+                ['key' => 'left', 'label' => get_string('turnover:left', 'block_dashboardanalytics'), 'value' => (string)$count['left'], 'status' => 'danger'],
+                ['key' => 'net', 'label' => get_string('turnover:netchange', 'block_dashboardanalytics'), 'value' => ($count['net'] >= 0 ? '+' : '') . $count['net'], 'status' => $count['net'] >= 0 ? 'ok' : 'danger'],
+                ['key' => 'turnover', 'label' => get_string('turnover:turnoverrate', 'block_dashboardanalytics'), 'value' => round($count['turnover'], 1) . '%', 'status' => $this->turnover_status($count['turnover'])],
+                ['key' => 'headcount', 'label' => get_string('turnover:headcount', 'block_dashboardanalytics'), 'value' => (string)$count['headcount'], 'status' => 'neutral'],
+            ];
+            $items[] = [
+                'label' => $window['label'],
+                'value' => (string)$count['net'],
+                'percent' => 0.0,
+                'status' => $count['net'] >= 0 ? 'ok' : 'danger',
+                'meta' => get_string('turnover:monthsummary', 'block_dashboardanalytics', (object)[
+                    'new' => $count['joined'],
+                    'deactivated' => $count['left'],
+                    'net' => $count['net'],
+                ]),
+                'periodkey' => $periodkey,
+                'groupkey' => $groupkey,
+                'start' => $window['start'],
+                'end' => $window['end'],
+                'joined' => $count['joined'],
+                'left' => $count['left'],
+                'net' => $count['net'],
+                'turnover' => $count['turnover'],
+                'headcount' => $count['headcount'],
+                'maxmovement' => $maxmovement,
+                'maxrate' => $maxrate,
+                'kpis' => $periodkpis,
+                'intervalkpis' => $intervalkpis,
+                'segments' => [
+                    ['label' => get_string('turnover:joined', 'block_dashboardanalytics'), 'value' => (string)$count['joined'], 'percent' => round(($count['joined'] / $maxmovement) * 100, 1), 'status' => 'info'],
+                    ['label' => get_string('turnover:left', 'block_dashboardanalytics'), 'value' => (string)$count['left'], 'percent' => round(($count['left'] / $maxmovement) * 100, 1), 'status' => 'danger'],
+                    ['label' => get_string('turnover:netchange', 'block_dashboardanalytics'), 'value' => (string)$count['net'], 'percent' => round((abs($count['net']) / $maxmovement) * 100, 1), 'status' => 'ok'],
+                    ['label' => get_string('turnover:turnoverrate', 'block_dashboardanalytics'), 'value' => round($count['turnover'], 1) . '%', 'percent' => round(($count['turnover'] / $maxrate) * 100, 1), 'status' => 'purple'],
+                ],
+            ];
+        }
+
+        return $items;
+    }
+
+    private function record_hire_timestamp(\stdClass $record): int {
+        $profilevalue = trim((string)($record->hiredateprofile ?? ''));
+        if ($profilevalue !== '') {
+            if (ctype_digit($profilevalue)) {
+                return (int)$profilevalue;
+            }
+            $parsed = strtotime($profilevalue);
+            if ($parsed !== false) {
+                return (int)$parsed;
+            }
+        }
+
+        return (int)$record->timecreated;
+    }
+
+    private function record_exit_timestamp(\stdClass $record): int {
+        if ($this->is_deactivated_record($record)) {
+            return (int)$record->timemodified;
+        }
+        return 0;
     }
 
     private function rolling_month_windows(int $months): array {

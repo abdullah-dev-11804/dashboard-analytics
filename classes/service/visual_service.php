@@ -266,9 +266,12 @@ class visual_service {
     private function turnover(array $filters): array {
         $turnover = new turnover_repository();
         $iscompanyowner = permissions::is_company_owner(\context_system::instance());
+        $staffdynamics = $turnover->staff_dynamics_items($filters);
 
         $panels = [
-            $this->panel('staffdynamics', get_string('panel:staffdynamics:title', 'block_dashboardanalytics'), 'turnovercombo', get_string('panel:staffdynamics:description', 'block_dashboardanalytics'), $turnover->staff_dynamics_items($filters)),
+            $this->panel('staffdynamics', get_string('panel:staffdynamics:title', 'block_dashboardanalytics'), 'turnovercombo', get_string('panel:staffdynamics:description', 'block_dashboardanalytics'), $staffdynamics['items'], [
+                'tabs' => $staffdynamics['tabs'],
+            ]),
         ];
 
         if (!$iscompanyowner) {

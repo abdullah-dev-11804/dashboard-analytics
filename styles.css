@@ -1431,58 +1431,118 @@
     font-size: .86rem;
 }
 
-.block-dashboardanalytics .da-turnover-combo-chart {
-    position: relative;
-    height: 220px;
-    padding: .75rem .75rem 2rem;
-    background: #f7faff;
-    border: 1px solid #e3ebf7;
-    border-radius: 12px;
+.block-dashboardanalytics .da-turnover-prototype {
+    margin: -1.1rem -1.1rem -1rem;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #fff;
 }
 
-.block-dashboardanalytics .da-turnover-combo-chart svg {
-    width: 100%;
-    height: 100%;
-    display: block;
+.block-dashboardanalytics .da-turnover-tools {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.3rem;
+    background: #f7f9fb;
+    border-bottom: 1px solid #dfe7f1;
 }
 
-.block-dashboardanalytics .da-turnover-zero-line {
-    stroke: #d8e2f1;
-    stroke-width: .55;
-}
-
-.block-dashboardanalytics .da-turnover-bar-positive {
-    fill: #4a82c3;
-}
-
-.block-dashboardanalytics .da-turnover-bar-negative {
-    fill: #fb6b6b;
-}
-
-.block-dashboardanalytics .da-turnover-net-line {
-    fill: none;
-    stroke: #1aa26b;
-    stroke-width: .8;
-    stroke-dasharray: 2.4 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.block-dashboardanalytics .da-turnover-axis-labels {
-    position: absolute;
-    left: .75rem;
-    right: .75rem;
-    bottom: .35rem;
-    height: 1rem;
-}
-
-.block-dashboardanalytics .da-turnover-axis-label {
-    position: absolute;
-    bottom: 0;
-    transform: translateX(-50%);
-    white-space: nowrap;
+.block-dashboardanalytics .da-turnover-tool-label {
+    color: #64758c;
     font-size: .78rem;
-    color: #7186a8;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.block-dashboardanalytics .da-turnover-segmented {
+    display: inline-flex;
+    gap: .2rem;
+    flex-wrap: wrap;
+    padding: .22rem;
+    border: 1px solid #d7e2ee;
+    border-radius: 8px;
+    background: #eaf0f7;
+}
+
+.block-dashboardanalytics .da-turnover-period,
+.block-dashboardanalytics .da-turnover-company {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #617286;
+    padding: .55rem .82rem;
+    font-size: .86rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.block-dashboardanalytics .da-turnover-period:hover,
+.block-dashboardanalytics .da-turnover-company:hover,
+.block-dashboardanalytics .da-turnover-period:focus-visible,
+.block-dashboardanalytics .da-turnover-company:focus-visible {
+    color: #16283f;
+    outline: 2px solid rgba(30, 78, 156, .28);
+    outline-offset: 1px;
+}
+
+.block-dashboardanalytics .da-turnover-period.is-active,
+.block-dashboardanalytics .da-turnover-company.is-active {
+    background: #24589f;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(36, 88, 159, .18);
+}
+
+.block-dashboardanalytics .da-turnover-kpis {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    border-bottom: 1px solid #dfe7f1;
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-turnover-kpi {
+    min-height: 5.8rem;
+    padding: 1.15rem 1.35rem;
+    border-right: 1px solid #dfe7f1;
+}
+
+.block-dashboardanalytics .da-turnover-kpi:last-child {
+    border-right: 0;
+}
+
+.block-dashboardanalytics .da-turnover-kpi span {
+    display: block;
+    color: #64758c;
+    font-size: .8rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.block-dashboardanalytics .da-turnover-kpi strong {
+    display: block;
+    margin-top: .55rem;
+    color: #16283f;
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: -.03em;
+    line-height: 1;
+}
+
+.block-dashboardanalytics .da-turnover-kpi-info strong,
+.block-dashboardanalytics .da-turnover-kpi-ok strong {
+    color: #1746cf;
+}
+
+.block-dashboardanalytics .da-turnover-kpi-danger strong {
+    color: #d9453b;
+}
+
+.block-dashboardanalytics .da-turnover-kpi-warning strong {
+    color: #a76100;
 }
 
 .block-dashboardanalytics .da-turnover-legend,
@@ -1490,7 +1550,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    margin-top: .9rem;
+    margin: 1.2rem 1.3rem 1rem;
     color: #4f6690;
     font-size: .86rem;
 }
@@ -1498,7 +1558,254 @@
 .block-dashboardanalytics .da-turnover-legend-item {
     display: inline-flex;
     align-items: center;
-    gap: .35rem;
+    gap: .5rem;
+    font-weight: 800;
+}
+
+.block-dashboardanalytics .da-turnover-legend-mark {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 4px;
+    background: #1746cf;
+}
+
+.block-dashboardanalytics .da-turnover-legend-mark-info {
+    background: #1746cf;
+}
+
+.block-dashboardanalytics .da-turnover-legend-mark-danger {
+    background: #d9453b;
+}
+
+.block-dashboardanalytics .da-turnover-legend-mark-ok {
+    width: 1.45rem;
+    height: .22rem;
+    border-radius: 999px;
+    background: #0f8a55;
+}
+
+.block-dashboardanalytics .da-turnover-legend-mark-purple {
+    width: 1.45rem;
+    height: .22rem;
+    border-radius: 999px;
+    background: #6136a7;
+    border-top: 2px dashed #6136a7;
+}
+
+.block-dashboardanalytics .da-turnover-combo-chart {
+    position: relative;
+    height: 360px;
+    margin: 0 4.6rem 0 3.8rem;
+    background: #fff;
+}
+
+.block-dashboardanalytics .da-turnover-combo-chart svg {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.block-dashboardanalytics .da-turnover-grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed #e7edf4;
+    pointer-events: none;
+}
+
+.block-dashboardanalytics .da-turnover-grid-top {
+    top: 8%;
+}
+
+.block-dashboardanalytics .da-turnover-grid-mid {
+    top: 50%;
+}
+
+.block-dashboardanalytics .da-turnover-grid-bottom {
+    top: 92%;
+}
+
+.block-dashboardanalytics .da-turnover-grid span {
+    position: absolute;
+    right: 100%;
+    top: -.55rem;
+    padding-right: .65rem;
+    color: #64758c;
+    font-size: .76rem;
+    font-weight: 800;
+}
+
+.block-dashboardanalytics .da-turnover-grid b {
+    position: absolute;
+    left: 100%;
+    top: -.55rem;
+    padding-left: .65rem;
+    color: #6136a7;
+    font-size: .76rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.block-dashboardanalytics .da-turnover-zero-line {
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 2px solid #c9d2de;
+}
+
+.block-dashboardanalytics .da-turnover-hit {
+    position: absolute;
+    z-index: 7;
+    top: 0;
+    bottom: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.block-dashboardanalytics .da-turnover-hit:hover,
+.block-dashboardanalytics .da-turnover-hit:focus-visible,
+.block-dashboardanalytics .da-turnover-hit.is-selected {
+    background: rgba(30, 78, 156, .06);
+    outline: 0;
+}
+
+.block-dashboardanalytics .da-turnover-hit.is-selected {
+    box-shadow: inset 0 0 0 2px rgba(36, 88, 159, .7);
+}
+
+.block-dashboardanalytics .da-turnover-bar {
+    position: absolute;
+    z-index: 3;
+    border-radius: 4px;
+}
+
+.block-dashboardanalytics .da-turnover-bar-positive {
+    bottom: 50%;
+    background: #1746cf;
+}
+
+.block-dashboardanalytics .da-turnover-bar-negative {
+    top: 50%;
+    background: #d9453b;
+}
+
+.block-dashboardanalytics .da-turnover-value {
+    position: absolute;
+    z-index: 5;
+    transform: translateX(-50%);
+    font-size: .78rem;
+    font-weight: 900;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.block-dashboardanalytics .da-turnover-value-in {
+    color: #1746cf;
+    margin-bottom: .35rem;
+}
+
+.block-dashboardanalytics .da-turnover-value-out {
+    color: #d9453b;
+    margin-top: .35rem;
+}
+
+.block-dashboardanalytics .da-turnover-net-line,
+.block-dashboardanalytics .da-turnover-rate-line {
+    fill: none;
+    stroke-width: 1.15;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.block-dashboardanalytics .da-turnover-net-line {
+    stroke: #0f8a55;
+}
+
+.block-dashboardanalytics .da-turnover-rate-line {
+    stroke: #6136a7;
+    stroke-dasharray: 3 2;
+}
+
+.block-dashboardanalytics .da-turnover-net-point {
+    fill: #fff;
+    stroke: #0f8a55;
+    stroke-width: .55;
+    vector-effect: non-scaling-stroke;
+}
+
+.block-dashboardanalytics .da-turnover-rate-point {
+    fill: #fff;
+    stroke: #6136a7;
+    stroke-width: .55;
+    vector-effect: non-scaling-stroke;
+}
+
+.block-dashboardanalytics .da-turnover-axis-labels {
+    display: grid;
+    grid-template-columns: repeat(var(--da-turnover-cols, 12), minmax(0, 1fr));
+    gap: 0;
+    margin: .65rem 4.6rem 1.4rem 3.8rem;
+}
+
+.block-dashboardanalytics .da-turnover-axis-label {
+    min-width: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #64758c;
+    padding: .5rem .25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .78rem;
+    font-weight: 800;
+    line-height: 1.25;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.block-dashboardanalytics .da-turnover-axis-label:hover,
+.block-dashboardanalytics .da-turnover-axis-label:focus-visible {
+    background: #eef3f8;
+    color: #16283f;
+    outline: 0;
+}
+
+.block-dashboardanalytics .da-turnover-axis-label.is-selected {
+    background: #24589f;
+    color: #fff;
+}
+
+@media (max-width: 760px) {
+    .block-dashboardanalytics .da-turnover-prototype {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .block-dashboardanalytics .da-turnover-tools,
+    .block-dashboardanalytics .da-turnover-kpis,
+    .block-dashboardanalytics .da-turnover-legend,
+    .block-dashboardanalytics .da-turnover-combo-chart,
+    .block-dashboardanalytics .da-turnover-axis-labels {
+        min-width: 760px;
+    }
+
+    .block-dashboardanalytics .da-turnover-kpis {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .block-dashboardanalytics .da-turnover-combo-chart {
+        height: 300px;
+    }
 }
 
 .block-dashboardanalytics .da-turnover-rate-list {
@@ -3528,12 +3835,12 @@ body.da-modal-open {
 .block-dashboardanalytics .da-risk-course-list {
     display: flex;
     flex-direction: column;
-    gap: 1.15rem;
+    gap: .85rem;
     margin-top: .2rem;
 }
 
 .block-dashboardanalytics .da-risk-course-row {
-    padding-bottom: 1rem;
+    padding-bottom: .8rem;
     border-bottom: 1px solid #eef2f7;
 }
 
@@ -3544,14 +3851,14 @@ body.da-modal-open {
 
 .block-dashboardanalytics .da-risk-course-head {
     width: 100%;
-    min-height: 3rem;
+    min-height: 2.35rem;
     border: 0;
-    border-radius: 10px 10px 0 0;
+    border-radius: 8px 8px 0 0;
     background: #d5dfe8;
     color: #16283f;
-    padding: .7rem 1.1rem;
+    padding: .52rem .9rem;
     text-align: left;
-    font-size: 1rem;
+    font-size: .94rem;
     font-weight: 800;
     line-height: 1.25;
     cursor: pointer;
@@ -3575,9 +3882,9 @@ body.da-modal-open {
 .block-dashboardanalytics .da-risk-course-track {
     display: flex;
     width: 100%;
-    height: 3.15rem;
+    height: 2.25rem;
     overflow: hidden;
-    border-radius: 0 0 10px 10px;
+    border-radius: 0 0 8px 8px;
     background: #eef3f7;
 }
 
@@ -3587,8 +3894,8 @@ body.da-modal-open {
     border: 0;
     border-right: 1px solid rgba(255, 255, 255, .7);
     color: #fff;
-    padding: 0 .75rem;
-    font-size: 1rem;
+    padding: 0 .62rem;
+    font-size: .92rem;
     font-weight: 900;
     line-height: 1;
     cursor: pointer;
@@ -3624,9 +3931,9 @@ body.da-modal-open {
     align-items: baseline;
     flex-wrap: wrap;
     gap: .45rem;
-    margin-top: .72rem;
+    margin-top: .5rem;
     color: #5d6f84;
-    font-size: .93rem;
+    font-size: .86rem;
     font-weight: 700;
 }
 
