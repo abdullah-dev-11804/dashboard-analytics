@@ -109,7 +109,7 @@ class course_analytics_repository {
         string $fieldalias = 'cfanalytics',
         string $dataalias = 'cdanalytics'
     ): string {
-        return "{$coursealias}.visible = 1 AND " . $this->enabled_expression($fieldalias, $dataalias) . " = 1";
+        return $this->enabled_expression($fieldalias, $dataalias) . " = 1";
     }
 
     public function enabled_expression(string $fieldalias = 'cfanalytics', string $dataalias = 'cdanalytics'): string {

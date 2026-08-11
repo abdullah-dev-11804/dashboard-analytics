@@ -1938,12 +1938,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             analyticsBadge.className = 'da-badge da-badge-' + (enabled ? 'ok' : 'muted');
         }
 
-        if (visibilityCell) {
-            var visibilityBadge = visibilityCell.querySelector('.da-badge');
-            if (visibilityBadge && visibilityBadge.textContent === text('courseAnalyticsHidden', 'Hidden')) {
-                analyticsBadge.className = 'da-badge da-badge-muted';
-            }
-        }
+        // Hidden courses can still be explicitly included in analytics via include_analytics.
     };
 
     var loadCourseAnalyticsControl = function(root, state, overrides) {
