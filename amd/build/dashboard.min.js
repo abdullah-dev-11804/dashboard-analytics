@@ -2319,6 +2319,49 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
 
     var forecastPeriodOrder = ['30days', '60days', '90days', '6months', '12months', '3years', 'customrange'];
 
+    var periodLabelForKey = function(key) {
+        switch (key) {
+            case '30days':
+                return text('forecastPeriod30days', '30 days');
+            case '60days':
+                return text('forecastPeriod60days', '60 days');
+            case '90days':
+                return text('forecastPeriod90days', '90 days');
+            case '6months':
+                return text('forecastPeriod6months', '6 months');
+            case '12months':
+                return text('forecastPeriod12months', '12 months');
+            case '3years':
+                return text('forecastPeriod3years', '3 years');
+            case 'customrange':
+                return text('forecastPeriodCustomRange', 'Custom range');
+            default:
+                return key || '';
+        }
+    };
+
+    var normaliseTrendPeriodKey = function(value) {
+        var key = String(value || '').toLowerCase();
+        var map = {
+            '3': '90days',
+            '3m': '90days',
+            '6': '6months',
+            '6m': '6months',
+            '12': '12months',
+            '12m': '12months',
+            'last30days': '30days',
+            'last60days': '60days',
+            'last90days': '90days',
+            'last6months': '6months',
+            'last12months': '12months',
+            'custom': 'customrange'
+        };
+        if (map[key]) {
+            return map[key];
+        }
+        return forecastPeriodOrder.indexOf(key) !== -1 ? key : '12months';
+    };
+
     var forecastPeriodOptions = function(items) {
         var map = {};
         (items || []).forEach(function(item) {
@@ -3074,7 +3117,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     + '</div>';
             } else if (panel.type === 'compliancetrendline') {
                 var trendOverrides = (((state || {}).currentVisualOverrides) || {});
-                var selectedRange = Math.max(3, Math.min(12, Number(trendOverrides.compliancetrendperiod) || 12));
+                var selectedTrendPeriod = normaliseTrendPeriodKey(trendOverrides.compliancetrendperiod || '12months');
                 var trendModeOverride = String(trendOverrides.compliancetrendmode || '').toLowerCase();
                 var trendThresholds = normalizeComplianceThresholds(panel.threshold, panel.secondarythreshold);
                 var compliantThreshold = trendThresholds.compliant;
@@ -3166,7 +3209,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }
 
                     visibleSeries = visibleSeries.map(function(series) {
-                        var segments = (series.segments || []).slice(Math.max(0, (series.segments || []).length - Math.min(selectedRange, (series.segments || []).length)));
+                        var segments = (series.segments || []).slice();
                         var currentsegment = segments[segments.length - 1] || {percent: 0, label: ''};
                         return Object.assign({}, series, {
                             segments: segments,
@@ -3364,6 +3407,25 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         return '<span class="da-compliance-trendline-series-chip"><span class="da-compliance-trendline-series-line' + (series.isaggregate ? ' is-aggregate' : '') + '" style="background:' + escapeHtml(series.colour || '#107c10') + ';border-color:' + escapeHtml(series.colour || '#107c10') + '"></span>' + escapeHtml(series.label || '') + '</span>';
                     }).join('');
 
+                    var periodButtonsTrend = '<div class="da-compliance-trendline-periods">' + forecastPeriodOrder.map(function(periodKey) {
+                        return '<button type="button" class="da-compliance-trendline-period'
+                            + (selectedTrendPeriod === periodKey ? ' is-active' : '')
+                            + '" data-action="compliance-period" data-period="' + escapeHtml(periodKey) + '">'
+                            + escapeHtml(periodLabelForKey(periodKey)) + '</button>';
+                    }).join('') + '</div>';
+                    var customStartTrend = String(trendOverrides.compliancecustomstart || '');
+                    var customEndTrend = String(trendOverrides.compliancecustomend || '');
+                    var customControlsTrend = selectedTrendPeriod === 'customrange'
+                        ? '<div class="da-compliance-trendline-custom-range da-forecast-custom-range">'
+                            + '<label><span>' + escapeHtml(text('forecastCustomStart', 'Start date')) + '</span>'
+                            + '<input type="date" data-compliance-custom-start value="' + escapeHtml(customStartTrend) + '"></label>'
+                            + '<label><span>' + escapeHtml(text('forecastCustomEnd', 'End date')) + '</span>'
+                            + '<input type="date" data-compliance-custom-end value="' + escapeHtml(customEndTrend) + '"></label>'
+                            + '<button type="button" class="da-forecast-custom-apply" data-action="compliance-custom-range">'
+                            + escapeHtml(text('forecastApplyRange', 'Apply range')) + '</button>'
+                            + '</div>'
+                        : '';
+
                     var currentMarkers = endMarkers.map(function(marker) {
                         var labely = Math.max(chartTopTrend + 2, Math.min(chartTopTrend + chartHeightTrend - 1, Number(marker.labely || marker.y)));
                         return '<span class="da-compliance-trendline-current-dot' + (marker.isaggregate ? ' is-aggregate' : '') + '" style="left:' + marker.x.toFixed(2) + '%; top:' + marker.y.toFixed(2) + '%; background:' + escapeHtml(marker.colour) + '"></span>'
@@ -3373,11 +3435,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     body = '<div class="da-compliance-trendline">'
                         + '<div class="da-compliance-trendline-head">'
                         + '<div class="da-compliance-trendline-head-controls">'
-                        + '<div class="da-compliance-trendline-periods">'
-                        + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 3 ? ' is-active' : '') + '" data-action="compliance-period" data-period="3">' + escapeHtml(text('months3Short', '3M')) + '</button>'
-                        + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 6 ? ' is-active' : '') + '" data-action="compliance-period" data-period="6">' + escapeHtml(text('months6Short', '6M')) + '</button>'
-                        + '<button type="button" class="da-compliance-trendline-period' + (selectedRange === 12 ? ' is-active' : '') + '" data-action="compliance-period" data-period="12">' + escapeHtml(text('months12Short', '12M')) + '</button>'
-                        + '</div>'
+                        + periodButtonsTrend
+                        + customControlsTrend
                         + modeButtons
                         + '</div>'
                         + '<div class="da-compliance-trendline-kpi da-compliance-trendline-kpi-' + escapeHtml(currentStatus) + '">'
@@ -6035,13 +6094,26 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             var compliancePeriod = event.target.closest('[data-action="compliance-period"]');
             if (compliancePeriod && root.contains(compliancePeriod)) {
                 rememberCurrentState(root, state);
+                var complianceTrendPeriod = normaliseTrendPeriodKey(compliancePeriod.getAttribute('data-period') || '12months');
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
-                    compliancetrendperiod: Number(compliancePeriod.getAttribute('data-period')) || 12
+                    compliancetrendperiod: complianceTrendPeriod
                 });
-                if (state.currentVisualResponse) {
-                    renderVisuals(root, state.currentVisualResponse, state);
-                    persistState(root, state);
-                }
+                loadVisuals(root, state, state.currentTab || 'compliance', state.currentVisualOverrides);
+                return;
+            }
+
+            var complianceCustomRange = event.target.closest('[data-action="compliance-custom-range"]');
+            if (complianceCustomRange && root.contains(complianceCustomRange)) {
+                rememberCurrentState(root, state);
+                var complianceCustomPanel = complianceCustomRange.closest('.da-compliance-trendline') || root;
+                var complianceStartInput = complianceCustomPanel.querySelector('[data-compliance-custom-start]');
+                var complianceEndInput = complianceCustomPanel.querySelector('[data-compliance-custom-end]');
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    compliancetrendperiod: 'customrange',
+                    compliancecustomstart: complianceStartInput ? complianceStartInput.value : '',
+                    compliancecustomend: complianceEndInput ? complianceEndInput.value : ''
+                });
+                loadVisuals(root, state, state.currentTab || 'compliance', state.currentVisualOverrides);
                 return;
             }
 

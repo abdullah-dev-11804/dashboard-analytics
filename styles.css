@@ -2292,6 +2292,7 @@
 
 .block-dashboardanalytics .da-compliance-trendline-periods {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: .15rem;
     padding: .14rem;
     border-radius: 8px;

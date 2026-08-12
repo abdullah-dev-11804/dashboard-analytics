@@ -132,7 +132,7 @@ class overview_repository {
     }
 
     public function compliance_trend_items(array $filters): array {
-        $months = $this->month_windows($filters);
+        $months = $this->compliance_trend_windows($filters);
         $current = $this->company_compliance_items($filters, 50);
         $companies = array_column($current, 'label');
         $joinmonths = $this->company_join_month_map($filters);
@@ -172,8 +172,12 @@ class overview_repository {
                     'percent' => (float)$summary['percent'],
                     'status' => $seriesstatuses[$index % count($seriesstatuses)],
                     'periodkey' => (string)$monthkey,
+                    'fromts' => (int)($months[$monthindex]['start'] ?? 0),
+                    'tots' => (int)($months[$monthindex]['end'] ?? 0),
                 ];
             }
+
+            $joinperiodkey = $this->window_key_for_timestamp((int)($joinmonth['timecreated'] ?? 0), $months);
 
             $items[] = [
                 'label' => $company,
@@ -182,7 +186,7 @@ class overview_repository {
                 'status' => $seriesstatuses[$index % count($seriesstatuses)],
                 'meta' => get_string('panel:compliancetrendchart:meta', 'block_dashboardanalytics'),
                 'companyid' => $companyid,
-                'periodkey' => (string)($joinmonth['monthkey'] ?? ''),
+                'periodkey' => $joinperiodkey,
                 'fromts' => (int)($joinmonth['timecreated'] ?? 0),
                 'segments' => $segments,
             ];
@@ -1122,65 +1126,241 @@ class overview_repository {
         return ['total' => 0, 'compliant' => 0, 'percent' => 0.0];
     }
 
-    private function month_windows(array $filters): array {
+    private function compliance_trend_windows(array $filters): array {
         $cachekey = $this->cache_key($filters);
         if (isset(self::$monthwindowscache[$cachekey])) {
             return self::$monthwindowscache[$cachekey];
         }
 
-        $daterange = $filters['daterange'] ?? 'last12months';
-        $count = 12;
-        if (in_array($daterange, ['6months', 'last6months'], true)) {
-            $count = 6;
-        } else if (in_array($daterange, ['day', 'week', 'month', 'last30days'], true)) {
-            $count = 1;
-        } else if ($daterange === 'last90days') {
-            $count = 3;
-        } else if ($daterange === 'alltime') {
-            $count = 24;
-        }
-        $labelformat = $count > 12 ? '%b %y' : '%b';
+        $period = $this->normalise_compliance_trend_period((string)($filters['compliancetrendperiod'] ?? '12months'));
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $today = new \DateTimeImmutable('today', $timezone);
+        $now = $this->current_report_date();
 
-        if ($daterange === 'customrange' && !empty($filters['customstart']) && !empty($filters['customend'])) {
-            $start = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $filters['customstart'] . ' 00:00:00', new \DateTimeZone('Asia/Almaty'));
-            $end = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $filters['customend'] . ' 23:59:59', new \DateTimeZone('Asia/Almaty'));
-            if ($start && $end && $start <= $end) {
-                $months = [];
-                $cursor = $start->modify('first day of this month 00:00:00');
-                $limit = 0;
-                $spanmonths = (((int)$end->format('Y') - (int)$cursor->format('Y')) * 12)
-                    + ((int)$end->format('n') - (int)$cursor->format('n')) + 1;
-                $customlabelformat = $spanmonths > 12 ? '%b %y' : '%b';
-                while ($cursor <= $end && $limit < 24) {
-                    $windowend = $cursor->modify('last day of this month 23:59:59');
-                    $months[] = [
-                        'key' => $cursor->format('Y-m'),
-                        'label' => userdate($windowend->getTimestamp(), $customlabelformat),
-                        'end' => min($windowend->getTimestamp(), $end->getTimestamp()),
-                    ];
-                    $cursor = $cursor->modify('+1 month');
-                    $limit++;
-                }
-                if ($months) {
-                    self::$monthwindowscache[$cachekey] = $months;
+        if ($period === 'customrange') {
+            $start = $this->custom_date_from_filter($filters['compliancecustomstart'] ?? '', $timezone, true);
+            $end = $this->custom_date_from_filter($filters['compliancecustomend'] ?? '', $timezone, false);
+            if (!$start || !$end || $start > $end) {
+                $period = '12months';
+            } else {
+                $windows = $this->custom_compliance_trend_windows($start, $end);
+                if ($windows) {
+                    self::$monthwindowscache[$cachekey] = $windows;
                     return self::$monthwindowscache[$cachekey];
                 }
             }
         }
 
+        if (in_array($period, ['30days', '60days', '90days'], true)) {
+            $days = $period === '30days' ? 30 : ($period === '60days' ? 60 : 90);
+            $count = (int)ceil($days / 7);
+            $start = $today->modify('-' . ($days - 1) . ' days');
+            $windows = [];
+            for ($index = 0; $index < $count; $index++) {
+                $windowstart = $start->modify('+' . ($index * 7) . ' days');
+                $windowend = $windowstart->modify('+6 days')->setTime(23, 59, 59);
+                $absoluteend = $today->setTime(23, 59, 59);
+                if ($windowend > $absoluteend) {
+                    $windowend = $absoluteend;
+                }
+                $windows[] = $this->compliance_trend_window_record(
+                    $windowstart,
+                    $windowend,
+                    $windowstart->format('Y-m-d'),
+                    $this->date_range_label($windowstart, $windowend),
+                    $now
+                );
+            }
+            self::$monthwindowscache[$cachekey] = $windows;
+            return self::$monthwindowscache[$cachekey];
+        }
+
+        if ($period === '3years') {
+            $windows = [];
+            $base = $today->setDate((int)$today->format('Y'), 1, 1)->setTime(0, 0, 0);
+            for ($offset = 2; $offset >= 0; $offset--) {
+                $start = $base->modify('-' . $offset . ' years');
+                $end = $start->modify('last day of December this year')->setTime(23, 59, 59);
+                $windows[] = $this->compliance_trend_window_record(
+                    $start,
+                    $end,
+                    $start->format('Y'),
+                    $start->format('Y'),
+                    $now
+                );
+            }
+            self::$monthwindowscache[$cachekey] = $windows;
+            return self::$monthwindowscache[$cachekey];
+        }
+
+        $count = $period === '6months' ? 6 : 12;
+        $labelformat = '%b';
         $months = [];
-        $base = new \DateTimeImmutable('first day of this month 00:00:00', new \DateTimeZone('Asia/Almaty'));
+        $base = $today->modify('first day of this month')->setTime(0, 0, 0);
         for ($offset = $count - 1; $offset >= 0; $offset--) {
             $start = $base->modify('-' . $offset . ' months');
-            $end = $start->modify('last day of this month 23:59:59');
-            $months[] = [
-                'key' => $start->format('Y-m'),
-                'label' => userdate($end->getTimestamp(), $labelformat),
-                'end' => $end->getTimestamp(),
-            ];
+            $end = $start->modify('last day of this month')->setTime(23, 59, 59);
+            $months[] = $this->compliance_trend_window_record(
+                $start,
+                $end,
+                $start->format('Y-m'),
+                userdate($start->getTimestamp(), $labelformat),
+                $now
+            );
         }
         self::$monthwindowscache[$cachekey] = $months;
         return self::$monthwindowscache[$cachekey];
+    }
+
+    private function normalise_compliance_trend_period(string $period): string {
+        $period = strtolower(trim($period));
+        $map = [
+            '3' => '90days',
+            '3m' => '90days',
+            '6' => '6months',
+            '6m' => '6months',
+            '12' => '12months',
+            '12m' => '12months',
+            'last30days' => '30days',
+            'last60days' => '60days',
+            'last90days' => '90days',
+            'last6months' => '6months',
+            'last12months' => '12months',
+            'custom' => 'customrange',
+        ];
+        if (isset($map[$period])) {
+            return $map[$period];
+        }
+
+        $allowed = ['30days', '60days', '90days', '6months', '12months', '3years', 'customrange'];
+        return in_array($period, $allowed, true) ? $period : '12months';
+    }
+
+    private function custom_date_from_filter($value, \DateTimeZone $timezone, bool $startofday): ?\DateTimeImmutable {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return null;
+        }
+
+        $time = $startofday ? '00:00:00' : '23:59:59';
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value . ' ' . $time, $timezone);
+        return $date ?: null;
+    }
+
+    private function custom_compliance_trend_windows(\DateTimeImmutable $start, \DateTimeImmutable $end): array {
+        $days = max(1, (int)ceil(($end->getTimestamp() - $start->getTimestamp() + 1) / DAYSECS));
+        $now = $this->current_report_date();
+        $windows = [];
+
+        if ($days <= 90) {
+            $cursor = $start->setTime(0, 0, 0);
+            $limit = 0;
+            while ($cursor <= $end && $limit < 60) {
+                $windowend = $cursor->modify('+6 days')->setTime(23, 59, 59);
+                if ($windowend > $end) {
+                    $windowend = $end;
+                }
+                $windows[] = $this->compliance_trend_window_record(
+                    $cursor,
+                    $windowend,
+                    $cursor->format('Y-m-d'),
+                    $this->date_range_label($cursor, $windowend),
+                    $now
+                );
+                $cursor = $windowend->modify('+1 second');
+                $limit++;
+            }
+            return $windows;
+        }
+
+        if ($days <= 397) {
+            $cursor = $start->modify('first day of this month')->setTime(0, 0, 0);
+            $limit = 0;
+            while ($cursor <= $end && $limit < 24) {
+                $windowstart = $cursor < $start ? $start : $cursor;
+                $windowend = $cursor->modify('last day of this month')->setTime(23, 59, 59);
+                if ($windowend > $end) {
+                    $windowend = $end;
+                }
+                $windows[] = $this->compliance_trend_window_record(
+                    $windowstart,
+                    $windowend,
+                    $cursor->format('Y-m'),
+                    userdate($cursor->getTimestamp(), '%b'),
+                    $now
+                );
+                $cursor = $cursor->modify('+1 month');
+                $limit++;
+            }
+            return $windows;
+        }
+
+        $cursor = $start->setDate((int)$start->format('Y'), 1, 1)->setTime(0, 0, 0);
+        $limit = 0;
+        while ($cursor <= $end && $limit < 10) {
+            $windowstart = $cursor < $start ? $start : $cursor;
+            $windowend = $cursor->modify('last day of December this year')->setTime(23, 59, 59);
+            if ($windowend > $end) {
+                $windowend = $end;
+            }
+            $windows[] = $this->compliance_trend_window_record(
+                $windowstart,
+                $windowend,
+                $cursor->format('Y'),
+                $cursor->format('Y'),
+                $now
+            );
+            $cursor = $cursor->modify('+1 year');
+            $limit++;
+        }
+
+        return $windows;
+    }
+
+    private function compliance_trend_window_record(
+        \DateTimeImmutable $start,
+        \DateTimeImmutable $end,
+        string $key,
+        string $label,
+        int $now
+    ): array {
+        $endts = min($end->getTimestamp(), $now);
+        if ($endts < $start->getTimestamp()) {
+            $endts = $start->getTimestamp();
+        }
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'start' => $start->getTimestamp(),
+            'end' => $endts,
+        ];
+    }
+
+    private function date_range_label(\DateTimeImmutable $start, \DateTimeImmutable $end): string {
+        if ($start->format('Y-m') === $end->format('Y-m')) {
+            return trim(userdate($start->getTimestamp(), '%e')) . ' - ' . trim(userdate($end->getTimestamp(), '%e %b'));
+        }
+
+        if ($start->format('Y') === $end->format('Y')) {
+            return trim(userdate($start->getTimestamp(), '%e %b')) . ' - ' . trim(userdate($end->getTimestamp(), '%e %b'));
+        }
+
+        return trim(userdate($start->getTimestamp(), '%e %b %Y')) . ' - ' . trim(userdate($end->getTimestamp(), '%e %b %Y'));
+    }
+
+    private function window_key_for_timestamp(int $timestamp, array $windows): string {
+        if ($timestamp <= 0) {
+            return '';
+        }
+
+        foreach ($windows as $window) {
+            if ($timestamp >= (int)($window['start'] ?? 0) && $timestamp <= (int)($window['end'] ?? 0)) {
+                return (string)($window['key'] ?? '');
+            }
+        }
+
+        return '';
     }
 
     private function platform_growth_windows(array $filters): array {
