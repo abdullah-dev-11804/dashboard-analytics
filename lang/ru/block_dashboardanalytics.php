@@ -423,6 +423,7 @@ $string['overview:trustscore'] = 'Trust score';
 $string['overview:completion'] = 'Завершение';
 $string['overview:report'] = 'Отчёт';
 $string['overview:viewreportcta'] = 'Открыть отчёт';
+$string['drilldown:viewfullreport'] = 'Открыть полный отчёт';
 $string['overview:employeeswithoutvaliddocs'] = 'сотрудников ниже полного соответствия.';
 $string['overview:documentsexpired'] = 'документов просрочено';
 $string['overview:viewexpiredcta'] = 'Открыть просроченные';

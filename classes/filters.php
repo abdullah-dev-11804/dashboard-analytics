@@ -30,6 +30,11 @@ class filters {
             'customstart' => self::date_input($decoded['customstart'] ?? ''),
             'customend' => self::date_input($decoded['customend'] ?? ''),
             'platformgrowthperiod' => self::platform_growth_period($decoded['platformgrowthperiod'] ?? ''),
+            'compliancetrendperiod' => self::analytics_period($decoded['compliancetrendperiod'] ?? '', '12months'),
+            'compliancecustomstart' => self::date_input($decoded['compliancecustomstart'] ?? ''),
+            'compliancecustomend' => self::date_input($decoded['compliancecustomend'] ?? ''),
+            'forecastcustomstart' => self::date_input($decoded['forecastcustomstart'] ?? ''),
+            'forecastcustomend' => self::date_input($decoded['forecastcustomend'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
             'statusmode' => self::status_mode($decoded['statusmode'] ?? ''),
             'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),
@@ -173,7 +178,7 @@ class filters {
 
     private static function status($value): string {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
-        return in_array($value, ['expired', 'expiring', 'active', 'nodocument'], true) ? $value : '';
+        return in_array($value, ['expired', 'expiring', 'active', 'valid', 'nodocument'], true) ? $value : '';
     }
 
     private static function status_mode($value): string {
@@ -232,6 +237,30 @@ class filters {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
         $allowed = ['3months', '1year', '2years', 'alltime'];
         return in_array($value, $allowed, true) ? $value : '';
+    }
+
+    private static function analytics_period($value, string $default): string {
+        $value = strtolower(clean_param((string)$value, PARAM_ALPHANUMEXT));
+        $map = [
+            '3' => '90days',
+            '3m' => '90days',
+            '6' => '6months',
+            '6m' => '6months',
+            '12' => '12months',
+            '12m' => '12months',
+            'custom' => 'customrange',
+            'last30days' => '30days',
+            'last60days' => '60days',
+            'last90days' => '90days',
+            'last6months' => '6months',
+            'last12months' => '12months',
+        ];
+        if (isset($map[$value])) {
+            return $map[$value];
+        }
+
+        $allowed = ['30days', '60days', '90days', '6months', '12months', '3years', 'customrange'];
+        return in_array($value, $allowed, true) ? $value : $default;
     }
 
     private static function timestamp($value): int {

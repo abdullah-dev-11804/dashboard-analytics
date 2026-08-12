@@ -2806,6 +2806,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
                     var statusFilter = segmentStatusFilter(segment.status || '');
                     var tooltip = (segment.label || '') + ': ' + count + ' / ' + total + ' (' + formatPercent(width) + '%)';
+                    if (count <= 0 || width <= 0 || !statusFilter) {
+                        return '<span class="da-risk-course-segment da-risk-course-segment-empty da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
+                            + ' style="flex-basis:0%"'
+                            + ' title="' + escapeHtml(tooltip) + '"'
+                            + ' aria-hidden="true"></span>';
+                    }
                     return '<button type="button" class="da-risk-course-segment da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
                         + ' data-action="bar-drilldown"' + baseAttrs
                         + ' data-status="' + escapeHtml(statusFilter) + '"'
@@ -4302,6 +4308,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                                 var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
                                 var statusFilter = segmentStatusFilter(segment.status || '');
                                 var tooltip = (segment.label || '') + ': ' + count + ' / ' + total + ' (' + formatPercent(width) + '%)';
+                                if (count <= 0 || width <= 0 || !statusFilter) {
+                                    return '<span class="da-risk-course-segment da-risk-course-segment-empty da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
+                                        + ' style="flex-basis:0%"'
+                                        + ' title="' + escapeHtml(tooltip) + '"'
+                                        + ' aria-hidden="true"></span>';
+                                }
                                 return '<button type="button" class="da-risk-course-segment da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
                                     + ' data-action="bar-drilldown"' + baseAttrs
                                     + ' data-status="' + escapeHtml(statusFilter) + '"'

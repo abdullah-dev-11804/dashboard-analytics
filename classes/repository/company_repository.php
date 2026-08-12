@@ -235,7 +235,7 @@ class company_repository {
                     ['key' => 'activeusers', 'value' => (string)(int)$record->activeusers],
                     ['key' => 'compliance', 'value' => $compliance . '%'],
                     ['key' => 'status', 'value' => $status, 'statuskey' => $statuskey],
-                    ['key' => 'action', 'value' => 'View full report'],
+                    ['key' => 'action', 'value' => get_string('drilldown:viewfullreport', 'block_dashboardanalytics')],
                 ],
             ];
         }

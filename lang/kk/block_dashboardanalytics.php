@@ -423,6 +423,7 @@ $string['overview:trustscore'] = 'Сенім көрсеткіші';
 $string['overview:completion'] = 'Аяқтау';
 $string['overview:report'] = 'Есеп';
 $string['overview:viewreportcta'] = 'Есепті ашу';
+$string['drilldown:viewfullreport'] = 'Толық есепті ашу';
 $string['overview:employeeswithoutvaliddocs'] = 'қызметкер толық сәйкестік деңгейіне жетпеген.';
 $string['overview:documentsexpired'] = 'құжаттың мерзімі өткен';
 $string['overview:viewexpiredcta'] = 'Мерзімі өткендерді ашу';

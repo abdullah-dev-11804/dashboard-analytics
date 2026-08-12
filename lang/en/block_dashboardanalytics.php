@@ -423,6 +423,7 @@ $string['overview:trustscore'] = 'Trust score';
 $string['overview:completion'] = 'Completion';
 $string['overview:report'] = 'Report';
 $string['overview:viewreportcta'] = 'View report';
+$string['drilldown:viewfullreport'] = 'View full report';
 $string['overview:employeeswithoutvaliddocs'] = 'employees below full compliance.';
 $string['overview:documentsexpired'] = 'documents expired';
 $string['overview:viewexpiredcta'] = 'View expired';

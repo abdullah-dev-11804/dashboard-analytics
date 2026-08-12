@@ -2697,8 +2697,12 @@
 
 .block-dashboardanalytics .da-newhire-risk-row {
     display: grid;
-    grid-template-columns: 210px minmax(0, 1fr) auto;
-    gap: .85rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "label label"
+        "track value";
+    column-gap: .85rem;
+    row-gap: .4rem;
     align-items: center;
 }
 
@@ -2707,12 +2711,16 @@
     align-items: center;
     gap: .7rem;
     min-width: 0;
+    grid-area: label;
+    flex-wrap: wrap;
 }
 
 .block-dashboardanalytics .da-newhire-risk-company {
     font-weight: 700;
     color: #243b63;
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .block-dashboardanalytics .da-newhire-risk-badge {
@@ -2747,6 +2755,7 @@
 }
 
 .block-dashboardanalytics .da-newhire-risk-track {
+    grid-area: track;
     width: 100%;
     height: 12px;
     border-radius: 999px;
@@ -2761,6 +2770,7 @@
 }
 
 .block-dashboardanalytics .da-newhire-risk-value {
+    grid-area: value;
     min-width: 48px;
     text-align: right;
     font-size: .9rem;
@@ -3905,6 +3915,12 @@ body.da-modal-open {
     line-height: 1;
     cursor: pointer;
     transition: filter .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.block-dashboardanalytics .da-risk-course-segment-empty {
+    padding: 0;
+    border-right: 0;
+    pointer-events: none;
 }
 
 .block-dashboardanalytics .da-risk-course-segment:last-child {
