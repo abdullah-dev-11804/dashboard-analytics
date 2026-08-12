@@ -209,12 +209,11 @@ class document_repository {
         $overview = new overview_repository();
         $items = [];
         $tabs = $this->company_tabs($filters, 8);
-        $selectedtab = $this->selected_panel_tab($tabs, $filters, 'riskcourse');
-        if ($selectedtab === null) {
+        if (!$tabs) {
             return [];
         }
 
-        foreach ([$selectedtab] as $tab) {
+        foreach ($tabs as $tab) {
             $scopefilters = $this->heatmap_tab_filters($filters, $tab);
             $scopefilters['statusmode'] = 'course';
             $rows = $overview->enrolment_status_snapshot_rows($scopefilters);
