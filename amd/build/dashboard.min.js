@@ -2705,6 +2705,167 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
+    var selectedItemsForVisualPanel = function(panel, state, fallbackWhenEmpty) {
+        var items = panel.items || [];
+        var panelTabs = panel.tabs || [];
+        var panelTabOverrideKey = 'paneltab_' + panel.key;
+        var selectedPanelTab = (((state || {}).currentVisualOverrides) || {})[panelTabOverrideKey]
+            || ((panelTabs.filter(function(tab) { return !!tab.active; })[0] || {}).key)
+            || ((panelTabs[0] || {}).key)
+            || '';
+        var visibleItems = selectedPanelTab ? items.filter(function(item) {
+            return (item.groupkey || '') === selectedPanelTab;
+        }) : items;
+
+        if (fallbackWhenEmpty && selectedPanelTab && !visibleItems.length && panelTabs.length) {
+            selectedPanelTab = (panelTabs[0] || {}).key || '';
+            visibleItems = selectedPanelTab ? items.filter(function(item) {
+                return (item.groupkey || '') === selectedPanelTab;
+            }) : items;
+        }
+
+        return {
+            selectedPanelTab: selectedPanelTab,
+            visibleItems: visibleItems
+        };
+    };
+
+    var renderPanelTabsMarkup = function(panel, selectedPanelTab) {
+        var panelTabs = panel.tabs || [];
+        if (!panelTabs.length || panel.type === 'heatmap') {
+            return '';
+        }
+
+        return '<div class="da-panel-tabs">' + panelTabs.map(function(tab) {
+            return '<button type="button" class="da-panel-tab'
+                + (tab.key === selectedPanelTab ? ' is-active' : '')
+                + '" data-action="panel-tab" data-panel="' + escapeHtml(panel.key)
+                + '" data-tabkey="' + escapeHtml(tab.key) + '">'
+                + escapeHtml(tab.label) + '</button>';
+        }).join('') + '</div>';
+    };
+
+    var renderRiskCoursePanelBody = function(panel, state) {
+        var selection = selectedItemsForVisualPanel(panel, state, false);
+        var renderedBarItems = selection.visibleItems.slice();
+        var courseSort = ((((state || {}).currentVisualOverrides) || {}).riskcoursesort || 'asc').toLowerCase();
+        renderedBarItems.sort(function(a, b) {
+            var delta = (Number(a.percent) || 0) - (Number(b.percent) || 0);
+            return courseSort === 'desc' ? (-1 * delta) : delta;
+        });
+
+        var panelTabMarkup = renderPanelTabsMarkup(panel, selection.selectedPanelTab);
+        var barSortMarkup = '<div class="da-bar-sort-controls">'
+            + '<button type="button" class="da-bar-sort-button' + (courseSort === 'asc' ? ' is-active' : '')
+            + '" data-action="course-compliance-sort" data-sort="asc">' + escapeHtml(text('sortWorstBest', 'Worst to best')) + '</button>'
+            + '<button type="button" class="da-bar-sort-button' + (courseSort === 'desc' ? ' is-active' : '')
+            + '" data-action="course-compliance-sort" data-sort="desc">' + escapeHtml(text('sortBestWorst', 'Best to worst')) + '</button>'
+            + '</div>';
+
+        if (!renderedBarItems.length) {
+            return panelTabMarkup + barSortMarkup + '<div class="da-empty">'
+                + escapeHtml(panel.emptymessage || text('noMatchingRows', 'No matching rows.')) + '</div>';
+        }
+
+        var firstSegments = ((renderedBarItems[0] || {}).segments || []);
+        var segmentStatusFilter = function(status) {
+            if (status === 'ok') {
+                return 'valid';
+            }
+            if (status === 'danger') {
+                return 'expired';
+            }
+            if (status === 'muted') {
+                return 'nodocument';
+            }
+            return '';
+        };
+        var segmentLegend = firstSegments.length
+            ? '<div class="da-risk-course-legend"><span class="da-risk-course-legend-label">' + escapeHtml(text('labelStatus', 'Status')) + ':</span>'
+                + firstSegments.map(function(segment) {
+                    return '<span class="da-risk-course-legend-item"><span class="da-dot da-dot-' + escapeHtml(segment.status || 'muted') + '"></span>'
+                        + escapeHtml(segment.label || '') + '</span>';
+                }).join('') + '</div>'
+            : '';
+
+        return panelTabMarkup + barSortMarkup + segmentLegend + '<div class="da-risk-course-list">' + renderedBarItems.map(function(item) {
+            var segments = item.segments || [];
+            var total = segments.reduce(function(sum, segment) {
+                return sum + (Number(segment.value) || 0);
+            }, 0);
+            var baseAttrs = ' data-drilldown="' + escapeHtml(item.drilldownkey || 'company_course_noncompliance') + '"'
+                + ' data-companyid="' + escapeHtml(String(item.companyid || 0)) + '"'
+                + ' data-companyname="' + escapeHtml(item.companyname || '') + '"'
+                + ' data-courseid="' + escapeHtml(String(item.courseid || 0)) + '"';
+            return '<div class="da-risk-course-row">'
+                + '<button type="button" class="da-risk-course-head" data-action="bar-drilldown"' + baseAttrs + ' title="' + escapeHtml(item.label || '') + '">'
+                + '<span>' + escapeHtml(item.label || '') + '</span></button>'
+                + '<div class="da-risk-course-track">'
+                + segments.map(function(segment) {
+                    var count = Number(segment.value) || 0;
+                    var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
+                    var statusFilter = segmentStatusFilter(segment.status || '');
+                    var tooltip = (segment.label || '') + ': ' + count + ' / ' + total + ' (' + formatPercent(width) + '%)';
+                    return '<button type="button" class="da-risk-course-segment da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
+                        + ' data-action="bar-drilldown"' + baseAttrs
+                        + ' data-status="' + escapeHtml(statusFilter) + '"'
+                        + ' style="flex-basis:' + width.toFixed(1) + '%"'
+                        + ' title="' + escapeHtml(tooltip) + '"'
+                        + ' aria-label="' + escapeHtml((item.label || '') + ' ' + tooltip) + '">'
+                        + (width >= 8 ? '<span>' + escapeHtml(formatPercent(width) + '%') + '</span>' : '')
+                        + '</button>';
+                }).join('')
+                + '</div>'
+                + '<div class="da-risk-course-meta">'
+                + segments.map(function(segment) {
+                    var count = Number(segment.value) || 0;
+                    return '<span class="da-risk-course-meta-' + escapeHtml(segment.status || 'muted') + '">'
+                        + '<strong>' + escapeHtml(String(count)) + '</strong> ' + escapeHtml((segment.label || '').toLowerCase()) + '</span>';
+                }).join('<span class="da-risk-course-meta-separator">·</span>')
+                + '<span class="da-risk-course-meta-total">/ <strong>' + escapeHtml(String(total)) + '</strong> ' + escapeHtml(text('riskCourseEnrolled', 'enrolled')) + '</span>'
+                + '</div>'
+                + '</div>';
+        }).join('') + '</div>';
+    };
+
+    var renderVisualPanelInnerMarkup = function(panel, body) {
+        var panelHelp = panel.formula
+            ? '<span class="da-panel-help" title="' + escapeHtml(text('formulaTooltip', 'Formula') + ': ' + panel.formula) + '" aria-label="'
+                + escapeHtml(text('formulaTooltip', 'Formula') + ': ' + panel.formula) + '">i</span>'
+            : '';
+
+        return '<div class="da-visual-panel-headline"><h5>' + escapeHtml(panel.title) + '</h5>' + panelHelp + '</div>'
+            + (panel.description ? '<p>' + escapeHtml(panel.description) + '</p>' : '')
+            + body;
+    };
+
+    var renderCachedVisualPanel = function(root, state, panelKey) {
+        var response = state.currentVisualResponse || {};
+        var panel = (response.panels || []).filter(function(candidate) {
+            return candidate.key === panelKey;
+        })[0] || null;
+        var article = root.querySelector('.da-visual-panel[data-panel-key="' + panelKey + '"]');
+        if (!panel || !article) {
+            return false;
+        }
+
+        if (panel.key === 'riskcourse') {
+            article.innerHTML = renderVisualPanelInnerMarkup(panel, renderRiskCoursePanelBody(panel, state));
+            return true;
+        }
+
+        if (panel.type === 'forecastworkload') {
+            var selection = selectedItemsForVisualPanel(panel, state, true);
+            var body = renderPanelTabsMarkup(panel, selection.selectedPanelTab)
+                + renderForecastWorkloadPanel(root, panel, state, selection.visibleItems, selection.selectedPanelTab);
+            article.innerHTML = renderVisualPanelInnerMarkup(panel, body);
+            loadForecastInlineTable(root, state, panel.key);
+            return true;
+        }
+
+        return false;
+    };
+
     var renderVisuals = function(root, data, state) {
         var container = root.querySelector('[data-region="drilldown"]');
         var title = root.querySelector('[data-region="drilldown-title"]');
@@ -2747,7 +2908,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return (item.groupkey || '') === selectedPanelTab;
             }) : items;
 
-            if (selectedPanelTab && !visibleItems.length && panelTabs.length) {
+            if (selectedPanelTab && !visibleItems.length && panelTabs.length && panel.key !== 'riskcourse') {
                 selectedPanelTab = (panelTabs[0] || {}).key || '';
                 visibleItems = selectedPanelTab ? items.filter(function(item) {
                     return (item.groupkey || '') === selectedPanelTab;
@@ -6137,6 +6298,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     riskcoursesort: (courseComplianceSort.getAttribute('data-sort') || 'asc').toLowerCase()
                 });
+                if (renderCachedVisualPanel(root, state, 'riskcourse')) {
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
                 if (state.currentVisualResponse) {
                     renderVisuals(root, state.currentVisualResponse, state);
                     persistState(root, state);
@@ -6331,6 +6497,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     ['forecastselection_' + forecastPanelKey]: null,
                     ['forecastpage_' + forecastPanelKey]: 0
                 });
+                if (renderCachedVisualPanel(root, state, forecastPanelKey)) {
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;
             }
@@ -6372,6 +6543,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     },
                     ['forecastpage_' + forecastSegmentPanelKey]: 0
                 });
+                if (renderCachedVisualPanel(root, state, forecastSegmentPanelKey)) {
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;
             }
@@ -6398,6 +6574,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     },
                     ['forecastpage_' + forecastSummaryPanelKey]: 0
                 });
+                if (renderCachedVisualPanel(root, state, forecastSummaryPanelKey)) {
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;
             }
@@ -6419,6 +6600,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     },
                     ['forecastpage_' + forecastBarPanelKey]: 0
                 });
+                if (renderCachedVisualPanel(root, state, forecastBarPanelKey)) {
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;
             }
@@ -6436,6 +6622,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     }),
                     ['forecastpage_' + forecastClearPanelKey]: 0
                 });
+                if (renderCachedVisualPanel(root, state, forecastClearPanelKey)) {
+                    persistState(root, state);
+                    commitBrowserHistoryState(root, state, 'push');
+                    return;
+                }
                 loadVisuals(root, state, state.currentTab || 'forecast', state.currentVisualOverrides);
                 return;
             }
@@ -6484,6 +6675,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     var overrideKey = 'paneltab_' + panelKey;
                     state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {});
                     state.currentVisualOverrides[overrideKey] = tabKey;
+                    if (renderCachedVisualPanel(root, state, panelKey)) {
+                        persistState(root, state);
+                        commitBrowserHistoryState(root, state, 'push');
+                        return;
+                    }
                     loadVisuals(root, state, state.currentTab || 'compliance', state.currentVisualOverrides);
                 }
                 return;
