@@ -1212,7 +1212,13 @@ class document_repository {
     }
 
     private function filtered_document_records(array $filters, string $status): array {
-        $records = $this->overview_rows($filters);
+        $search = trim((string)($filters['search'] ?? ''));
+        $recordfilters = $filters;
+        if ($search !== '') {
+            unset($recordfilters['search']);
+        }
+
+        $records = $this->overview_rows($recordfilters);
         if ($status === 'expired') {
             $records = array_values(array_filter($records, static function(array $row): bool {
                 return $row['status'] === 'Expired';
@@ -1257,6 +1263,10 @@ class document_repository {
             }));
         }
 
+        if ($search !== '') {
+            $records = $this->filter_records_by_matrix_search($records, $search);
+        }
+
         usort($records, static function(array $a, array $b): int {
             $astatus = self::matrix_status_weight((string)($a['status'] ?? ''));
             $bstatus = self::matrix_status_weight((string)($b['status'] ?? ''));
@@ -1280,6 +1290,47 @@ class document_repository {
         });
 
         return $records;
+    }
+
+    private function filter_records_by_matrix_search(array $records, string $search): array {
+        $needle = mb_strtolower(trim($search));
+        if ($needle === '') {
+            return $records;
+        }
+
+        $matchingusers = [];
+        foreach ($records as $record) {
+            if ($this->record_matches_matrix_search($record, $needle)) {
+                $userid = (int)($record['userid'] ?? 0);
+                if ($userid > 0) {
+                    $matchingusers[$userid] = true;
+                }
+            }
+        }
+
+        if (!$matchingusers) {
+            return [];
+        }
+
+        return array_values(array_filter($records, static function(array $record) use ($matchingusers): bool {
+            return isset($matchingusers[(int)($record['userid'] ?? 0)]);
+        }));
+    }
+
+    private function record_matches_matrix_search(array $record, string $needle): bool {
+        $firstname = (string)($record['firstname'] ?? '');
+        $lastname = (string)($record['lastname'] ?? '');
+        $haystack = implode(' ', [
+            $firstname,
+            $lastname,
+            trim($firstname . ' ' . $lastname),
+            trim($lastname . ' ' . $firstname),
+            (string)($record['employee'] ?? ''),
+            (string)($record['email'] ?? ''),
+            (string)($record['course'] ?? ''),
+        ]);
+
+        return mb_strpos(mb_strtolower($haystack), $needle) !== false;
     }
 
     private function document_matrix_groups(array $filters, string $status): array {
