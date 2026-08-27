@@ -24,6 +24,9 @@ class get_report_builder_config extends \external_api {
 
         $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid]);
         $context = context_resolver::require_context((int)$params['contextid']);
+        if (!is_siteadmin((int)$USER->id)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
 
         $service = new report_service();
         return ['json' => json_encode($service->builder_config($context, (int)$USER->id))];

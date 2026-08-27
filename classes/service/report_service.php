@@ -18,6 +18,10 @@ class report_service {
     }
 
     public function builder_config(\context $context, int $userid): array {
+        if (!is_siteadmin($userid)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
+
         $now = time();
         $currentyear = (int)date('Y', $now);
         $currentmonth = (int)date('n', $now);
@@ -74,10 +78,16 @@ class report_service {
     }
 
     public function save_template(int $userid, int $templateid, string $name, array $columns, array $filters): array {
+        if (!is_siteadmin($userid)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
         return $this->repository->save_template($userid, $templateid, $name, $columns, $filters);
     }
 
     public function delete_template(int $userid, int $templateid): array {
+        if (!is_siteadmin($userid)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
         $this->repository->delete_template($userid, $templateid);
         return ['success' => true, 'templates' => $this->repository->templates_for_user($userid)];
     }

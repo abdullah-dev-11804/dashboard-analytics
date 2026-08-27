@@ -149,6 +149,28 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         forecastPeriodLabel: 'Period',
         forecastCompanyLabel: 'Company',
         learningMatrixTitle: 'The Learning Matrix',
+        reportBuilderTitle: 'Reports',
+        reportBuilderDescription: 'Build private completion reports from LMS records.',
+        reportBuilderPanelTitle: 'Report builder',
+        reportBuilderPanelDescription: 'Choose company, period, columns, and a saved template, then export the matching records.',
+        reportBuilderTemplate: 'Template',
+        reportBuilderNewTemplate: 'New template',
+        reportBuilderTemplateName: 'Template name',
+        reportBuilderSaveTemplate: 'Save template',
+        reportBuilderDeleteTemplate: 'Delete template',
+        reportBuilderPeriodMonth: 'Month / Year',
+        reportBuilderPeriodCustom: 'Custom range',
+        reportBuilderYearLabel: 'Year',
+        reportBuilderMonthLabel: 'Month',
+        reportBuilderSearch: 'Search records',
+        reportBuilderColumns: 'Columns',
+        reportBuilderLoad: 'Load report',
+        reportBuilderNoResults: 'Select company and period, then load the report.',
+        reportBuilderRecords: 'Records',
+        reportBuilderOnline: 'Online',
+        reportBuilderOffline: 'Offline',
+        reportBuilderActive: 'Active',
+        reportBuilderUntitled: 'Untitled report',
         expiryNotifyNow: 'Notify coordinator now',
         expiryNotifyNowConfirm: 'Send the expiry digest now to the configured recipients for this company?',
         expiryNotifyNowTitle: 'Send expiry digest',
@@ -280,6 +302,28 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         {key: 'js:qualityfeedbackheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualityrelevanceheader', component: 'block_dashboardanalytics'},
         {key: 'js:qualitynofeedback', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildertitle', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderdescription', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderpaneltitle', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderpaneldescription', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildertemplate', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildernewtemplate', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildertemplatename', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildersavetemplate', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderdeletetemplate', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderperiodmonth', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderperiodcustom', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderyearlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildermonthlabel', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildersearch', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildercolumns', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderload', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuildernoresults', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderrecords', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderonline', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderoffline', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderactive', component: 'block_dashboardanalytics'},
+        {key: 'js:reportbuilderuntitled', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticssearch', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsincluded', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsexcluded', component: 'block_dashboardanalytics'},
@@ -448,6 +492,28 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         'qualityFeedbackHeader',
         'qualityRelevanceHeader',
         'qualityNoFeedback',
+        'reportBuilderTitle',
+        'reportBuilderDescription',
+        'reportBuilderPanelTitle',
+        'reportBuilderPanelDescription',
+        'reportBuilderTemplate',
+        'reportBuilderNewTemplate',
+        'reportBuilderTemplateName',
+        'reportBuilderSaveTemplate',
+        'reportBuilderDeleteTemplate',
+        'reportBuilderPeriodMonth',
+        'reportBuilderPeriodCustom',
+        'reportBuilderYearLabel',
+        'reportBuilderMonthLabel',
+        'reportBuilderSearch',
+        'reportBuilderColumns',
+        'reportBuilderLoad',
+        'reportBuilderNoResults',
+        'reportBuilderRecords',
+        'reportBuilderOnline',
+        'reportBuilderOffline',
+        'reportBuilderActive',
+        'reportBuilderUntitled',
         'courseAnalyticsSearch',
         'courseAnalyticsIncluded',
         'courseAnalyticsExcluded',
@@ -1098,7 +1164,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '</span>';
     };
 
-    var tableHeaderMarkup = function(column, currentKey, currentDir, sortable) {
+    var tableHeaderMarkup = function(column, currentKey, currentDir, sortable, sortableAll) {
         if (!sortable) {
             if (column.key === 'employee') {
                 return '<th scope="col">' + employeeHeaderMarkup(currentKey, currentDir, false) + '</th>';
@@ -1111,7 +1177,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
 
         var sortableKeys = ['position', 'company', 'location', 'department', 'site', 'course', 'expiry', 'days', 'status'];
-        if (sortableKeys.indexOf(column.key) !== -1) {
+        if (sortableAll || sortableKeys.indexOf(column.key) !== -1) {
             return '<th scope="col">' + sortButtonMarkup(column.label, column.key, currentKey, currentDir) + '</th>';
         }
 
@@ -1433,8 +1499,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var sortableMatrix = (data.rows || []).some(function(row) {
             return row.rowtype === 'summary' || row.rowtype === 'course';
         });
+        var sortableAllColumns = !!(options && options.sortableallcolumns);
         var head = columns.map(function(column) {
-            return tableHeaderMarkup(column, currentSortKey, currentSortDir, sortableMatrix);
+            return tableHeaderMarkup(column, currentSortKey, currentSortDir, sortableMatrix || sortableAllColumns, sortableAllColumns);
         }).join('');
 
         var body = data.rows.map(function(row) {
@@ -1495,6 +1562,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                             + escapeHtml(cellsMetaByKey[key].courseurl) + '" title="' + value + '">' + value + '</a></td>';
                     }
                     return '<td class="da-table-course-cell"><span class="da-table-course-text" title="' + value + '">' + value + '</span></td>';
+                }
+                if (cellsMetaByKey[key] && cellsMetaByKey[key].url) {
+                    return '<td><a class="da-table-link" href="' + escapeHtml(cellsMetaByKey[key].url) + '" title="' + value + '">' + value + '</a></td>';
                 }
                 return '<td>' + value + '</td>';
             }).join('') + '</tr>';
@@ -1738,6 +1808,521 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             overrides: state.currentComplianceDrilldownOverrides || undefined,
             actionPrefix: 'compliance-inline'
         });
+    };
+
+    var reportBuilderRoot = function(root) {
+        return root.querySelector('[data-region="report-builder"]');
+    };
+
+    var reportBuilderConfigTemplates = function(state) {
+        return (((state || {}).currentReportBuilderConfig) || {}).templates || [];
+    };
+
+    var reportBuilderTemplateById = function(state, templateid) {
+        var id = String(templateid || 0);
+        var templates = reportBuilderConfigTemplates(state);
+        for (var i = 0; i < templates.length; i++) {
+            if (String((templates[i] || {}).id || 0) === id) {
+                return templates[i];
+            }
+        }
+        return null;
+    };
+
+    var reportBuilderField = function(root, name) {
+        var panel = reportBuilderRoot(root);
+        return panel ? panel.querySelector('[data-report-field="' + name + '"]') : null;
+    };
+
+    var reportBuilderState = function(state) {
+        return (state.currentVisualOverrides || {}).reportbuilder || {};
+    };
+
+    var setReportBuilderState = function(state, updates) {
+        state.currentVisualOverrides = state.currentVisualOverrides || {};
+        state.currentVisualOverrides.reportbuilder = Object.assign({}, reportBuilderState(state), updates || {});
+    };
+
+    var reportBuilderSetColumns = function(root, columns) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var selected = Array.isArray(columns) ? columns.map(function(column) {
+            return String(column || '');
+        }).filter(function(column) {
+            return !!column;
+        }) : [];
+
+        Array.prototype.slice.call(panel.querySelectorAll('[data-report-column]')).forEach(function(input) {
+            input.checked = selected.indexOf(input.getAttribute('data-report-column') || '') !== -1;
+        });
+    };
+
+    var reportBuilderSyncPeriodUi = function(root) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var periodmode = reportBuilderField(root, 'periodmode');
+        var isCustom = periodmode && periodmode.value === 'custom';
+        Array.prototype.slice.call(panel.querySelectorAll('[data-report-field="month"], [data-report-field="year"]')).forEach(function(field) {
+            var label = field.closest('label');
+            if (label) {
+                label.hidden = isCustom;
+            }
+        });
+        Array.prototype.slice.call(panel.querySelectorAll('[data-report-field="customstart"], [data-report-field="customend"]')).forEach(function(field) {
+            var label = field.closest('label');
+            if (label) {
+                label.hidden = !isCustom;
+            }
+        });
+    };
+
+    var reportBuilderApplyTemplate = function(root, state, templateid) {
+        var template = reportBuilderTemplateById(state, templateid);
+        var config = state.currentReportBuilderConfig || {};
+        var current = reportBuilderState(state);
+        var builder = Object.assign({}, current, {
+            templateid: Number(templateid) || 0
+        });
+
+        if (template) {
+            builder.templatename = template.name || builder.templatename || config.defaulttemplate || text('reportBuilderUntitled', 'Untitled report');
+            builder.columns = Array.isArray(template.columns) && template.columns.length ? template.columns.slice() : (config.defaultcolumns || []);
+            var filters = template.filters || {};
+            builder.companyid = Number(filters.companyid || builder.companyid || 0) || 0;
+            builder.periodmode = filters.periodmode || builder.periodmode || 'month';
+            builder.month = Number(filters.month || builder.month || config.defaultmonth || (new Date().getMonth() + 1)) || 0;
+            builder.year = Number(filters.year || builder.year || config.defaultyear || (new Date().getFullYear())) || 0;
+            builder.customstart = filters.customstart || builder.customstart || '';
+            builder.customend = filters.customend || builder.customend || '';
+            builder.search = filters.search || builder.search || '';
+            builder.sortkey = filters.sortkey || builder.sortkey || 'completiondate';
+            builder.sortdir = filters.sortdir || builder.sortdir || 'asc';
+            builder.page = Number(filters.page || builder.page || 0) || 0;
+            builder.perpage = Number(filters.perpage || builder.perpage || 20) || 20;
+        } else {
+            builder.templatename = builder.templatename || config.defaulttemplate || text('reportBuilderUntitled', 'Untitled report');
+            builder.columns = builder.columns || config.defaultcolumns || [];
+        }
+
+        state.currentVisualOverrides = state.currentVisualOverrides || {};
+        state.currentVisualOverrides.reportbuilder = builder;
+
+        var templateField = reportBuilderField(root, 'templateid');
+        if (templateField) {
+            templateField.value = String(builder.templateid || 0);
+        }
+        var templateName = reportBuilderField(root, 'templatename');
+        if (templateName) {
+            templateName.value = builder.templatename || '';
+        }
+        var companyField = reportBuilderField(root, 'companyid');
+        if (companyField) {
+            companyField.value = String(builder.companyid || '');
+        }
+        var periodField = reportBuilderField(root, 'periodmode');
+        if (periodField) {
+            periodField.value = builder.periodmode || 'month';
+        }
+        var monthField = reportBuilderField(root, 'month');
+        if (monthField) {
+            monthField.value = String(builder.month || '');
+        }
+        var yearField = reportBuilderField(root, 'year');
+        if (yearField) {
+            yearField.value = String(builder.year || '');
+        }
+        var customStartField = reportBuilderField(root, 'customstart');
+        if (customStartField) {
+            customStartField.value = builder.customstart || '';
+        }
+        var customEndField = reportBuilderField(root, 'customend');
+        if (customEndField) {
+            customEndField.value = builder.customend || '';
+        }
+        var searchField = reportBuilderField(root, 'search');
+        if (searchField) {
+            searchField.value = builder.search || '';
+        }
+        reportBuilderSetColumns(root, builder.columns || []);
+        reportBuilderSyncPeriodUi(root);
+        return loadReportBuilderRows(root, state, 'replace');
+    };
+
+    var reportBuilderRefreshTemplateSelect = function(root, state, selectedId) {
+        var config = state.currentReportBuilderConfig || {};
+        var templateSelect = reportBuilderField(root, 'templateid');
+        if (!templateSelect) {
+            return;
+        }
+
+        fillSelect(
+            templateSelect,
+            [{value: '0', label: text('reportBuilderNewTemplate', 'New template')}].concat((config.templates || []).map(function(template) {
+                return {value: String(template.id), label: template.name || ''};
+            })),
+            String(selectedId || 0)
+        );
+    };
+
+    var reportBuilderSelectedColumns = function(root) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return [];
+        }
+
+        return Array.prototype.slice.call(panel.querySelectorAll('[data-report-column]'))
+            .filter(function(input) {
+                return !!input.checked;
+            })
+            .map(function(input) {
+                return input.getAttribute('data-report-column') || '';
+            })
+            .filter(function(key) {
+                return !!key;
+            });
+    };
+
+    var reportBuilderReadForm = function(root) {
+        var valueOf = function(name) {
+            var field = reportBuilderField(root, name);
+            return field ? field.value : '';
+        };
+
+        var columns = reportBuilderSelectedColumns(root);
+        return {
+            templateid: Number(valueOf('templateid')) || 0,
+            templatename: valueOf('templatename'),
+            companyid: Number(valueOf('companyid')) || 0,
+            periodmode: valueOf('periodmode') || 'month',
+            month: Number(valueOf('month')) || 0,
+            year: Number(valueOf('year')) || 0,
+            customstart: valueOf('customstart'),
+            customend: valueOf('customend'),
+            search: valueOf('search'),
+            columns: columns.length ? columns : ['lastname', 'firstname', 'course', 'status', 'completiondate']
+        };
+    };
+
+    var reportBuilderExportUrl = function(root, state, scope, page, perpage, sortkey, sortdir, form) {
+        var params = new URLSearchParams();
+        params.set('contextid', String(state.contextid));
+        params.set('dashboardkey', String(state.dashboardkey || ''));
+        params.set('reportbuilder', '1');
+        params.set('filters', JSON.stringify({
+            companyids: form.companyid ? [form.companyid] : []
+        }));
+        params.set('options', JSON.stringify({
+            columns: form.columns || [],
+            search: form.search || '',
+            periodmode: form.periodmode || 'month',
+            months: form.periodmode === 'custom' ? [] : [form.month || new Date().getMonth() + 1],
+            years: form.periodmode === 'custom' ? [] : [form.year || new Date().getFullYear()],
+            customstart: form.customstart || '',
+            customend: form.customend || ''
+        }));
+        params.set('scope', scope === 'all' ? 'all' : 'visible');
+        params.set('page', String(Math.max(0, Number(page) || 0)));
+        params.set('perpage', String(Math.max(10, Number(perpage) || 20)));
+        params.set('sortkey', String(sortkey || 'completiondate'));
+        params.set('sortdir', String(sortdir || 'asc'));
+        params.set('sesskey', M.cfg.sesskey);
+        return M.cfg.wwwroot + '/blocks/dashboardanalytics/export.php?' + params.toString();
+    };
+
+    var renderReportBuilderPanel = function(panel, state) {
+        var builder = reportBuilderState(state);
+        var config = state.currentReportBuilderConfig || {};
+        var templates = config.templates || [];
+        var columns = config.columns || [];
+        var defaultcolumns = config.defaultcolumns || [];
+        var companyvisible = !!config.companyselector;
+        var companyOptions = (config.companies || []).map(function(option) {
+            return '<option value="' + escapeHtml(String(option.value)) + '">' + escapeHtml(option.label || '') + '</option>';
+        }).join('');
+        var monthOptions = (config.months || []).map(function(option) {
+            return '<option value="' + escapeHtml(String(option.value)) + '">' + escapeHtml(option.label || '') + '</option>';
+        }).join('');
+        var yearOptions = (config.years || []).map(function(option) {
+            return '<option value="' + escapeHtml(String(option.value)) + '">' + escapeHtml(option.label || '') + '</option>';
+        }).join('');
+
+        return '<div class="da-report-builder" data-region="report-builder">'
+            + '<div class="da-report-builder-topbar">'
+            + '<div class="da-report-builder-template">'
+            + '<label><span>' + escapeHtml(text('reportBuilderTemplate', 'Template')) + '</span>'
+            + '<select data-report-field="templateid"><option value="0">' + escapeHtml(text('reportBuilderNewTemplate', 'New template')) + '</option></select></label>'
+            + '<label><span>' + escapeHtml(text('reportBuilderTemplateName', 'Template name')) + '</span>'
+            + '<input type="text" data-report-field="templatename" value="' + escapeHtml(builder.templatename || '') + '" placeholder="' + escapeHtml(config.defaulttemplate || text('reportBuilderUntitled', 'Untitled report')) + '"></label>'
+            + '<div class="da-report-builder-template-actions">'
+            + '<button type="button" class="da-row-action" data-action="report-builder-save-template">' + escapeHtml(text('reportBuilderSaveTemplate', 'Save template')) + '</button>'
+            + '<button type="button" class="da-row-action" data-action="report-builder-delete-template">' + escapeHtml(text('reportBuilderDeleteTemplate', 'Delete template')) + '</button>'
+            + '</div>'
+            + '</div>'
+            + '</div>'
+            + '<div class="da-report-builder-controls">'
+            + (companyvisible ? '<label><span>' + escapeHtml(text('companyHeader', 'Company')) + '</span><select data-report-field="companyid">' + companyOptions + '</select></label>' : '')
+            + '<label><span>' + escapeHtml(text('forecastPeriodLabel', 'Period')) + '</span><select data-report-field="periodmode">'
+            + '<option value="month">' + escapeHtml(text('reportBuilderPeriodMonth', 'Month / Year')) + '</option>'
+            + '<option value="custom">' + escapeHtml(text('reportBuilderPeriodCustom', 'Custom range')) + '</option>'
+            + '</select></label>'
+            + '<label><span>' + escapeHtml(text('forecastCustomStart', 'Start date')) + '</span><input type="date" data-report-field="customstart"></label>'
+            + '<label><span>' + escapeHtml(text('forecastCustomEnd', 'End date')) + '</span><input type="date" data-report-field="customend"></label>'
+            + '<label><span>' + escapeHtml(text('reportBuilderMonthLabel', 'Month')) + '</span><select data-report-field="month">' + monthOptions + '</select></label>'
+            + '<label><span>' + escapeHtml(text('reportBuilderYearLabel', 'Year')) + '</span><select data-report-field="year">' + yearOptions + '</select></label>'
+            + '<label class="da-report-builder-search"><span>' + escapeHtml(text('reportBuilderSearch', 'Search records')) + '</span><input type="search" data-report-field="search" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'records')) + '"></label>'
+            + '</div>'
+            + '<div class="da-report-builder-columns">'
+            + '<div class="da-report-builder-columns-head">'
+            + '<span>' + escapeHtml(text('reportBuilderColumns', 'Columns')) + '</span>'
+            + '<button type="button" class="da-row-action" data-action="report-builder-load">' + escapeHtml(text('reportBuilderLoad', 'Load report')) + '</button>'
+            + '<button type="button" class="da-row-action" data-action="report-builder-clear">' + escapeHtml(text('clearState', 'Clear')) + '</button>'
+            + '</div>'
+            + '<div class="da-report-builder-columns-grid" data-region="report-builder-columns">'
+            + columns.map(function(column) {
+                var checked = defaultcolumns.indexOf(column.key) !== -1 ? ' checked' : '';
+                return '<label class="da-report-builder-column"><input type="checkbox" data-report-column="' + escapeHtml(column.key) + '"' + checked + '><span>' + escapeHtml(column.label) + '</span></label>';
+            }).join('')
+            + '</div>'
+            + '</div>'
+            + '<div class="da-report-builder-summary" data-region="report-builder-summary"></div>'
+            + '<div class="da-report-builder-card-head">'
+            + '<h5>' + escapeHtml(text('learningMatrixTitle', 'The Learning Matrix')) + '</h5>'
+            + '<div class="da-report-builder-card-actions">'
+            + '<button type="button" class="da-row-action" data-action="report-builder-load">' + escapeHtml(text('reportBuilderLoad', 'Load report')) + '</button>'
+            + '</div>'
+            + '</div>'
+            + '<div class="da-report-builder-results" data-region="report-builder-results">'
+            + '<div class="da-empty">' + escapeHtml(text('reportBuilderNoResults', 'Select company and period, then load the report.')) + '</div>'
+            + '</div>'
+            + '</div>';
+    };
+
+    var renderReportBuilderSummary = function(root, summary) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var region = panel.querySelector('[data-region="report-builder-summary"]');
+        if (!region) {
+            return;
+        }
+
+        region.innerHTML = [
+            {label: text('reportBuilderRecords', 'Records'), value: summary.total || 0},
+            {label: text('reportBuilderOnline', 'Online'), value: summary.online || 0},
+            {label: text('reportBuilderOffline', 'Offline'), value: summary.offline || 0},
+            {label: text('reportBuilderActive', 'Active'), value: summary.active || 0}
+        ].map(function(item) {
+            return '<article class="da-report-builder-summary-card"><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(String(item.value)) + '</strong></article>';
+        }).join('');
+    };
+
+    var renderReportBuilderResults = function(root, state, response) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var results = panel.querySelector('[data-region="report-builder-results"]');
+        if (!results) {
+            return;
+        }
+
+        var form = reportBuilderState(state);
+        var currentPage = Math.max(0, Number(response.page) || 0);
+        var perpage = Math.max(10, Number(response.perpage) || 20);
+        response.exporturl = reportBuilderExportUrl(root, state, 'visible', currentPage, perpage, form.sortkey || 'completiondate', form.sortdir || 'asc', form);
+        response.exportallurl = reportBuilderExportUrl(root, state, 'all', currentPage, perpage, form.sortkey || 'completiondate', form.sortdir || 'asc', form);
+        response.sortableallcolumns = true;
+        response.description = response.description || '';
+        results.innerHTML = buildDrilldownTableResultsMarkup(root, response, state, {
+            page: currentPage,
+            perpage: perpage,
+            drilldownkey: 'reportbuilder',
+            overrides: {
+                search: form.search || '',
+                sortkey: form.sortkey || 'completiondate',
+                sortdir: form.sortdir || 'asc'
+            },
+            actionPrefix: 'report-builder',
+            sortableallcolumns: true
+        }).results;
+        renderReportBuilderSummary(root, response.summary || {});
+    };
+
+    var loadReportBuilderConfig = function(root, state) {
+        var panel = reportBuilderRoot(root);
+        if (!panel || panel.getAttribute('data-config-loaded') === '1') {
+            return;
+        }
+
+        panel.setAttribute('data-config-loaded', '1');
+
+        return call('block_dashboardanalytics_get_report_builder_config', {
+            contextid: state.contextid
+        }).then(function(response) {
+            var config = {};
+            try {
+                config = JSON.parse(response.json || '{}') || {};
+            } catch (e) {
+                config = {};
+            }
+            state.currentReportBuilderConfig = config;
+
+            var builder = reportBuilderState(state);
+            if (!builder.companyid && (config.companies || []).length) {
+                builder.companyid = Number((config.companies[0] || {}).value) || 0;
+            }
+            builder.periodmode = builder.periodmode || 'month';
+            builder.month = builder.month || Number(config.defaultmonth) || (new Date().getMonth() + 1);
+            builder.year = builder.year || Number(config.defaultyear) || (new Date().getFullYear());
+            builder.columns = Array.isArray(builder.columns) && builder.columns.length ? builder.columns : (config.defaultcolumns || []);
+            state.currentVisualOverrides = state.currentVisualOverrides || {};
+            state.currentVisualOverrides.reportbuilder = builder;
+
+            fillSelect(reportBuilderField(root, 'templateid'), [{value: '0', label: text('js:newtemplate', 'New template')}].concat((config.templates || []).map(function(template) {
+                return {value: String(template.id), label: template.name || ''};
+            })), String(builder.templateid || 0));
+            fillSelect(reportBuilderField(root, 'companyid'), config.companyselector ? (config.companies || []) : [], String(builder.companyid || ''));
+            fillSelect(reportBuilderField(root, 'month'), config.months || [], String(builder.month || config.defaultmonth || ''));
+            fillSelect(reportBuilderField(root, 'year'), config.years || [], String(builder.year || config.defaultyear || ''));
+
+            var periodmode = reportBuilderField(root, 'periodmode');
+            if (periodmode) {
+                periodmode.value = builder.periodmode || 'month';
+            }
+
+            var templateName = reportBuilderField(root, 'templatename');
+            if (templateName && !templateName.value) {
+                templateName.value = builder.templatename || config.defaulttemplate || text('reportsbuilder:untitledtemplate', 'Untitled report');
+            }
+
+            var columnsRegion = panel.querySelector('[data-region="report-builder-columns"]');
+            if (columnsRegion) {
+                columnsRegion.innerHTML = (config.columns || []).map(function(column) {
+                    var checked = builder.columns.indexOf(column.key) !== -1 ? ' checked' : '';
+                    return '<label class="da-report-builder-column"><input type="checkbox" data-report-column="' + escapeHtml(column.key) + '"' + checked + '><span>' + escapeHtml(column.label) + '</span></label>';
+                }).join('');
+            }
+
+            return loadReportBuilderRows(root, state, 'replace');
+        }).catch(Notification.exception);
+    };
+
+    var loadReportBuilderRows = function(root, state, renderMode) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return Promise.resolve();
+        }
+
+        var form = reportBuilderReadForm(root);
+        var builder = Object.assign({}, reportBuilderState(state), form);
+        builder.page = Number(builder.page || 0) || 0;
+        builder.perpage = Number(builder.perpage || 20) || 20;
+        setReportBuilderState(state, builder);
+
+        var responseTarget = panel.querySelector('[data-region="report-builder-results"]');
+        if (responseTarget) {
+            setLoading(responseTarget);
+        }
+
+        var monthValues = builder.periodmode === 'custom' ? [] : [builder.month];
+        var yearValues = builder.periodmode === 'custom' ? [] : [builder.year];
+        var filters = {
+            companyids: builder.companyid ? [builder.companyid] : []
+        };
+
+        return call('block_dashboardanalytics_get_report_builder_rows', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            filters: JSON.stringify(filters),
+            options: JSON.stringify({
+                columns: builder.columns,
+                search: builder.search,
+                periodmode: builder.periodmode,
+                months: monthValues,
+                years: yearValues,
+                customstart: builder.customstart,
+                customend: builder.customend
+            }),
+            page: builder.page,
+            perpage: builder.perpage,
+            sortkey: builder.sortkey || 'completiondate',
+            sortdir: builder.sortdir || 'asc'
+        }).then(function(response) {
+            var payload = {};
+            try {
+                payload = JSON.parse(response.json || '{}') || {};
+            } catch (e) {
+                payload = {};
+            }
+            state.currentReportBuilderRows = payload;
+            renderReportBuilderResults(root, state, payload);
+        }).catch(Notification.exception);
+    };
+
+    var clearReportBuilderForm = function(root, state) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        var defaults = state.currentReportBuilderConfig || {};
+        var builder = {
+            templateid: 0,
+            templatename: defaults.defaulttemplate || text('reportsbuilder:untitledtemplate', 'Untitled report'),
+            companyid: Number(((defaults.companies || [])[0] || {}).value) || 0,
+            periodmode: 'month',
+            month: Number(defaults.defaultmonth) || (new Date().getMonth() + 1),
+            year: Number(defaults.defaultyear) || (new Date().getFullYear()),
+            customstart: '',
+            customend: '',
+            search: '',
+            columns: defaults.defaultcolumns || [],
+            sortkey: 'completiondate',
+            sortdir: 'asc',
+            page: 0,
+            perpage: 20
+        };
+
+        state.currentVisualOverrides = state.currentVisualOverrides || {};
+        state.currentVisualOverrides.reportbuilder = builder;
+        fillSelect(reportBuilderField(root, 'templateid'), [{value: '0', label: text('js:newtemplate', 'New template')}].concat((defaults.templates || []).map(function(template) {
+            return {value: String(template.id), label: template.name || ''};
+        })), '0');
+        fillSelect(reportBuilderField(root, 'companyid'), defaults.companyselector ? (defaults.companies || []) : [], String(builder.companyid || ''));
+        fillSelect(reportBuilderField(root, 'month'), defaults.months || [], String(builder.month));
+        fillSelect(reportBuilderField(root, 'year'), defaults.years || [], String(builder.year));
+        var templateName = reportBuilderField(root, 'templatename');
+        if (templateName) {
+            templateName.value = builder.templatename;
+        }
+        var customStart = reportBuilderField(root, 'customstart');
+        var customEnd = reportBuilderField(root, 'customend');
+        var search = reportBuilderField(root, 'search');
+        var periodmode = reportBuilderField(root, 'periodmode');
+        if (periodmode) {
+            periodmode.value = 'month';
+        }
+        if (customStart) {
+            customStart.value = '';
+        }
+        if (customEnd) {
+            customEnd.value = '';
+        }
+        if (search) {
+            search.value = '';
+        }
+        reportBuilderSetColumns(root, builder.columns || []);
+        reportBuilderSyncPeriodUi(root);
+        return loadReportBuilderRows(root, state, 'replace');
     };
 
     var renderReportsActPanel = function() {
@@ -2892,7 +3477,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow', 'turnovercombo'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportbuilder', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow', 'turnovercombo'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
                 || panel.type === 'analyticscourses';
         };
@@ -2931,7 +3516,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         + escapeHtml(tab.label) + '</button>';
                 }).join('') + '</div>';
             }
-            if (panel.type === 'reportsact') {
+            if (panel.type === 'reportbuilder') {
+                body = renderReportBuilderPanel(panel, state);
+            } else if (panel.type === 'reportsact') {
                 body = renderReportsActPanel();
             } else if (panel.type === 'analyticscourses') {
                 body = renderCourseAnalyticsPanel();
@@ -4389,6 +4976,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 : '');
 
         drawDoughnuts(root, panels);
+        if (panels.some(function(panel) { return panel.type === 'reportbuilder'; })) {
+            loadReportBuilderConfig(root, state);
+        }
         if (panels.some(function(panel) { return panel.type === 'reportsact'; })) {
             loadReportsActConfig(root, state);
         }
@@ -5608,6 +6198,16 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 return;
             }
 
+            if (event.target.matches('[data-action="report-builder-perpage"]')) {
+                rememberCurrentState(root, state);
+                setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
+                    perpage: Number(event.target.value) || 20,
+                    page: 0
+                }));
+                loadReportBuilderRows(root, state, 'replace');
+                return;
+            }
+
             if (event.target.matches('[data-action="expiry-workflow-company"]')) {
                 rememberCurrentState(root, state);
                 loadExpiryWorkflowControl(root, state, {
@@ -5684,6 +6284,41 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 updateReportsActPreview(root);
                 return;
             }
+
+            if (event.target.matches('[data-report-field]')) {
+                var reportField = event.target.getAttribute('data-report-field');
+                if (reportField === 'templateid') {
+                    rememberCurrentState(root, state);
+                    reportBuilderApplyTemplate(root, state, event.target.value || '0');
+                    return;
+                }
+                if (reportField === 'periodmode') {
+                    rememberCurrentState(root, state);
+                    setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
+                        periodmode: event.target.value || 'month',
+                        page: 0
+                    }));
+                    reportBuilderSyncPeriodUi(root);
+                    loadReportBuilderRows(root, state, 'replace');
+                    return;
+                }
+
+                if (['companyid', 'month', 'year', 'customstart', 'customend', 'templatename'].indexOf(reportField) !== -1) {
+                    rememberCurrentState(root, state);
+                    loadReportBuilderRows(root, state, 'replace');
+                    return;
+                }
+            }
+
+            if (event.target.matches('[data-report-column]')) {
+                rememberCurrentState(root, state);
+                setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
+                    columns: reportBuilderSelectedColumns(root),
+                    page: 0
+                }));
+                loadReportBuilderRows(root, state, 'replace');
+                return;
+            }
         });
 
         root.addEventListener('input', function(event) {
@@ -5717,6 +6352,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         courseanalytics_page: 0
                     });
                     loadCourseAnalyticsControl(root, state);
+                }, 250);
+                return;
+            }
+            if (event.target.matches('[data-action="report-builder-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    rememberCurrentState(root, state);
+                    setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
+                        search: event.target.value || '',
+                        page: 0
+                    }));
+                    loadReportBuilderRows(root, state, 'replace');
                 }, 250);
                 return;
             }
@@ -5973,6 +6620,142 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                         }
                     }
                 }
+                return;
+            }
+
+            var reportBuilderLoad = event.target.closest('[data-action="report-builder-load"]');
+            if (reportBuilderLoad && root.contains(reportBuilderLoad)) {
+                rememberCurrentState(root, state);
+                loadReportBuilderRows(root, state, 'replace');
+                return;
+            }
+
+            var reportBuilderSaveTemplate = event.target.closest('[data-action="report-builder-save-template"]');
+            if (reportBuilderSaveTemplate && root.contains(reportBuilderSaveTemplate)) {
+                rememberCurrentState(root, state);
+                reportBuilderSaveTemplate.disabled = true;
+                var reportBuilderPanel = reportBuilderRoot(root);
+                var builderState = reportBuilderState(state);
+                var reportBuilderForm = reportBuilderReadForm(root);
+                call('block_dashboardanalytics_save_report_template', {
+                    contextid: state.contextid,
+                    templateid: Number(reportBuilderForm.templateid) || 0,
+                    name: reportBuilderForm.templatename || '',
+                    columns: JSON.stringify(reportBuilderForm.columns || []),
+                    filters: JSON.stringify({
+                        companyid: reportBuilderForm.companyid || 0,
+                        periodmode: reportBuilderForm.periodmode || 'month',
+                        month: reportBuilderForm.month || 0,
+                        year: reportBuilderForm.year || 0,
+                        customstart: reportBuilderForm.customstart || '',
+                        customend: reportBuilderForm.customend || '',
+                        search: reportBuilderForm.search || '',
+                        sortkey: builderState.sortkey || 'completiondate',
+                        sortdir: builderState.sortdir || 'asc',
+                        page: builderState.page || 0,
+                        perpage: builderState.perpage || 20
+                    })
+                }).then(function(response) {
+                    var payload = {};
+                    try {
+                        payload = JSON.parse(response.json || '{}') || {};
+                    } catch (e) {
+                        payload = {};
+                    }
+
+                    if (payload.templates) {
+                        state.currentReportBuilderConfig = state.currentReportBuilderConfig || {};
+                        state.currentReportBuilderConfig.templates = payload.templates;
+                    }
+                    if (payload.template) {
+                        state.currentVisualOverrides = state.currentVisualOverrides || {};
+                        state.currentVisualOverrides.reportbuilder = Object.assign({}, reportBuilderState(state), {
+                            templateid: Number(payload.template.id) || 0,
+                            templatename: payload.template.name || ''
+                        });
+                        reportBuilderRefreshTemplateSelect(root, state, payload.template.id);
+                        var templateField = reportBuilderField(root, 'templatename');
+                        if (templateField) {
+                            templateField.value = payload.template.name || '';
+                        }
+                    }
+                    Notification.addNotification({
+                        message: 'Report template saved.',
+                        type: 'success'
+                    });
+                    return loadReportBuilderRows(root, state, 'replace');
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    reportBuilderSaveTemplate.disabled = false;
+                });
+                return;
+            }
+
+            var reportBuilderDeleteTemplate = event.target.closest('[data-action="report-builder-delete-template"]');
+            if (reportBuilderDeleteTemplate && root.contains(reportBuilderDeleteTemplate)) {
+                rememberCurrentState(root, state);
+                var reportBuilderTemplateId = Number((reportBuilderField(root, 'templateid') || {}).value) || 0;
+                if (!reportBuilderTemplateId) {
+                    Notification.addNotification({
+                        message: 'Select a template first.',
+                        type: 'info'
+                    });
+                    return;
+                }
+                reportBuilderDeleteTemplate.disabled = true;
+                call('block_dashboardanalytics_delete_report_template', {
+                    contextid: state.contextid,
+                    templateid: reportBuilderTemplateId
+                }).then(function(response) {
+                    var payload = {};
+                    try {
+                        payload = JSON.parse(response.json || '{}') || {};
+                    } catch (e) {
+                        payload = {};
+                    }
+                    if (payload.templates) {
+                        state.currentReportBuilderConfig = state.currentReportBuilderConfig || {};
+                        state.currentReportBuilderConfig.templates = payload.templates;
+                    }
+                    state.currentVisualOverrides = state.currentVisualOverrides || {};
+                    state.currentVisualOverrides.reportbuilder = Object.assign({}, reportBuilderState(state), {
+                        templateid: 0
+                    });
+                    reportBuilderRefreshTemplateSelect(root, state, 0);
+                    Notification.addNotification({
+                        message: 'Report template deleted.',
+                        type: 'success'
+                    });
+                    return loadReportBuilderRows(root, state, 'replace');
+                }).catch(function(error) {
+                    Notification.exception(error);
+                }).finally(function() {
+                    reportBuilderDeleteTemplate.disabled = false;
+                });
+                return;
+            }
+
+            var reportBuilderSort = event.target.closest('[data-action="drilldown-sort"]');
+            if (reportBuilderSort && root.contains(reportBuilderSort) && reportBuilderSort.closest('[data-region="report-builder"]')) {
+                rememberCurrentState(root, state);
+                var currentReportBuilder = reportBuilderState(state);
+                setReportBuilderState(state, Object.assign({}, currentReportBuilder, {
+                    sortkey: reportBuilderSort.getAttribute('data-sort-key') || 'completiondate',
+                    sortdir: reportBuilderSort.getAttribute('data-sort-dir') === 'desc' ? 'desc' : 'asc',
+                    page: 0
+                }));
+                loadReportBuilderRows(root, state, 'replace');
+                return;
+            }
+
+            var reportBuilderPage = event.target.closest('[data-action="report-builder-page"]');
+            if (reportBuilderPage && root.contains(reportBuilderPage) && !reportBuilderPage.disabled) {
+                rememberCurrentState(root, state);
+                setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
+                    page: Number(reportBuilderPage.getAttribute('data-page')) || 0
+                }));
+                loadReportBuilderRows(root, state, 'replace');
                 return;
             }
 

@@ -28,13 +28,16 @@ class delete_report_template extends \external_api {
             'templateid' => $templateid,
         ]);
 
-        context_resolver::require_context((int)$params['contextid']);
+        $context = context_resolver::require_context((int)$params['contextid']);
+        if (!is_siteadmin((int)$USER->id)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
 
         $service = new report_service();
         $service->delete_template((int)$USER->id, (int)$params['templateid']);
 
         return ['json' => json_encode([
-            'templates' => $service->builder_config(\context_system::instance(), (int)$USER->id)['templates'] ?? [],
+            'templates' => $service->builder_config($context, (int)$USER->id)['templates'] ?? [],
         ])];
     }
 

@@ -35,7 +35,9 @@ class save_report_template extends \external_api {
         ]);
 
         $context = context_resolver::require_context((int)$params['contextid']);
-        context_resolver::require_context((int)$params['contextid']);
+        if (!is_siteadmin((int)$USER->id)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
 
         $service = new report_service();
         $template = $service->save_template(

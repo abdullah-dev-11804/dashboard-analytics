@@ -502,6 +502,16 @@
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-card-head {
         flex-wrap: wrap;
     }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template {
+        grid-template-columns: 1fr;
+    }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-summary,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-columns-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 720px) {
@@ -891,6 +901,13 @@
     .path-block-dashboardanalytics-view .dashboardanalytics-page .da-reports-act-document li strong {
         text-align: left;
     }
+
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-summary,
+    .path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-columns-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 420px) {
@@ -1079,4 +1096,142 @@
     color: #64748b;
     font-size: .84rem;
     font-weight: 600;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder {
+    display: grid;
+    gap: 14px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-topbar,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-columns-head,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(240px, 1.4fr) auto;
+    gap: 12px;
+    width: 100%;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template label,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls label {
+    display: grid;
+    gap: 6px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template span,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls span {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #516982;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template-actions,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template input,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-template select,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls input,
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-controls select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #d5e0ec;
+    border-radius: 6px;
+    background: #fff;
+    color: #14233b;
+    padding: 8px 10px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-columns {
+    border: 1px solid #dbe6f2;
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-columns-head {
+    margin-bottom: 10px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-columns-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px 12px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-column {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: #17304d;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-column span {
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-summary-card {
+    background: #f3f7fc;
+    border: 1px solid #dbe6f2;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-summary-card span {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #63738a;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-summary-card strong {
+    display: block;
+    font-size: 22px;
+    color: #2f68ae;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-card-head {
+    margin-top: 4px;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-card-head h5 {
+    margin: 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #516982;
+}
+
+.path-block-dashboardanalytics-view .dashboardanalytics-page .da-report-builder-results {
+    min-width: 0;
 }

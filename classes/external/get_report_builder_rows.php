@@ -52,6 +52,9 @@ class get_report_builder_rows extends \external_api {
         ]);
 
         $context = context_resolver::require_context((int)$params['contextid']);
+        if (!is_siteadmin((int)$USER->id)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
         $dashboardkey = permissions::require_dashboard_key($context, (string)$params['dashboardkey'], (int)$USER->id);
         $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
 

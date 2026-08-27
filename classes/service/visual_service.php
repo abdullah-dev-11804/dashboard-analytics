@@ -344,29 +344,33 @@ class visual_service {
             return $this->client_new_staff($filters);
         }
 
-        if ($tabkey === 'reports') {
-            return $this->reports($filters);
-        }
-
         return $this->client_overview($filters);
     }
     
     private function reports(array $filters): array {
+        global $USER;
+
+        if (!is_siteadmin((int)$USER->id)) {
+            throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
+        }
+
         $reportrepo = new report_repository();
+        $title = $this->safe_string('panel:reportsbuilder:title', 'block_dashboardanalytics', 'Reports');
+        $description = $this->safe_string('panel:reportsbuilder:description', 'block_dashboardanalytics', 'Build private completion reports from LMS records.');
+        $paneltitle = $this->safe_string('panel:reportsbuilder:paneltitle', 'block_dashboardanalytics', 'Report builder');
+        $paneldescription = $this->safe_string('panel:reportsbuilder:paneldescription', 'block_dashboardanalytics', 'Choose company, period, columns, and a saved template, then export the matching records.');
 
         return [
-            'title' => get_string('panel:reportsbuilder:title', 'block_dashboardanalytics'),
-            'description' => get_string('panel:reportsbuilder:description', 'block_dashboardanalytics'),
+            'title' => $title,
+            'description' => $description,
             'panels' => [
                 $this->panel(
                     'reportsbuilder',
-                    get_string('panel:reportsbuilder:paneltitle', 'block_dashboardanalytics'),
+                    $paneltitle,
                     'reportbuilder',
-                    get_string('panel:reportsbuilder:paneldescription', 'block_dashboardanalytics'),
+                    $paneldescription,
                     [],
-                    [
-                        'columns' => $reportrepo->default_column_keys(),
-                    ]
+                    ['columns' => $reportrepo->default_column_keys()]
                 ),
             ],
         ];
@@ -514,5 +518,14 @@ class visual_service {
             return (string)(int)round($rounded);
         }
         return format_float($rounded, 1);
+    }
+
+    private function safe_string(string $identifier, string $component, string $fallback): string {
+        $value = get_string($identifier, $component);
+        if ($value === "[[$identifier]]" || $value === $identifier) {
+            return $fallback;
+        }
+
+        return $value;
     }
 }
