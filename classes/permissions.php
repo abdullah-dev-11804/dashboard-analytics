@@ -105,6 +105,7 @@ class permissions {
                 ['key' => 'kpis', 'label' => get_string('tab:kpis', 'block_dashboardanalytics')],
                 ['key' => 'compliance', 'label' => get_string('tab:compliance', 'block_dashboardanalytics')],
                 ['key' => 'turnover', 'label' => get_string('tab:turnover', 'block_dashboardanalytics')],
+                ['key' => 'reports', 'label' => get_string('tab:reports', 'block_dashboardanalytics')],
             ],
             self::DASHBOARD_EMPLOYEE => [
                 ['key' => 'overview', 'label' => get_string('tab:overview', 'block_dashboardanalytics')],

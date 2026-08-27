@@ -947,6 +947,7 @@ class overview_repository {
                 'position' => (string)$record->positionname,
                 'course' => format_string((string)$record->coursename),
                 'documentid' => $documentid,
+                'sourceid' => (int)($document['sourceid'] ?? $documentid),
                 'issuedate' => (int)($document['issuedate'] ?? 0),
                 'expirytime' => $expirytime ?? 0,
                 'status' => $status,
@@ -987,6 +988,7 @@ class overview_repository {
                          END AS expirytime";
 
         $sql = "SELECT d.id AS documentid,
+                       d.id AS sourceid,
                        u.id AS userid,
                        c.id AS courseid,
                        cc.timecompleted AS issuedate,
@@ -1019,17 +1021,20 @@ class overview_repository {
 
         $versionjoin = '';
         $expiryexpr = "d.expirydate";
+        $sourceidexpr = "d.{$source['documentid']}";
         if (!empty($source['versiontable'])) {
             $versionjoin = "LEFT JOIN {{$source['versiontable']}} v
                                    ON v.documentid = d.{$source['documentid']}
                                   AND v.versionno = d.{$source['currentversion']}";
             $expiryexpr = "COALESCE(v.expirydate, d.expirydate)";
+            $sourceidexpr = "COALESCE(v.id, d.{$source['documentid']})";
         }
 
         $rowkeyexpr = $DB->sql_concat("d.{$source['documentid']}", "':'", "du.{$source['userid']}");
 
         $sql = "SELECT {$rowkeyexpr} AS rowkey,
                        d.{$source['documentid']} AS documentid,
+                       {$sourceidexpr} AS sourceid,
                        du.{$source['userid']} AS userid,
                        c.id AS courseid,
                        COALESCE(v.issuedate, d.issuedate) AS issuedate,
@@ -1056,6 +1061,7 @@ class overview_repository {
         foreach ($records as $record) {
             $candidate = [
                 'documentid' => (int)$record->documentid,
+                'sourceid' => (int)($record->sourceid ?? $record->documentid),
                 'issuedate' => !empty($record->issuedate) ? (int)$record->issuedate : 0,
                 'expirytime' => $record->expirytime !== null ? (int)$record->expirytime : null,
                 'null_expiry_means_active' => $nullExpiryMeansActive,

@@ -12,6 +12,7 @@ use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\expiry_workflow_repository;
 use block_dashboardanalytics\repository\overview_repository;
+use block_dashboardanalytics\repository\report_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
 use block_dashboardanalytics\repository\server_repository;
 use block_dashboardanalytics\repository\turnover_repository;
@@ -62,7 +63,7 @@ class visual_service {
         }
 
         if ($tabkey === 'reports') {
-            return $this->reports_act($filters);
+            return $this->reports($filters);
         }
 
         if ($tabkey === 'analyticscourses') {
@@ -343,30 +344,33 @@ class visual_service {
             return $this->client_new_staff($filters);
         }
 
+        if ($tabkey === 'reports') {
+            return $this->reports($filters);
+        }
+
         return $this->client_overview($filters);
     }
     
-    private function reports_act(array $filters): array {
-    return [
-        'title' => get_string('panel:reportsact:title', 'block_dashboardanalytics'),
-        'description' => get_string('panel:reportsact:description', 'block_dashboardanalytics'),
-        'panels' => [
-            $this->panel(
-                'reportsact',
-                get_string('panel:reportsact:formtitle', 'block_dashboardanalytics'),
-                'reportsact',
-                get_string('panel:reportsact:formdescription', 'block_dashboardanalytics'),
-                    [[
-                        'label' => get_string('panel:reportsact:formtitle', 'block_dashboardanalytics'),
-                        'value' => '1',
-                        'percent' => 0.0,
-                        'status' => 'info',
-                        'meta' => '',
-                    ]]
+    private function reports(array $filters): array {
+        $reportrepo = new report_repository();
+
+        return [
+            'title' => get_string('panel:reportsbuilder:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:reportsbuilder:description', 'block_dashboardanalytics'),
+            'panels' => [
+                $this->panel(
+                    'reportsbuilder',
+                    get_string('panel:reportsbuilder:paneltitle', 'block_dashboardanalytics'),
+                    'reportbuilder',
+                    get_string('panel:reportsbuilder:paneldescription', 'block_dashboardanalytics'),
+                    [],
+                    [
+                        'columns' => $reportrepo->default_column_keys(),
+                    ]
                 ),
             ],
         ];
-    }   
+    }
 
     private function client_overview(array $filters): array {
         $documents = new document_repository();

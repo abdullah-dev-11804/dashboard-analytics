@@ -142,5 +142,26 @@ function xmldb_block_dashboardanalytics_upgrade(int $oldversion): bool {
         upgrade_block_savepoint(true, 2026080400, 'dashboardanalytics');
     }
 
+    if ($oldversion < 2026082700) {
+        $table = new xmldb_table('block_da_reptemplate');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('name', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('columnsjson', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('filtersjson', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('userid_name_ix', XMLDB_INDEX_NOTUNIQUE, ['userid', 'name']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_block_savepoint(true, 2026082700, 'dashboardanalytics');
+    }
+
     return true;
 }

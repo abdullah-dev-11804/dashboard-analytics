@@ -70,6 +70,38 @@ $functions = [
         'ajax' => true,
     ],
 
+    'block_dashboardanalytics_get_report_builder_config' => [
+        'classname' => 'block_dashboardanalytics\external\get_report_builder_config',
+        'methodname' => 'execute',
+        'description' => 'Return report builder configuration, templates, and available columns.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_get_report_builder_rows' => [
+        'classname' => 'block_dashboardanalytics\external\get_report_builder_rows',
+        'methodname' => 'execute',
+        'description' => 'Return report builder rows for the current filters.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_save_report_template' => [
+        'classname' => 'block_dashboardanalytics\external\save_report_template',
+        'methodname' => 'execute',
+        'description' => 'Save a private report template for the current user.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_delete_report_template' => [
+        'classname' => 'block_dashboardanalytics\external\delete_report_template',
+        'methodname' => 'execute',
+        'description' => 'Delete a private report template for the current user.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
+
     'block_dashboardanalytics_get_course_analytics_control' => [
         'classname' => 'block_dashboardanalytics\external\get_course_analytics_control',
         'methodname' => 'execute',
