@@ -6242,6 +6242,185 @@ body.da-modal-open {
     min-width: 0;
 }
 
+.da-report-builder-section {
+    border: 1px solid #dbe6f2;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.da-report-builder-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: linear-gradient(#fbfdfc, #f6faf8);
+    border-bottom: 1px solid #e6edf6;
+    flex-wrap: wrap;
+}
+
+.da-report-builder-section-head h5 {
+    margin: 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #516982;
+}
+
+.da-report-builder-templates {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.da-report-builder-template-card {
+    display: grid;
+    gap: 10px;
+    border: 1px solid #dbe6f2;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+}
+
+.da-report-builder-template-card.is-active {
+    border-color: #1e9d59;
+    background: #effaf4;
+}
+
+.da-report-builder-template-card-main {
+    display: grid;
+    gap: 4px;
+    text-align: left;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.da-report-builder-template-card-name {
+    display: block;
+    font-weight: 700;
+    color: #14233b;
+}
+
+.da-report-builder-template-card-meta {
+    display: block;
+    font-size: 12px;
+    color: #63738a;
+}
+
+.da-report-builder-template-card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.da-report-builder-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+}
+
+.da-report-builder-fields-pane {
+    display: grid;
+    gap: 8px;
+}
+
+.da-report-builder-fields-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #516982;
+}
+
+.da-report-builder-fields-head b {
+    background: #eff7ee;
+    color: #1e9d59;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.da-report-builder-fields-body {
+    display: grid;
+    gap: 8px;
+    max-height: 260px;
+    overflow: auto;
+}
+
+.da-report-builder-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+    border: 1px solid #dbe6f2;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.da-report-builder-field.is-selected {
+    border-left: 3px solid #1e9d59;
+}
+
+.da-report-builder-field.is-available:hover {
+    border-color: #1e9d59;
+    background: #effaf4;
+}
+
+.da-report-builder-field-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.da-report-builder-field-handle,
+.da-report-builder-field-index,
+.da-report-builder-field-plus {
+    flex: none;
+}
+
+.da-report-builder-field-handle {
+    color: #b3bbc7;
+    cursor: grab;
+    user-select: none;
+}
+
+.da-report-builder-field-index {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: #eff7ee;
+    color: #1e9d59;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.da-report-builder-field-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.da-report-builder-field-search {
+    display: block;
+}
+
+.da-report-builder-field-search input {
+    width: 100%;
+}
+
 @media (max-width: 1100px) {
     .da-reports-act-layout {
         grid-template-columns: 1fr;
@@ -6270,6 +6449,10 @@ body.da-modal-open {
     }
 
     .da-report-builder-template {
+        grid-template-columns: 1fr;
+    }
+
+    .da-report-builder-fields {
         grid-template-columns: 1fr;
     }
 }

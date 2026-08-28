@@ -77,6 +77,13 @@ class report_service {
         return $this->repository->report_rows($filters, $options, $page, $perpage, $sortkey, $sortdir);
     }
 
+    public function builder_export(array $filters, array $options, string $sortkey, string $sortdir): array {
+        return $this->repository->export_rows($filters, array_merge($options, [
+            'sortkey' => $sortkey,
+            'sortdir' => $sortdir,
+        ]));
+    }
+
     public function save_template(int $userid, int $templateid, string $name, array $columns, array $filters): array {
         if (!is_siteadmin($userid)) {
             throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');

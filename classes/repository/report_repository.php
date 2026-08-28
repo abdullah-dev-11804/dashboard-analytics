@@ -187,6 +187,7 @@ class report_repository {
             (string)($options['sortkey'] ?? 'completiondate'),
             (string)($options['sortdir'] ?? 'asc')
         );
+        $summary = $this->summary_from_rows($rawrows);
 
         return [
             'columns' => $this->column_definitions($columns),
@@ -194,6 +195,7 @@ class report_repository {
                 return $this->row_to_export($row, $columns);
             }, $rawrows),
             'rawrows' => $rawrows,
+            'summary' => $summary,
         ];
     }
 
@@ -233,6 +235,7 @@ class report_repository {
                 'middlename' => (string)($extra['middlename'] ?? ''),
                 'fullname' => $fullname,
                 'course' => html_entity_decode(format_string((string)($row['course'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                'courseshortname' => (string)($row['courseshortname'] ?? ''),
                 'status' => $this->status_label((string)($row['status'] ?? '')),
                 'statuskey' => $this->status_key((string)($row['status'] ?? '')),
                 'completiondate' => userdate($completiontime, get_string('strftimedate', 'langconfig')),
@@ -388,6 +391,7 @@ class report_repository {
             $row['fullname'] ?? '',
             $row['email'] ?? '',
             $row['course'] ?? '',
+            $row['courseshortname'] ?? '',
             $row['company'] ?? '',
             $row['department'] ?? '',
             $row['region'] ?? '',
