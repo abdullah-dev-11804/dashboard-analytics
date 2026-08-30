@@ -1862,11 +1862,12 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
-    var reportBuilderMultiSelectMarkup = function(name, label, options, selectedValues) {
+    var reportBuilderMultiSelectOptions = function(name, options, selectedValues) {
         var selected = Array.isArray(selectedValues) ? selectedValues.map(function(value) {
             return String(value);
         }) : [String(selectedValues || '')];
-        var optionMarkup = (options || []).map(function(option) {
+
+        return (options || []).map(function(option) {
             var value = String(option.value);
             var checked = selected.indexOf(value) !== -1 ? ' checked' : '';
             return '<label class="da-report-builder-multi-option" data-action="report-builder-multi-option" data-report-multi="' + escapeHtml(name) + '" data-report-multi-value="' + escapeHtml(value) + '">'
@@ -1874,6 +1875,13 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                 + '<span>' + escapeHtml(option.label || '') + '</span>'
                 + '</label>';
         }).join('');
+    };
+
+    var reportBuilderMultiSelectMarkup = function(name, label, options, selectedValues) {
+        var selected = Array.isArray(selectedValues) ? selectedValues.map(function(value) {
+            return String(value);
+        }) : [String(selectedValues || '')];
+        var optionMarkup = reportBuilderMultiSelectOptions(name, options, selected);
         var selectOptions = (options || []).map(function(option) {
             var value = String(option.value);
             var selectedAttr = selected.indexOf(value) !== -1 ? ' selected' : '';
@@ -1928,6 +1936,32 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     : text('allOption', 'All');
             }
         });
+    };
+
+    var reportBuilderRefreshMultiSelect = function(root, name, options, selectedValues) {
+        var panel = reportBuilderRoot(root);
+        var field = reportBuilderField(root, name);
+        if (!panel || !field) {
+            return;
+        }
+
+        field.innerHTML = (options || []).map(function(option) {
+            var value = String(option.value);
+            var selected = Array.isArray(selectedValues) ? selectedValues.map(String).indexOf(value) !== -1 : String(selectedValues || '') === value;
+            return '<option value="' + escapeHtml(value) + '"' + (selected ? ' selected' : '') + '>'
+                + escapeHtml(option.label || '') + '</option>';
+        }).join('');
+
+        var wrapper = panel.querySelector('[data-report-multiselect="' + escapeHtml(name) + '"]');
+        if (!wrapper) {
+            return;
+        }
+
+        var optionsRegion = wrapper.querySelector('.da-report-builder-multiselect-options');
+        if (optionsRegion) {
+            optionsRegion.innerHTML = reportBuilderMultiSelectOptions(name, options, selectedValues);
+        }
+        reportBuilderSyncMultiSelectLabels(root);
     };
 
     var reportBuilderSetMultiSelectValues = function(root, name, values) {
@@ -2507,9 +2541,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             state.currentVisualOverrides.reportbuilder = builder;
 
             fillSelect(reportBuilderField(root, 'companyid'), config.companyselector ? (config.companies || []) : [], String(builder.companyid || ''));
-            fillSelect(reportBuilderField(root, 'month'), config.months || [], builder.months);
-            fillSelect(reportBuilderField(root, 'year'), config.years || [], builder.years);
-            reportBuilderSyncMultiSelectLabels(root);
+            reportBuilderRefreshMultiSelect(root, 'month', config.months || [], builder.months);
+            reportBuilderRefreshMultiSelect(root, 'year', config.years || [], builder.years);
 
             var periodmode = reportBuilderField(root, 'periodmode');
             if (periodmode) {
@@ -2609,9 +2642,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         state.currentVisualOverrides = state.currentVisualOverrides || {};
         state.currentVisualOverrides.reportbuilder = builder;
         fillSelect(reportBuilderField(root, 'companyid'), defaults.companyselector ? (defaults.companies || []) : [], String(builder.companyid || ''));
-        fillSelect(reportBuilderField(root, 'month'), defaults.months || [], builder.months);
-        fillSelect(reportBuilderField(root, 'year'), defaults.years || [], builder.years);
-        reportBuilderSyncMultiSelectLabels(root);
+        reportBuilderRefreshMultiSelect(root, 'month', defaults.months || [], builder.months);
+        reportBuilderRefreshMultiSelect(root, 'year', defaults.years || [], builder.years);
         var templateName = reportBuilderField(root, 'templatename');
         if (templateName) {
             templateName.value = builder.templatename;

@@ -6415,10 +6415,25 @@ body.da-modal-open {
 
 .da-report-builder-field-search {
     display: block;
+    margin: 0 0 8px;
 }
 
 .da-report-builder-field-search input {
     width: 100%;
+    border: 1px solid #d5e0ec;
+    border-radius: 6px;
+    background: #fff;
+    color: #14233b;
+    min-height: 38px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    box-shadow: none;
+}
+
+.da-report-builder-field-search input:focus {
+    border-color: #1e9d59;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(30, 157, 89, 0.12);
 }
 
 .da-report-builder-multi-control {
