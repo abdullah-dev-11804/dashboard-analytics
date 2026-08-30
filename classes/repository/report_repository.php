@@ -343,13 +343,6 @@ class report_repository {
             return $year >= 2000 && $year <= 2100;
         }));
 
-        if (!$months) {
-            $months = [(int)date('n')];
-        }
-        if (!$years) {
-            $years = [(int)date('Y')];
-        }
-
         return [
             'mode' => 'month',
             'months' => array_unique($months),

@@ -1862,6 +1862,129 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         });
     };
 
+    var reportBuilderMultiSelectMarkup = function(name, label, options, selectedValues) {
+        var selected = Array.isArray(selectedValues) ? selectedValues.map(function(value) {
+            return String(value);
+        }) : [String(selectedValues || '')];
+        var optionMarkup = (options || []).map(function(option) {
+            var value = String(option.value);
+            var checked = selected.indexOf(value) !== -1 ? ' checked' : '';
+            return '<label class="da-report-builder-multi-option" data-action="report-builder-multi-option" data-report-multi="' + escapeHtml(name) + '" data-report-multi-value="' + escapeHtml(value) + '">'
+                + '<input type="checkbox" data-report-multi="' + escapeHtml(name) + '" value="' + escapeHtml(value) + '"' + checked + '>'
+                + '<span>' + escapeHtml(option.label || '') + '</span>'
+                + '</label>';
+        }).join('');
+        var selectOptions = (options || []).map(function(option) {
+            var value = String(option.value);
+            var selectedAttr = selected.indexOf(value) !== -1 ? ' selected' : '';
+            return '<option value="' + escapeHtml(value) + '"' + selectedAttr + '>'
+                + escapeHtml(option.label || '') + '</option>';
+        }).join('');
+
+        return '<div class="da-report-builder-multi-control">'
+            + '<span>' + escapeHtml(label) + '</span>'
+            + '<select class="da-report-builder-hidden-select" multiple data-report-field="' + escapeHtml(name) + '">' + selectOptions + '</select>'
+            + '<div class="da-report-builder-multiselect" data-report-multiselect="' + escapeHtml(name) + '">'
+            + '<button type="button" class="da-report-builder-multiselect-toggle" data-action="report-builder-multiselect-toggle" data-report-multi="' + escapeHtml(name) + '">'
+            + '<span data-region="report-builder-multiselect-label" data-report-multi="' + escapeHtml(name) + '"></span>'
+            + '<span class="da-report-builder-multiselect-caret">▾</span>'
+            + '</button>'
+            + '<div class="da-report-builder-multiselect-panel">'
+            + '<div class="da-report-builder-multiselect-tools">'
+            + '<button type="button" class="da-row-action da-mini-button" data-action="report-builder-multi-all" data-report-multi="' + escapeHtml(name) + '">' + escapeHtml(text('allOption', 'All')) + '</button>'
+            + '<button type="button" class="da-row-action da-mini-button" data-action="report-builder-multi-clear" data-report-multi="' + escapeHtml(name) + '">' + escapeHtml(text('clearState', 'Clear')) + '</button>'
+            + '</div>'
+            + '<div class="da-report-builder-multiselect-options">' + optionMarkup + '</div>'
+            + '</div>'
+            + '</div>'
+            + '</div>';
+    };
+
+    var reportBuilderSyncMultiSelectLabels = function(root) {
+        var panel = reportBuilderRoot(root);
+        if (!panel) {
+            return;
+        }
+
+        Array.prototype.slice.call(panel.querySelectorAll('[data-report-multiselect]')).forEach(function(wrapper) {
+            var name = wrapper.getAttribute('data-report-multiselect') || '';
+            var field = reportBuilderField(root, name);
+            var selectedOptions = field ? Array.prototype.slice.call(field.options || []).filter(function(option) {
+                return option.selected;
+            }) : [];
+            var selectedValues = selectedOptions.map(function(option) {
+                return String(option.value);
+            });
+            Array.prototype.slice.call(wrapper.querySelectorAll('[data-action="report-builder-multi-option"] input[type="checkbox"]')).forEach(function(input) {
+                input.checked = selectedValues.indexOf(String(input.value)) !== -1;
+            });
+
+            var label = wrapper.querySelector('[data-region="report-builder-multiselect-label"]');
+            if (label) {
+                label.textContent = selectedOptions.length
+                    ? selectedOptions.map(function(option) {
+                        return option.textContent || option.value;
+                    }).join(', ')
+                    : text('allOption', 'All');
+            }
+        });
+    };
+
+    var reportBuilderSetMultiSelectValues = function(root, name, values) {
+        var field = reportBuilderField(root, name);
+        reportBuilderSelectValues(field, values);
+        reportBuilderSyncMultiSelectLabels(root);
+    };
+
+    var reportBuilderPromptTemplateName = function(defaultName) {
+        return new Promise(function(resolve) {
+            var overlay = document.createElement('div');
+            overlay.className = 'da-report-builder-modal-backdrop';
+            overlay.innerHTML = '<div class="da-report-builder-modal" role="dialog" aria-modal="true">'
+                + '<h5>' + escapeHtml(text('reportBuilderTemplateName', 'Template name')) + '</h5>'
+                + '<input type="text" maxlength="80" value="' + escapeHtml(defaultName || '') + '">'
+                + '<div class="da-report-builder-modal-actions">'
+                + '<button type="button" class="da-row-action" data-action="report-builder-modal-cancel">' + escapeHtml(text('cancel', 'Cancel')) + '</button>'
+                + '<button type="button" class="da-row-action da-primary-action" data-action="report-builder-modal-save">' + escapeHtml(text('reportBuilderSaveTemplate', 'Save template')) + '</button>'
+                + '</div>'
+                + '</div>';
+
+            var finish = function(value) {
+                if (overlay.parentNode) {
+                    overlay.parentNode.removeChild(overlay);
+                }
+                resolve(value);
+            };
+            var input = overlay.querySelector('input');
+            overlay.addEventListener('click', function(event) {
+                if (event.target === overlay || event.target.closest('[data-action="report-builder-modal-cancel"]')) {
+                    finish(null);
+                    return;
+                }
+                if (event.target.closest('[data-action="report-builder-modal-save"]')) {
+                    var name = input ? String(input.value || '').trim() : '';
+                    finish(name || null);
+                }
+            });
+            overlay.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    finish(null);
+                    return;
+                }
+                if (event.key === 'Enter') {
+                    var name = input ? String(input.value || '').trim() : '';
+                    finish(name || null);
+                }
+            });
+
+            document.body.appendChild(overlay);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        });
+    };
+
     var reportBuilderState = function(state) {
         return (state.currentVisualOverrides || {}).reportbuilder || {};
     };
@@ -2013,7 +2136,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var periodmode = reportBuilderField(root, 'periodmode');
         var isCustom = periodmode && periodmode.value === 'custom';
         Array.prototype.slice.call(panel.querySelectorAll('[data-report-field="month"], [data-report-field="year"]')).forEach(function(field) {
-            var label = field.closest('label');
+            var label = field.closest('[data-report-period-control]') || field.closest('label');
             if (label) {
                 label.hidden = isCustom;
                 label.style.display = isCustom ? 'none' : '';
@@ -2085,11 +2208,11 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         }
         var monthField = reportBuilderField(root, 'month');
         if (monthField) {
-            reportBuilderSelectValues(monthField, builder.months || [builder.month || '']);
+            reportBuilderSetMultiSelectValues(root, 'month', builder.months || [builder.month || '']);
         }
         var yearField = reportBuilderField(root, 'year');
         if (yearField) {
-            reportBuilderSelectValues(yearField, builder.years || [builder.year || '']);
+            reportBuilderSetMultiSelectValues(root, 'year', builder.years || [builder.year || '']);
         }
         var customStartField = reportBuilderField(root, 'customstart');
         if (customStartField) {
@@ -2216,20 +2339,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         var companyOptions = (config.companies || []).map(function(option) {
             return '<option value="' + escapeHtml(String(option.value)) + '">' + escapeHtml(option.label || '') + '</option>';
         }).join('');
-        var monthOptions = (config.months || []).map(function(option) {
-            return '<option value="' + escapeHtml(String(option.value)) + '">' + escapeHtml(option.label || '') + '</option>';
-        }).join('');
-        var yearOptions = (config.years || []).map(function(option) {
-            return '<option value="' + escapeHtml(String(option.value)) + '">' + escapeHtml(option.label || '') + '</option>';
-        }).join('');
-
         var previewTitle = text('reportBuilderPreview', 'Preview');
         var downloadXlsxLabel = text('reportBuilderDownloadXlsx', 'Download XLSX');
         var downloadZipLabel = text('reportBuilderDownloadZip', 'Download documents (ZIP)');
         var selectedColumns = reportBuilderSelectedColumns(state);
-        var initialCustom = builder.periodmode === 'custom' ? ' hidden' : '';
         var initialMonthYear = builder.periodmode === 'custom' ? ' hidden' : '';
         var initialCustomFields = builder.periodmode === 'custom' ? '' : ' hidden';
+        var selectedMonths = Array.isArray(builder.months) && builder.months.length
+            ? builder.months
+            : [builder.month || config.defaultmonth || (new Date().getMonth() + 1)];
+        var selectedYears = Array.isArray(builder.years) && builder.years.length
+            ? builder.years
+            : [builder.year || config.defaultyear || (new Date().getFullYear())];
 
         return '<div class="da-report-builder" data-region="report-builder">'
             + '<section class="da-report-builder-section">'
@@ -2256,8 +2377,8 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             + '</select></label>'
             + '<label' + initialCustomFields + '><span>' + escapeHtml(text('forecastCustomStart', 'Start date')) + '</span><input type="date" data-report-field="customstart"></label>'
             + '<label' + initialCustomFields + '><span>' + escapeHtml(text('forecastCustomEnd', 'End date')) + '</span><input type="date" data-report-field="customend"></label>'
-            + '<label' + initialMonthYear + '><span>' + escapeHtml(text('reportBuilderMonthLabel', 'Month')) + '</span><select multiple size="6" data-report-field="month">' + monthOptions + '</select></label>'
-            + '<label' + initialMonthYear + '><span>' + escapeHtml(text('reportBuilderYearLabel', 'Year')) + '</span><select multiple size="5" data-report-field="year">' + yearOptions + '</select></label>'
+            + '<div' + initialMonthYear + ' data-report-period-control="month">' + reportBuilderMultiSelectMarkup('month', text('reportBuilderMonthLabel', 'Month'), config.months || [], selectedMonths) + '</div>'
+            + '<div' + initialMonthYear + ' data-report-period-control="year">' + reportBuilderMultiSelectMarkup('year', text('reportBuilderYearLabel', 'Year'), config.years || [], selectedYears) + '</div>'
             + '<label class="da-report-builder-search"><span>' + escapeHtml(text('reportBuilderSearch', 'Search records')) + '</span><input type="search" data-report-field="search" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'records')) + '"></label>'
             + '</div>'
             + '<div class="da-report-builder-fields">'
@@ -2388,6 +2509,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             fillSelect(reportBuilderField(root, 'companyid'), config.companyselector ? (config.companies || []) : [], String(builder.companyid || ''));
             fillSelect(reportBuilderField(root, 'month'), config.months || [], builder.months);
             fillSelect(reportBuilderField(root, 'year'), config.years || [], builder.years);
+            reportBuilderSyncMultiSelectLabels(root);
 
             var periodmode = reportBuilderField(root, 'periodmode');
             if (periodmode) {
@@ -2489,6 +2611,7 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         fillSelect(reportBuilderField(root, 'companyid'), defaults.companyselector ? (defaults.companies || []) : [], String(builder.companyid || ''));
         fillSelect(reportBuilderField(root, 'month'), defaults.months || [], builder.months);
         fillSelect(reportBuilderField(root, 'year'), defaults.years || [], builder.years);
+        reportBuilderSyncMultiSelectLabels(root);
         var templateName = reportBuilderField(root, 'templatename');
         if (templateName) {
             templateName.value = builder.templatename;
@@ -6756,6 +6879,18 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
         root.addEventListener('click', function(event) {
             var drilldownSort = event.target.closest('[data-action="drilldown-sort"]');
             if (drilldownSort && root.contains(drilldownSort)) {
+                if (drilldownSort.closest('[data-region="report-builder"]')) {
+                    rememberCurrentState(root, state);
+                    var currentReportBuilder = reportBuilderState(state);
+                    setReportBuilderState(state, Object.assign({}, currentReportBuilder, {
+                        sortkey: drilldownSort.getAttribute('data-sort-key') || 'completiondate',
+                        sortdir: drilldownSort.getAttribute('data-sort-dir') === 'desc' ? 'desc' : 'asc',
+                        page: 0
+                    }));
+                    loadReportBuilderRows(root, state, 'replace');
+                    return;
+                }
+
                 var forecastTable = drilldownSort.closest('[data-region="forecast-workload"]');
                 if (forecastTable) {
                     var forecastPanelKey = forecastTable.getAttribute('data-panel-key') || 'forecastworkload';
@@ -6807,6 +6942,80 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     'push',
                     'table-only'
                 );
+                return;
+            }
+
+            var reportBuilderMultiToggle = event.target.closest('[data-action="report-builder-multiselect-toggle"]');
+            if (reportBuilderMultiToggle && root.contains(reportBuilderMultiToggle)) {
+                var reportBuilderMulti = reportBuilderMultiToggle.closest('[data-report-multiselect]');
+                if (reportBuilderMulti) {
+                    Array.prototype.slice.call((reportBuilderRoot(root) || root).querySelectorAll('[data-report-multiselect]')).forEach(function(other) {
+                        if (other !== reportBuilderMulti) {
+                            other.classList.remove('is-open');
+                        }
+                    });
+                    reportBuilderMulti.classList.toggle('is-open');
+                }
+                return;
+            }
+
+            var reportBuilderMultiAction = event.target.closest('[data-action="report-builder-multi-all"], [data-action="report-builder-multi-clear"], .da-report-builder-multi-option');
+            if (reportBuilderMultiAction && root.contains(reportBuilderMultiAction)) {
+                var reportBuilderMultiKey = reportBuilderMultiAction.getAttribute('data-report-multi') || '';
+                var reportBuilderMultiField = reportBuilderField(root, reportBuilderMultiKey);
+                if (!reportBuilderMultiField) {
+                    return;
+                }
+
+                if (reportBuilderMultiAction.getAttribute('data-action') === 'report-builder-multi-all') {
+                    Array.prototype.slice.call(reportBuilderMultiField.options || []).forEach(function(option) {
+                        option.selected = true;
+                    });
+                } else if (reportBuilderMultiAction.getAttribute('data-action') === 'report-builder-multi-clear') {
+                    Array.prototype.slice.call(reportBuilderMultiField.options || []).forEach(function(option) {
+                        option.selected = false;
+                    });
+                } else {
+                    var input = reportBuilderMultiAction.querySelector('input[type="checkbox"]');
+                    var hiddenSelectOptions = Array.prototype.slice.call(reportBuilderMultiField.options || []);
+                    hiddenSelectOptions.forEach(function(option) {
+                        if (input && String(option.value) === String(input.value)) {
+                            option.selected = !!input.checked;
+                        }
+                    });
+                }
+
+                reportBuilderSyncMultiSelectLabels(root);
+                rememberCurrentState(root, state);
+                setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
+                    page: 0,
+                    month: Number(reportBuilderSelectedValues(reportBuilderField(root, 'month'))[0] || reportBuilderState(state).month || 0),
+                    year: Number(reportBuilderSelectedValues(reportBuilderField(root, 'year'))[0] || reportBuilderState(state).year || 0),
+                    months: reportBuilderSelectedValues(reportBuilderField(root, 'month')).map(Number).filter(function(value) {
+                        return value >= 1 && value <= 12;
+                    }),
+                    years: reportBuilderSelectedValues(reportBuilderField(root, 'year')).map(Number).filter(function(value) {
+                        return value >= 2000 && value <= 2100;
+                    })
+                }));
+                loadReportBuilderRows(root, state, 'replace');
+                return;
+            }
+
+            var reportBuilderColumnAction = event.target.closest('[data-action="report-builder-column-add"], [data-action="report-builder-column-remove"], [data-action="report-builder-column-up"], [data-action="report-builder-column-down"]');
+            if (reportBuilderColumnAction && root.contains(reportBuilderColumnAction)) {
+                rememberCurrentState(root, state);
+                var reportBuilderColumnKey = reportBuilderColumnAction.getAttribute('data-report-column') || '';
+                if (reportBuilderColumnAction.getAttribute('data-action') === 'report-builder-column-add') {
+                    reportBuilderAddSelectedColumn(root, state, reportBuilderColumnKey);
+                } else if (reportBuilderColumnAction.getAttribute('data-action') === 'report-builder-column-remove') {
+                    reportBuilderRemoveSelectedColumn(root, state, reportBuilderColumnKey);
+                } else if (reportBuilderColumnAction.getAttribute('data-action') === 'report-builder-column-up') {
+                    reportBuilderMoveSelectedColumn(root, state, reportBuilderColumnKey, -1);
+                } else if (reportBuilderColumnAction.getAttribute('data-action') === 'report-builder-column-down') {
+                    reportBuilderMoveSelectedColumn(root, state, reportBuilderColumnKey, 1);
+                }
+                loadReportBuilderRows(root, state, 'replace');
                 return;
             }
 
@@ -6910,29 +7119,39 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
             if (reportBuilderSaveAsTemplate && root.contains(reportBuilderSaveAsTemplate)) {
                 rememberCurrentState(root, state);
                 reportBuilderSaveAsTemplate.disabled = true;
-                var reportBuilderAsForm = reportBuilderReadForm(root, state);
-                var reportBuilderAsState = reportBuilderState(state);
-                call('block_dashboardanalytics_save_report_template', {
-                    contextid: state.contextid,
-                    templateid: 0,
-                    name: reportBuilderAsForm.templatename || text('reportBuilderUntitled', 'Untitled report'),
-                    columns: JSON.stringify(reportBuilderAsForm.columns || []),
-                    filters: JSON.stringify({
-                        companyid: reportBuilderAsForm.companyid || 0,
-                        periodmode: reportBuilderAsForm.periodmode || 'month',
-                        month: reportBuilderAsForm.month || 0,
-                        year: reportBuilderAsForm.year || 0,
-                        months: reportBuilderAsForm.months || [],
-                        years: reportBuilderAsForm.years || [],
-                        customstart: reportBuilderAsForm.customstart || '',
-                        customend: reportBuilderAsForm.customend || '',
-                        search: reportBuilderAsForm.search || '',
-                        sortkey: reportBuilderAsState.sortkey || 'completiondate',
-                        sortdir: reportBuilderAsState.sortdir || 'asc',
-                        page: reportBuilderAsState.page || 0,
-                        perpage: reportBuilderAsState.perpage || 20
-                    })
+                reportBuilderPromptTemplateName(reportBuilderState(state).templatename || text('reportBuilderUntitled', 'Untitled report')).then(function(name) {
+                    if (!name) {
+                        return null;
+                    }
+
+                    var reportBuilderAsForm = reportBuilderReadForm(root, state);
+                    var reportBuilderAsState = reportBuilderState(state);
+                    return call('block_dashboardanalytics_save_report_template', {
+                        contextid: state.contextid,
+                        templateid: 0,
+                        name: name,
+                        columns: JSON.stringify(reportBuilderAsForm.columns || []),
+                        filters: JSON.stringify({
+                            companyid: reportBuilderAsForm.companyid || 0,
+                            periodmode: reportBuilderAsForm.periodmode || 'month',
+                            month: reportBuilderAsForm.month || 0,
+                            year: reportBuilderAsForm.year || 0,
+                            months: reportBuilderAsForm.months || [],
+                            years: reportBuilderAsForm.years || [],
+                            customstart: reportBuilderAsForm.customstart || '',
+                            customend: reportBuilderAsForm.customend || '',
+                            search: reportBuilderAsForm.search || '',
+                            sortkey: reportBuilderAsState.sortkey || 'completiondate',
+                            sortdir: reportBuilderAsState.sortdir || 'asc',
+                            page: reportBuilderAsState.page || 0,
+                            perpage: reportBuilderAsState.perpage || 20
+                        })
+                    });
                 }).then(function(response) {
+                    if (!response) {
+                        return;
+                    }
+
                     var payload = {};
                     try {
                         payload = JSON.parse(response.json || '{}') || {};
@@ -6961,7 +7180,9 @@ define(['core/ajax', 'core/notification', 'core/str'], function(Ajax, Notificati
                     });
                     return loadReportBuilderRows(root, state, 'replace');
                 }).catch(function(error) {
-                    Notification.exception(error);
+                    if (error) {
+                        Notification.exception(error);
+                    }
                 }).finally(function() {
                     reportBuilderSaveAsTemplate.disabled = false;
                 });
