@@ -262,11 +262,17 @@ function block_dashboardanalytics_export_report_file(array $row): ?stored_file {
     return null;
 }
 
-function block_dashboardanalytics_export_archive_part(string $value, string $fallback): string {
+function block_dashboardanalytics_export_archive_part(string $value, string $fallback, int $limit = 80): string {
     $value = clean_filename(trim($value));
     $value = rtrim($value, " .");
     if ($value === '') {
         return $fallback;
+    }
+
+    if (class_exists('\core_text') && \core_text::strlen($value) > $limit) {
+        $suffix = '-' . substr(sha1($value), 0, 8);
+        $trimlength = max(1, $limit - strlen($suffix));
+        $value = rtrim(\core_text::substr($value, 0, $trimlength), " .") . $suffix;
     }
 
     $reserved = [
@@ -282,11 +288,26 @@ function block_dashboardanalytics_export_archive_part(string $value, string $fal
 }
 
 function block_dashboardanalytics_export_archive_path(array &$used, string $course, string $fullname, string $shortname, string $originalfilename): string {
-    $folder = block_dashboardanalytics_export_archive_part($course, 'Course');
+    $folder = block_dashboardanalytics_export_archive_part($course, 'Course', 48);
     $extension = pathinfo($originalfilename, PATHINFO_EXTENSION);
     $extension = $extension !== '' ? '.' . $extension : '.pdf';
-    $basename = block_dashboardanalytics_export_archive_part(trim($fullname . ' ' . $shortname), 'document');
+    $basename = block_dashboardanalytics_export_archive_part(trim($fullname . ' ' . $shortname), 'document', 96);
     $path = $folder . '/' . $basename . $extension;
+
+    if (class_exists('\core_text') && \core_text::strlen($path) > 160) {
+        $basename = block_dashboardanalytics_export_archive_part(trim($fullname . ' ' . $shortname), 'document', 64);
+        $path = $folder . '/' . $basename . $extension;
+    }
+
+    if (class_exists('\core_text') && \core_text::strlen($path) > 160) {
+        $basename = block_dashboardanalytics_export_archive_part(
+            trim($fullname . ' ' . $shortname),
+            'document',
+            32
+        );
+        $path = $folder . '/' . $basename . $extension;
+    }
+
     $candidate = $path;
     $counter = 2;
 
