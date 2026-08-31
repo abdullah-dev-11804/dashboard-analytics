@@ -264,7 +264,21 @@ function block_dashboardanalytics_export_report_file(array $row): ?stored_file {
 
 function block_dashboardanalytics_export_archive_part(string $value, string $fallback): string {
     $value = clean_filename(trim($value));
-    return $value !== '' ? $value : $fallback;
+    $value = rtrim($value, " .");
+    if ($value === '') {
+        return $fallback;
+    }
+
+    $reserved = [
+        'CON', 'PRN', 'AUX', 'NUL',
+        'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+        'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+    ];
+    if (in_array(strtoupper($value), $reserved, true)) {
+        $value = '_' . $value;
+    }
+
+    return $value;
 }
 
 function block_dashboardanalytics_export_archive_path(array &$used, string $course, string $fullname, string $shortname, string $originalfilename): string {
@@ -310,15 +324,23 @@ function block_dashboardanalytics_export_zip(string $filepath, array $rawrows): 
             (string)($row['courseshortname'] ?? ''),
             $file->get_filename()
         );
-        $zip->addFromString($entry, $file->get_content());
+        if ($zip->addFromString($entry, $file->get_content()) === false) {
+            $zip->close();
+            throw new moodle_exception('error:exportfailed', 'block_dashboardanalytics', '', 'Unable to add ZIP entry ' . $entry . '.');
+        }
         $added++;
     }
 
     if ($added === 0) {
-        $zip->addFromString('no-documents.txt', 'No signed documents were found for the current report.');
+        if ($zip->addFromString('no-documents.txt', 'No signed documents were found for the current report.') === false) {
+            $zip->close();
+            throw new moodle_exception('error:exportfailed', 'block_dashboardanalytics', '', 'Unable to add fallback ZIP entry.');
+        }
     }
 
-    $zip->close();
+    if ($zip->close() !== true) {
+        throw new moodle_exception('error:exportfailed', 'block_dashboardanalytics', '', 'Unable to finalize ZIP export.');
+    }
 }
 
 function block_dashboardanalytics_export_send_file(string $filepath, string $filename, string $mimetype): void {
@@ -326,8 +348,14 @@ function block_dashboardanalytics_export_send_file(string $filepath, string $fil
         \core\session\manager::write_close();
     }
 
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
     header('Content-Type: ' . $mimetype);
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Transfer-Encoding: binary');
+    header('Content-Disposition: attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
     header('Content-Length: ' . filesize($filepath));
     readfile($filepath);
     @unlink($filepath);
