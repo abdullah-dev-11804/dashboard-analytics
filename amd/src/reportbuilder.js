@@ -38,6 +38,9 @@ define([], function() {
                 return {results: ''};
             };
             var rememberCurrentState = deps.rememberCurrentState || function() {};
+            var readDashboardFilters = deps.readFilters || function() {
+                return {};
+            };
 
             var reportBuilderRoot = function(root) {
                 return root.querySelector('[data-region="report-builder"]');
@@ -558,14 +561,20 @@ define([], function() {
                 };
             };
 
+            var reportBuilderFilters = function(root, state, form) {
+                var filters = Object.assign({}, readDashboardFilters(root, state) || {});
+                filters.companyids = form.companyid ? [form.companyid] : (filters.companyids || []);
+                filters.status = '';
+                filters.search = '';
+                return filters;
+            };
+
             var reportBuilderExportUrl = function(root, state, scope, format, page, perpage, sortkey, sortdir, form) {
                 var params = new URLSearchParams();
                 params.set('contextid', String(state.contextid));
                 params.set('dashboardkey', String(state.dashboardkey || ''));
                 params.set('reportbuilder', '1');
-                params.set('filters', JSON.stringify({
-                    companyids: form.companyid ? [form.companyid] : []
-                }));
+                params.set('filters', JSON.stringify(reportBuilderFilters(root, state, form)));
                 params.set('options', JSON.stringify({
                     columns: form.columns || [],
                     search: form.search || '',
@@ -800,9 +809,7 @@ define([], function() {
 
                 var monthValues = builder.periodmode === 'custom' ? [] : (Array.isArray(builder.months) && builder.months.length ? builder.months : [builder.month]);
                 var yearValues = builder.periodmode === 'custom' ? [] : (Array.isArray(builder.years) && builder.years.length ? builder.years : [builder.year]);
-                var filters = {
-                    companyids: builder.companyid ? [builder.companyid] : []
-                };
+                var filters = reportBuilderFilters(root, state, builder);
 
                 return call('block_dashboardanalytics_get_report_builder_rows', {
                     contextid: state.contextid,

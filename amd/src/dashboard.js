@@ -1825,7 +1825,8 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             fillSelect: fillSelect,
             setLoading: setLoading,
             buildDrilldownTableResultsMarkup: buildDrilldownTableResultsMarkup,
-            rememberCurrentState: rememberCurrentState
+            rememberCurrentState: rememberCurrentState,
+            readFilters: readFilters
         });
     }
 
