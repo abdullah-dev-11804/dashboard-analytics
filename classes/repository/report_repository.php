@@ -206,6 +206,9 @@ class report_repository {
         $overview = new overview_repository();
         $rows = $overview->enrolment_status_snapshot_rows($filters);
         $profiledata = $this->profile_values(array_column($rows, 'userid'));
+        $ncasignfields = $this->ncasign_dynamic_fields(array_map(static function(array $row): int {
+            return ($row['sourcekind'] ?? '') === 'ncasign' ? (int)($row['documentid'] ?? 0) : 0;
+        }, $rows));
         $period = $this->period_filter($options);
         $result = [];
 
@@ -220,7 +223,9 @@ class report_repository {
             }
 
             $userid = (int)$row['userid'];
+            $documentid = (int)($row['documentid'] ?? 0);
             $extra = $profiledata[$userid] ?? [];
+            $dynamicfields = ($row['sourcekind'] ?? '') === 'ncasign' ? ($ncasignfields[$documentid] ?? []) : [];
             $fullname = name_formatter::last_first_from_parts(
                 (string)($row['firstname'] ?? ''),
                 (string)($row['lastname'] ?? ''),
@@ -248,16 +253,16 @@ class report_repository {
                 'department' => (string)($row['department'] ?? ''),
                 'personnelcategory' => (string)($row['personnelcategory'] ?? ''),
                 'jobtitle' => (string)($row['position'] ?? ''),
-                'protocolnumber' => '',
-                'certificatenumber' => '',
-                'bookid' => '',
+                'protocolnumber' => (string)($dynamicfields['protocolnumber'] ?? ''),
+                'certificatenumber' => (string)($dynamicfields['certificatenumber'] ?? ''),
+                'bookid' => (string)($dynamicfields['bookid'] ?? ''),
                 'education' => (string)($extra['edu'] ?? ''),
                 'phone' => (string)($extra['Phone'] ?? ''),
                 'trainingstart' => $this->training_start_label($userid, (int)($row['courseid'] ?? 0)),
                 'trainingtype' => $this->training_type_label((string)($row['sourcekind'] ?? '')),
                 'sourcekind' => (string)($row['sourcekind'] ?? ''),
                 'sourceid' => (int)($row['sourceid'] ?? $row['documentid'] ?? 0),
-                'documentid' => (int)($row['documentid'] ?? 0),
+                'documentid' => $documentid,
                 'profileurl' => (new \moodle_url('/user/profile.php', ['id' => $userid]))->out(false),
                 'courseurl' => (new \moodle_url('/local/sentaldocupload/course_record.php', [
                     'courseid' => (int)($row['courseid'] ?? 0),
@@ -390,6 +395,9 @@ class report_repository {
             $row['region'] ?? '',
             $row['site'] ?? '',
             $row['jobtitle'] ?? '',
+            $row['protocolnumber'] ?? '',
+            $row['certificatenumber'] ?? '',
+            $row['bookid'] ?? '',
         ]);
 
         return mb_stripos($haystack, $search) !== false;
@@ -466,6 +474,56 @@ class report_repository {
                    AND ue.timestart > 0";
         $timestamp = (int)$DB->get_field_sql($sql, ['userid' => $userid, 'courseid' => $courseid]);
         return $timestamp > 0 ? userdate($timestamp, get_string('strftimedate', 'langconfig')) : '';
+    }
+
+    private function ncasign_dynamic_fields(array $documentids): array {
+        global $DB;
+
+        $documentids = array_values(array_unique(array_filter(array_map('intval', $documentids))));
+        if (!$documentids || !$this->table_exists('local_ncasign_jobs')) {
+            return [];
+        }
+
+        $columns = $DB->get_columns('local_ncasign_jobs');
+        if (!isset($columns['finalizationmanifest'])) {
+            return [];
+        }
+
+        [$insql, $params] = $DB->get_in_or_equal($documentids, SQL_PARAMS_NAMED, 'ncasignjob');
+        $where = ["id {$insql}"];
+        if (isset($columns['origin'])) {
+            $where[] = "origin = :ncasignorigin";
+            $params['ncasignorigin'] = 'course_completion';
+        }
+        if (isset($columns['status'])) {
+            $where[] = "status IN ('completed_manual', 'completed_auto')";
+        }
+
+        $jsonvalue = static function(string $path): string {
+            return "CASE
+                        WHEN finalizationmanifest IS NULL OR finalizationmanifest = '' OR JSON_VALID(finalizationmanifest) = 0 THEN NULL
+                        ELSE JSON_UNQUOTE(JSON_EXTRACT(finalizationmanifest, '{$path}'))
+                    END";
+        };
+
+        $sql = "SELECT id,
+                       {$jsonvalue('$.dynamic_fields.protocol_number')} AS protocolnumber,
+                       {$jsonvalue('$.dynamic_fields.certificate_number')} AS certificatenumber,
+                       {$jsonvalue('$.dynamic_fields.book_id')} AS bookid
+                  FROM {local_ncasign_jobs}
+                 WHERE " . implode(' AND ', $where);
+
+        $records = $DB->get_records_sql($sql, $params);
+        $fields = [];
+        foreach ($records as $record) {
+            $fields[(int)$record->id] = [
+                'protocolnumber' => (string)($record->protocolnumber ?? ''),
+                'certificatenumber' => (string)($record->certificatenumber ?? ''),
+                'bookid' => (string)($record->bookid ?? ''),
+            ];
+        }
+
+        return $fields;
     }
 
     private function summary_from_rows(array $rows): array {
