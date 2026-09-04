@@ -66,6 +66,11 @@ define([], function() {
                 return panel ? panel.querySelector('[data-report-field="' + name + '"]') : null;
             };
 
+            var reportBuilderPreviewSearchField = function(root) {
+                var panel = reportBuilderRoot(root);
+                return panel ? panel.querySelector('[data-action="report-builder-search"]') : null;
+            };
+
             var reportBuilderSelectValues = function(field, values) {
                 if (!field) {
                     return;
@@ -484,7 +489,7 @@ define([], function() {
                 if (customEndField) {
                     customEndField.value = builder.customend || '';
                 }
-                var searchField = reportBuilderField(root, 'search');
+                var searchField = reportBuilderPreviewSearchField(root);
                 if (searchField) {
                     searchField.value = builder.search || '';
                 }
@@ -556,7 +561,9 @@ define([], function() {
                     years: years,
                     customstart: valueOf('customstart'),
                     customend: valueOf('customend'),
-                    search: valueOf('search'),
+                    search: reportBuilderPreviewSearchField(root)
+                        ? reportBuilderPreviewSearchField(root).value
+                        : (reportBuilderState(state).search || ''),
                     columns: columns.length ? columns : ['lastname', 'firstname', 'course', 'status', 'completiondate']
                 };
             };
@@ -642,7 +649,6 @@ define([], function() {
                     + '<label' + initialCustomFields + '><span>' + escapeHtml(text('forecastCustomEnd', 'End date')) + '</span><input type="date" data-report-field="customend"></label>'
                     + '<div' + initialMonthYear + ' data-report-period-control="month">' + reportBuilderMultiSelectMarkup('month', text('reportBuilderMonthLabel', 'Month'), config.months || [], selectedMonths) + '</div>'
                     + '<div' + initialMonthYear + ' data-report-period-control="year">' + reportBuilderMultiSelectMarkup('year', text('reportBuilderYearLabel', 'Year'), config.years || [], selectedYears) + '</div>'
-                    + '<label class="da-report-builder-search"><span>' + escapeHtml(text('reportBuilderSearch', 'Search records')) + '</span><input type="search" data-report-field="search" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'records')) + '"></label>'
                     + '</div>'
                     + '<div class="da-report-builder-fields">'
                     + '<div class="da-report-builder-fields-pane">'
@@ -664,6 +670,7 @@ define([], function() {
                     + '<a class="da-row-action" data-report-download="zip" href="#">' + escapeHtml(downloadZipLabel) + '</a>'
                     + '</div>'
                     + '</div>'
+                    + '<div data-region="report-builder-toolbar"></div>'
                     + '<div class="da-report-builder-results" data-region="report-builder-results">'
                     + '<div class="da-empty">' + escapeHtml(text('reportBuilderNoResults', 'Select company and period, then load the report.')) + '</div>'
                     + '</div>'
@@ -710,7 +717,7 @@ define([], function() {
                 response.exportallurl = reportBuilderExportUrl(root, state, 'all', 'zip', currentPage, perpage, form.sortkey || 'completiondate', form.sortdir || 'asc', form);
                 response.sortableallcolumns = true;
                 response.description = response.description || '';
-                results.innerHTML = buildDrilldownTableResultsMarkup(root, response, state, {
+                var tableParts = buildDrilldownTableResultsMarkup(root, response, state, {
                     page: currentPage,
                     perpage: perpage,
                     drilldownkey: 'reportbuilder',
@@ -724,7 +731,18 @@ define([], function() {
                     actionPrefix: 'report-builder',
                     sortableallcolumns: true,
                     hideexports: true
-                }).results;
+                });
+                var toolbar = panel.querySelector('[data-region="report-builder-toolbar"]');
+                if (toolbar) {
+                    if (!toolbar.innerHTML) {
+                        toolbar.innerHTML = tableParts.toolbar || '';
+                    }
+                    var previewSearch = reportBuilderPreviewSearchField(root);
+                    if (previewSearch && document.activeElement !== previewSearch) {
+                        previewSearch.value = form.search || '';
+                    }
+                }
+                results.innerHTML = tableParts.results || '';
                 var xlsxButton = panel.querySelector('[data-report-download="xlsx"]');
                 if (xlsxButton) {
                     xlsxButton.href = response.exporturl;
@@ -877,7 +895,7 @@ define([], function() {
                 }
                 var customStart = reportBuilderField(root, 'customstart');
                 var customEnd = reportBuilderField(root, 'customend');
-                var search = reportBuilderField(root, 'search');
+                var search = reportBuilderPreviewSearchField(root);
                 var periodmode = reportBuilderField(root, 'periodmode');
                 if (periodmode) {
                     periodmode.value = 'month';
