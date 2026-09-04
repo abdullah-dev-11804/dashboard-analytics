@@ -1253,19 +1253,24 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         var optionHtml = '';
 
         if (isSearchableGroup(group)) {
-            var listId = 'da-filter-list-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid));
-            optionHtml = '<input type="search" class="da-filter-select da-filter-searchable-input"'
+            optionHtml = '<div class="da-filter-searchable" data-filter-searchable="' + escapeHtml(key) + '">'
+                + '<input type="search" class="da-filter-select da-filter-searchable-input"'
                 + ' data-filter-search="' + escapeHtml(key) + '"'
-                + ' list="' + listId + '"'
                 + ' value="' + escapeHtml(selectedLabel) + '"'
                 + ' placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), group.label)) + '"'
-                + ' autocomplete="off" aria-label="' + escapeHtml(group.label) + '">'
+                + ' autocomplete="off" aria-label="' + escapeHtml(group.label) + '" aria-haspopup="listbox">'
                 + '<input type="hidden" data-filter-group="' + escapeHtml(key) + '" value="' + escapeHtml(selected) + '">'
-                + '<datalist id="' + listId + '">'
+                + '<div class="da-filter-popover da-filter-search-popover" data-region="filter-search-options" role="listbox" hidden>'
                 + options.map(function(option) {
-                    return '<option value="' + escapeHtml(option.label) + '" data-value="' + escapeHtml(option.value) + '"></option>';
+                    return '<button type="button" class="da-filter-option da-filter-search-option"'
+                        + ' data-filter-search-option="' + escapeHtml(key) + '"'
+                        + ' data-value="' + escapeHtml(option.value) + '"'
+                        + ' data-label="' + escapeHtml(option.label) + '">' + escapeHtml(option.label) + '</button>';
                 }).join('')
-                + '</datalist>';
+                + '<div class="da-filter-empty" data-filter-empty hidden>'
+                + escapeHtml(text('noMatchingRows', 'No matching rows.')) + '</div>'
+                + '</div>'
+                + '</div>';
         } else {
             optionHtml = '<select id="da-filter-' + escapeHtml(key) + '-' + escapeHtml(String(state.contextid)) + '" class="da-filter-select"'
                 + ' data-filter-group="' + escapeHtml(key) + '" aria-label="' + escapeHtml(group.label) + '">'
@@ -5274,30 +5279,69 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         }).catch(Notification.exception);
     };
 
-    var syncSearchableFilter = function(input) {
+    var searchableFilterParts = function(input) {
         if (!input) {
-            return false;
+            return {};
         }
 
         var wrap = input.closest('[data-filter-wrap]');
         if (!wrap) {
+            return {};
+        }
+
+        return {
+            wrap: wrap,
+            hidden: wrap.querySelector('input[type="hidden"][data-filter-group]'),
+            popover: wrap.querySelector('[data-region="filter-search-options"]'),
+            empty: wrap.querySelector('[data-filter-empty]'),
+            options: Array.prototype.slice.call(wrap.querySelectorAll('[data-filter-search-option]'))
+        };
+    };
+
+    var filterSearchableOptions = function(input) {
+        var parts = searchableFilterParts(input);
+        if (!parts.popover) {
+            return;
+        }
+
+        var query = (input.value || '').trim().toLowerCase();
+        var visible = 0;
+        parts.options.forEach(function(option) {
+            var label = (option.getAttribute('data-label') || option.textContent || '').toLowerCase();
+            var value = (option.getAttribute('data-value') || '').toLowerCase();
+            var match = query === '' || label.indexOf(query) !== -1 || value.indexOf(query) !== -1;
+            option.hidden = !match;
+            if (match) {
+                visible++;
+            }
+        });
+        if (parts.empty) {
+            parts.empty.hidden = visible > 0;
+        }
+        parts.popover.hidden = false;
+    };
+
+    var closeSearchableFilterPopovers = function(root, except) {
+        Array.prototype.slice.call(root.querySelectorAll('[data-region="filter-search-options"]')).forEach(function(popover) {
+            if (!except || popover !== except) {
+                popover.hidden = true;
+            }
+        });
+    };
+
+    var syncSearchableFilter = function(input) {
+        var parts = searchableFilterParts(input);
+        if (!parts.hidden) {
             return false;
         }
 
-        var hidden = wrap.querySelector('input[type="hidden"][data-filter-group]');
-        var listId = input.getAttribute('list');
-        var list = listId ? document.getElementById(listId) : null;
-        if (!hidden || !list) {
-            return false;
-        }
-
-        var previous = hidden.value || '';
+        var previous = parts.hidden.value || '';
         var entered = (input.value || '').trim().toLowerCase();
         var matched = '';
 
         if (entered !== '') {
-            Array.prototype.slice.call(list.querySelectorAll('option')).some(function(option) {
-                if ((option.value || '').trim().toLowerCase() === entered) {
+            parts.options.some(function(option) {
+                if ((option.getAttribute('data-label') || option.textContent || '').trim().toLowerCase() === entered) {
                     matched = option.getAttribute('data-value') || '';
                     return true;
                 }
@@ -5305,12 +5349,12 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             });
         }
 
-        hidden.value = matched;
+        parts.hidden.value = matched;
         if (matched === '') {
             input.value = entered === '' ? '' : input.value;
         }
 
-        return previous !== hidden.value;
+        return previous !== parts.hidden.value;
     };
 
     var loadKpis = function(root, state) {
@@ -5608,6 +5652,14 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             tooltip.style.top = Math.max(12, Math.min(bounds.height - 12, top - 16)) + 'px';
         };
 
+        root.addEventListener('focusin', function(event) {
+            if (event.target.matches('[data-filter-search]')) {
+                var parts = searchableFilterParts(event.target);
+                closeSearchableFilterPopovers(root, parts.popover || null);
+                filterSearchableOptions(event.target);
+            }
+        });
+
         root.addEventListener('change', function(event) {
             if (reportBuilderApi && reportBuilderApi.handleChange(root, state, event)) {
                 return;
@@ -5855,13 +5907,17 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             }
 
             if (event.target.matches('[data-filter-search]')) {
+                filterSearchableOptions(event.target);
                 var changed = syncSearchableFilter(event.target);
+                var synced = searchableFilterParts(event.target);
+                var selected = synced.hidden ? synced.hidden.value : '';
                 updateFilterCounts(root, state);
-                if (event.target.value === '' || changed) {
+                if (event.target.value === '' || (changed && selected !== '')) {
                     window.clearTimeout(timer);
                     timer = window.setTimeout(function() {
                         rememberCurrentState(root, state);
                         state.currentDrilldownPage = 0;
+                        state.currentComplianceDrilldownPage = 0;
                         refresh(root, state);
                     }, 250);
                 }
@@ -6744,6 +6800,24 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 return;
             }
 
+            var filterSearchOption = event.target.closest('[data-filter-search-option]');
+            if (filterSearchOption && root.contains(filterSearchOption)) {
+                rememberCurrentState(root, state);
+                var filterWrap = filterSearchOption.closest('[data-filter-wrap]');
+                var hiddenFilter = filterWrap ? filterWrap.querySelector('input[type="hidden"][data-filter-group]') : null;
+                var visibleFilter = filterWrap ? filterWrap.querySelector('[data-filter-search]') : null;
+                if (hiddenFilter && visibleFilter) {
+                    hiddenFilter.value = filterSearchOption.getAttribute('data-value') || '';
+                    visibleFilter.value = filterSearchOption.getAttribute('data-label') || filterSearchOption.textContent || '';
+                    closeSearchableFilterPopovers(root);
+                    state.currentDrilldownPage = 0;
+                    state.currentComplianceDrilldownPage = 0;
+                    updateFilterCounts(root, state);
+                    refresh(root, state);
+                }
+                return;
+            }
+
             var addFilterToggle = event.target.closest('[data-action="toggle-add-filter"]');
             if (addFilterToggle && root.contains(addFilterToggle)) {
                 toggleAddFilterMenu(root);
@@ -7391,6 +7465,10 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 if (menu) {
                     menu.hidden = true;
                 }
+            }
+
+            if (!event.target.closest('[data-filter-searchable]')) {
+                closeSearchableFilterPopovers(root);
             }
 
             if (!event.target.closest('[data-expiry-recipient-picker]')) {
