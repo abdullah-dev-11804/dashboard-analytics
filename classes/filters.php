@@ -37,6 +37,8 @@ class filters {
             'forecastcustomend' => self::date_input($decoded['forecastcustomend'] ?? ''),
             'turnovercustomstart' => self::date_input($decoded['turnovercustomstart'] ?? ''),
             'turnovercustomend' => self::date_input($decoded['turnovercustomend'] ?? ''),
+            'turnoverperiod_staffdynamics' => self::analytics_period($decoded['turnoverperiod_staffdynamics'] ?? '', '12months'),
+            'paneltab_staffdynamics' => self::panel_tab_key($decoded['paneltab_staffdynamics'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
             'statusmode' => self::status_mode($decoded['statusmode'] ?? ''),
             'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),
@@ -263,6 +265,10 @@ class filters {
 
         $allowed = ['30days', '60days', '90days', '6months', '12months', '3years', 'customrange'];
         return in_array($value, $allowed, true) ? $value : $default;
+    }
+
+    private static function panel_tab_key($value): string {
+        return clean_param((string)$value, PARAM_ALPHANUMEXT);
     }
 
     private static function timestamp($value): int {

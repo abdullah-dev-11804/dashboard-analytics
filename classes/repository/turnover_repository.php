@@ -11,15 +11,25 @@ class turnover_repository {
         $periods = $this->turnover_period_options();
         $tabs = $this->turnover_company_tabs($filters);
         $items = [];
+        $selectedperiod = $this->normalise_turnover_period((string)($filters['turnoverperiod_staffdynamics'] ?? '12months'));
+        $selectedtabkey = $this->selected_turnover_tab_key($tabs, (string)($filters['paneltab_staffdynamics'] ?? ''));
 
         foreach ($tabs as $tab) {
+            if ($tab['key'] !== $selectedtabkey) {
+                continue;
+            }
+            $windows = $this->turnover_windows($selectedperiod, $filters);
+            $periodstart = $windows ? (int)$windows[0]['start'] : 0;
+            $periodend = $windows ? (int)$windows[count($windows) - 1]['end'] : time();
             $tabfilters = $tab['key'] === 'all'
                 ? $filters
                 : $this->company_scoped_filters($filters, $tab['label'], (int)$tab['companyid']);
-            $records = $this->scoped_user_lifecycle_records($tabfilters, 0, time(), 'turnoverdynamics' . preg_replace('/[^a-z0-9]/i', '', $tab['key']));
+            $records = $this->scoped_user_lifecycle_records($tabfilters, 0, $periodend, 'turnoverdynamics' . preg_replace('/[^a-z0-9]/i', '', $tab['key']), $periodstart);
 
             foreach ($periods as $period) {
-                $windows = $this->turnover_windows($period['key'], $filters);
+                if ($period['key'] !== $selectedperiod) {
+                    continue;
+                }
                 $perioditems = $this->build_staff_dynamics_period_items($records, $windows, $period['key'], $tab['key']);
                 $items = array_merge($items, $perioditems);
             }
@@ -30,7 +40,7 @@ class turnover_repository {
                 return [
                     'key' => $tab['key'],
                     'label' => $tab['label'],
-                    'active' => !empty($tab['active']),
+                    'active' => $tab['key'] === $selectedtabkey,
                 ];
             }, $tabs),
             'items' => $items,
@@ -46,13 +56,12 @@ class turnover_repository {
 
         foreach ($companies as $company) {
             $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
-            $records = $this->scoped_user_lifecycle_records($companyfilters, 0, $periodend, 'turnovercompany' . $company['id']);
+            $records = $this->scoped_user_lifecycle_records($companyfilters, 0, $periodend, 'turnovercompany' . $company['id'], $periodstart);
             $deactivated = 0;
 
             foreach ($records as $record) {
-                if ($this->is_deactivated_record($record)
-                    && (int)$record->timemodified >= $periodstart
-                    && (int)$record->timemodified <= $periodend) {
+                $exitdate = $this->record_exit_timestamp($record);
+                if ($exitdate >= $periodstart && $exitdate <= $periodend) {
                     $deactivated++;
                 }
             }
@@ -152,7 +161,7 @@ class turnover_repository {
         return $items;
     }
 
-    private function scoped_user_lifecycle_records(array $filters, int $start, int $end, string $prefix): array {
+    private function scoped_user_lifecycle_records(array $filters, int $start, int $end, string $prefix, int $exitlogstart = 0): array {
         global $DB;
 
         $employee = new employee_repository();
@@ -204,7 +213,7 @@ class turnover_repository {
                  WHERE " . implode(' AND ', $where);
 
         $records = $DB->get_records_sql($sql, $params);
-        $this->append_company_change_exit_records($records, $filters, $end, $prefix);
+        $this->append_company_change_exit_records($records, $filters, $exitlogstart, $end, $prefix);
         return $records;
     }
 
@@ -344,6 +353,46 @@ class turnover_repository {
         }
 
         return $tabs;
+    }
+
+    private function selected_turnover_tab_key(array $tabs, string $requested): string {
+        foreach ($tabs as $tab) {
+            if ($requested !== '' && $tab['key'] === $requested) {
+                return $requested;
+            }
+        }
+
+        foreach ($tabs as $tab) {
+            if (!empty($tab['active'])) {
+                return (string)$tab['key'];
+            }
+        }
+
+        return (string)(($tabs[0] ?? [])['key'] ?? 'all');
+    }
+
+    private function normalise_turnover_period(string $period): string {
+        $period = strtolower(trim($period));
+        $map = [
+            '3' => '90days',
+            '3m' => '90days',
+            '6' => '6months',
+            '6m' => '6months',
+            '12' => '12months',
+            '12m' => '12months',
+            'last30days' => '30days',
+            'last60days' => '60days',
+            'last90days' => '90days',
+            'last6months' => '6months',
+            'last12months' => '12months',
+            'custom' => 'customrange',
+        ];
+        if (isset($map[$period])) {
+            return $map[$period];
+        }
+
+        $allowed = ['30days', '60days', '90days', '6months', '12months', '3years', 'customrange'];
+        return in_array($period, $allowed, true) ? $period : '12months';
     }
 
     private function turnover_windows(string $periodkey, array $filters = []): array {
@@ -615,13 +664,13 @@ class turnover_repository {
 
     private function record_hire_timestamp(\stdClass $record): int {
         if (isset($record->hiretimestamp) && (int)$record->hiretimestamp > 0) {
-            return (int)$record->hiretimestamp;
+            return $this->normalise_profile_timestamp((int)$record->hiretimestamp);
         }
 
         $profilevalue = trim((string)($record->hiredateprofile ?? ''));
         if ($profilevalue !== '') {
             if (ctype_digit($profilevalue)) {
-                $timestamp = (int)$profilevalue;
+                $timestamp = $this->normalise_profile_timestamp((int)$profilevalue);
                 if ($timestamp > 0) {
                     return $timestamp;
                 }
@@ -642,7 +691,15 @@ class turnover_repository {
         return (int)$record->timecreated;
     }
 
-    private function append_company_change_exit_records(array &$records, array $filters, int $end, string $prefix): void {
+    private function normalise_profile_timestamp(int $timestamp): int {
+        if ($timestamp > 9999999999) {
+            $timestamp = (int)floor($timestamp / 1000);
+        }
+
+        return $timestamp;
+    }
+
+    private function append_company_change_exit_records(array &$records, array $filters, int $start, int $end, string $prefix): void {
         global $DB;
 
         $companyids = array_values(array_filter(array_map('intval', $filters['companyids'] ?? [])));
@@ -667,6 +724,9 @@ class turnover_repository {
 
         $params = $filter['params'];
         $params[$prefix . 'companyexitfield'] = 'Date';
+        if ($start > 0) {
+            $params[$prefix . 'companyexitstart'] = $start;
+        }
         if ($end > 0) {
             $params[$prefix . 'companyexitend'] = $end;
         }
@@ -689,6 +749,9 @@ class turnover_repository {
             '(' . implode(' OR ', $likes) . ')',
             '(' . implode(' OR ', $eventlikes) . ")",
         ];
+        if ($start > 0) {
+            $where[] = "l.timecreated >= :{$prefix}companyexitstart";
+        }
         if ($end > 0) {
             $where[] = "l.timecreated <= :{$prefix}companyexitend";
         }
@@ -877,15 +940,14 @@ class turnover_repository {
         foreach ($windows as $window) {
             $active = 0;
             foreach ($records as $record) {
-                $created = (int)$record->timecreated;
-                $modified = (int)$record->timemodified;
-                $deactivated = $this->is_deactivated_record($record);
+                $created = $this->record_hire_timestamp($record);
+                $exitdate = $this->record_exit_timestamp($record);
 
                 if ($created <= 0 || $created > $window['end']) {
                     continue;
                 }
 
-                if ($deactivated && $modified > 0 && $modified <= $window['end']) {
+                if ($exitdate > 0 && $exitdate <= $window['end']) {
                     continue;
                 }
 

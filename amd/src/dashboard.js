@@ -3099,16 +3099,8 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                         return (item.periodkey || '') === turnoverPeriod;
                     });
                 }
-                var turnoverPeriodMap = {};
-                visibleItems.forEach(function(item) {
-                    if (item.periodkey && !turnoverPeriodMap[item.periodkey]) {
-                        turnoverPeriodMap[item.periodkey] = item.rowlabel || periodLabelForKey(item.periodkey);
-                    }
-                });
-                var turnoverPeriods = forecastPeriodOrder.filter(function(key) {
-                    return !!turnoverPeriodMap[key];
-                }).map(function(key) {
-                    return {key: key, label: turnoverPeriodMap[key]};
+                var turnoverPeriods = forecastPeriodOrder.map(function(key) {
+                    return {key: key, label: periodLabelForKey(key)};
                 });
                 var turnoverTabs = panelTabs.length ? panelTabs : [{key: selectedPanelTab || 'all', label: '', active: true}];
                 var turnoverKpis = ((turnoverItems[0] || {}).kpis || []);
