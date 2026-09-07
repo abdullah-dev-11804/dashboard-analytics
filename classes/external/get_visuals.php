@@ -40,6 +40,7 @@ class get_visuals extends \external_api {
             throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
         }
         $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
+        $scopedfilters['showemployeeidentity'] = permissions::can_view_employee_identity($context, (int)$USER->id);
 
         $service = new visual_service();
         return $service->panels(
@@ -131,6 +132,17 @@ class get_visuals extends \external_api {
                         'value' => new \external_value(PARAM_TEXT, 'KPI value'),
                         'status' => new \external_value(PARAM_ALPHANUMEXT, 'KPI status'),
                     ]), 'Optional staff dynamics interval KPIs', VALUE_OPTIONAL),
+                    'movementrows' => new \external_multiple_structure(new \external_single_structure([
+                        'employee' => new \external_value(PARAM_TEXT, 'Employee name'),
+                        'profileurl' => new \external_value(PARAM_URL, 'Optional employee profile URL', VALUE_OPTIONAL),
+                        'site' => new \external_value(PARAM_TEXT, 'Employee site'),
+                        'company' => new \external_value(PARAM_TEXT, 'Employee company'),
+                        'event' => new \external_value(PARAM_TEXT, 'Movement event label'),
+                        'eventkey' => new \external_value(PARAM_ALPHANUMEXT, 'Movement event key'),
+                        'eventdetail' => new \external_value(PARAM_TEXT, 'Movement event detail'),
+                        'date' => new \external_value(PARAM_TEXT, 'Movement date'),
+                        'tenure' => new \external_value(PARAM_INT, 'Tenure in days'),
+                    ]), 'Optional staff movement rows for selected interval', VALUE_OPTIONAL),
                     'segments' => new \external_multiple_structure(new \external_single_structure([
                         'label' => new \external_value(PARAM_TEXT, 'Segment label'),
                         'value' => new \external_value(PARAM_TEXT, 'Segment value'),

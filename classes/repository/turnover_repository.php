@@ -3,6 +3,8 @@
 
 namespace block_dashboardanalytics\repository;
 
+use block_dashboardanalytics\name_formatter;
+
 defined('MOODLE_INTERNAL') || die();
 
 class turnover_repository {
@@ -30,7 +32,13 @@ class turnover_repository {
                 if ($period['key'] !== $selectedperiod) {
                     continue;
                 }
-                $perioditems = $this->build_staff_dynamics_period_items($records, $windows, $period['key'], $tab['key']);
+                $perioditems = $this->build_staff_dynamics_period_items(
+                    $records,
+                    $windows,
+                    $period['key'],
+                    $tab['key'],
+                    !empty($filters['showemployeeidentity'])
+                );
                 $items = array_merge($items, $perioditems);
             }
         }
@@ -172,7 +180,16 @@ class turnover_repository {
             'includedeleted' => true,
         ]);
         $params = $filter['params'];
+        $companyrepo = new company_repository();
+        $companynamesql = $companyrepo->has_iomad_tables()
+            ? "(SELECT GROUP_CONCAT(DISTINCT coturnover.name ORDER BY coturnover.name SEPARATOR ', ')
+                  FROM {company_users} cuturnover
+                  JOIN {company} coturnover ON coturnover.id = cuturnover.companyid
+                 WHERE cuturnover.userid = u.id)"
+            : "''";
+
         $params[$prefix . 'hirefield'] = 'Date';
+        $params[$prefix . 'sitefield'] = 'Site';
         $where = [$filter['sql']];
 
         if ($start > 0) {
@@ -192,7 +209,12 @@ class turnover_repository {
                        u.timemodified,
                        u.suspended,
                        u.deleted,
+                       u.firstname,
+                       u.lastname,
+                       u.email,
                        hiredata.data AS hiredateprofile,
+                       COALESCE(NULLIF(sitedata.data, ''), '') AS site,
+                       COALESCE(NULLIF({$companynamesql}, ''), '') AS companyname,
                        CASE
                            WHEN hiredata.data REGEXP '^[0-9]+$' AND CAST(hiredata.data AS UNSIGNED) > 0
                                THEN CAST(hiredata.data AS UNSIGNED)
@@ -203,13 +225,23 @@ class turnover_repository {
                        CASE
                            WHEN u.suspended = 1 OR u.deleted = 1 THEN u.timemodified
                            ELSE 0
-                       END AS exittimestamp
+                       END AS exittimestamp,
+                       CASE
+                           WHEN u.deleted = 1 THEN 'deleted'
+                           WHEN u.suspended = 1 THEN 'deactivated'
+                           ELSE ''
+                       END AS exitsource
                   FROM {user} u
              LEFT JOIN {user_info_field} hirefield
                     ON hirefield.shortname = :{$prefix}hirefield
              LEFT JOIN {user_info_data} hiredata
                     ON hiredata.fieldid = hirefield.id
                    AND hiredata.userid = u.id
+             LEFT JOIN {user_info_field} sitefield
+                    ON sitefield.shortname = :{$prefix}sitefield
+             LEFT JOIN {user_info_data} sitedata
+                    ON sitedata.fieldid = sitefield.id
+                   AND sitedata.userid = u.id
                  WHERE " . implode(' AND ', $where);
 
         $records = $DB->get_records_sql($sql, $params);
@@ -559,7 +591,13 @@ class turnover_repository {
         return trim(userdate($start->getTimestamp(), $startformat)) . ' - ' . trim(userdate($end->getTimestamp(), $endformat));
     }
 
-    private function build_staff_dynamics_period_items(array $records, array $windows, string $periodkey, string $groupkey): array {
+    private function build_staff_dynamics_period_items(
+        array $records,
+        array $windows,
+        string $periodkey,
+        string $groupkey,
+        bool $showidentity
+    ): array {
         $counts = [];
         $maxmovement = 1;
         $maxrate = 1.0;
@@ -650,6 +688,7 @@ class turnover_repository {
                 'maxrate' => $maxrate,
                 'kpis' => $periodkpis,
                 'intervalkpis' => $intervalkpis,
+                'movementrows' => $this->staff_movement_rows_for_window($records, $window, $showidentity),
                 'segments' => [
                     ['label' => get_string('turnover:joined', 'block_dashboardanalytics'), 'value' => (string)$count['joined'], 'percent' => round(($count['joined'] / $maxmovement) * 100, 1), 'status' => 'info'],
                     ['label' => get_string('turnover:left', 'block_dashboardanalytics'), 'value' => (string)$count['left'], 'percent' => round(($count['left'] / $maxmovement) * 100, 1), 'status' => 'danger'],
@@ -660,6 +699,67 @@ class turnover_repository {
         }
 
         return $items;
+    }
+
+    private function staff_movement_rows_for_window(array $records, array $window, bool $showidentity): array {
+        $rows = [];
+        foreach ($records as $record) {
+            $hiredate = $this->record_hire_timestamp($record);
+            $exitdate = $this->record_exit_timestamp($record);
+
+            if ($hiredate >= $window['start'] && $hiredate <= $window['end']) {
+                $rows[] = $this->staff_movement_row($record, 'joined', $hiredate, $hiredate, $showidentity);
+            }
+
+            if ($exitdate > 0 && $exitdate >= $window['start'] && $exitdate <= $window['end']) {
+                $rows[] = $this->staff_movement_row($record, 'left', $exitdate, $hiredate, $showidentity);
+            }
+        }
+
+        usort($rows, static function(array $a, array $b): int {
+            $datecomparison = ((int)$a['_sortdate']) <=> ((int)$b['_sortdate']);
+            if ($datecomparison !== 0) {
+                return $datecomparison;
+            }
+            return strnatcasecmp((string)$a['employee'], (string)$b['employee']);
+        });
+
+        foreach ($rows as $index => $row) {
+            unset($rows[$index]['_sortdate']);
+        }
+
+        return $rows;
+    }
+
+    private function staff_movement_row(\stdClass $record, string $eventkey, int $eventdate, int $hiredate, bool $showidentity): array {
+        $tenureanchor = $eventkey === 'left' ? $eventdate : time();
+        $tenure = $hiredate > 0 && $tenureanchor >= $hiredate ? (int)floor(($tenureanchor - $hiredate) / DAYSECS) : 0;
+        $eventdetail = '';
+        if ($eventkey === 'left') {
+            $source = (string)($record->exitsource ?? '');
+            if ($source === 'companychange') {
+                $eventdetail = get_string('turnover:eventcompanychange', 'block_dashboardanalytics');
+            } else if ($source === 'deleted') {
+                $eventdetail = get_string('turnover:eventdeleted', 'block_dashboardanalytics');
+            } else {
+                $eventdetail = get_string('turnover:eventdeactivated', 'block_dashboardanalytics');
+            }
+        }
+
+        return [
+            '_sortdate' => $eventdate,
+            'employee' => $showidentity ? name_formatter::last_first($record) : get_string('hiddenuser'),
+            'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false) : '',
+            'site' => trim((string)($record->site ?? '')) !== '' ? format_string((string)$record->site) : get_string('label:unassigned', 'block_dashboardanalytics'),
+            'company' => trim((string)($record->companyname ?? '')) !== '' ? format_string((string)$record->companyname) : get_string('label:unassigned', 'block_dashboardanalytics'),
+            'event' => $eventkey === 'joined'
+                ? get_string('turnover:joined', 'block_dashboardanalytics')
+                : get_string('turnover:left', 'block_dashboardanalytics'),
+            'eventkey' => $eventkey,
+            'eventdetail' => $eventdetail,
+            'date' => userdate($eventdate, get_string('strftimedate', 'langconfig')),
+            'tenure' => $tenure,
+        ];
     }
 
     private function record_hire_timestamp(\stdClass $record): int {
@@ -774,7 +874,12 @@ class turnover_repository {
                            WHEN hiredata.data IS NOT NULL AND hiredata.data <> '' AND hiredata.data <> '0'
                                THEN UNIX_TIMESTAMP(hiredata.data)
                            ELSE u.timecreated
-                       END AS hiretimestamp
+                       END AS hiretimestamp,
+                       CASE
+                           WHEN u.deleted = 1 THEN 'deleted'
+                           WHEN u.suspended = 1 THEN 'deactivated'
+                           ELSE ''
+                       END AS exitsource
                   FROM {logstore_standard_log} l
                   JOIN {user} u
                     ON u.id = CASE
@@ -805,11 +910,13 @@ class turnover_repository {
                 $currentexit = (int)($records[$userid]->exittimestamp ?? 0);
                 if ($currentexit <= 0 || $exittimestamp < $currentexit) {
                     $records[$userid]->exittimestamp = $exittimestamp;
+                    $records[$userid]->exitsource = 'companychange';
                 }
                 continue;
             }
 
             $record->exittimestamp = $exittimestamp;
+            $record->exitsource = 'companychange';
             $records[$userid] = $record;
         }
     }

@@ -77,6 +77,15 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         turnoverLeft: 'Left',
         turnoverNetChange: 'Net change',
         turnoverRate: 'Turnover',
+        turnoverStaffMovement: 'Staff movement',
+        turnoverMovementEmpty: 'No staff movement in this interval.',
+        turnoverMovementRecords: '{$a} records',
+        turnoverMovementEmployee: 'Employee',
+        turnoverMovementSite: 'Site',
+        turnoverMovementCompany: 'Company',
+        turnoverMovementEvent: 'Event',
+        turnoverMovementDate: 'Date',
+        turnoverMovementTenure: 'Tenure, d',
         heatmapAllCombined: 'All companies combined',
         heatmapCompliantLegend: '>=80% Compliant',
         heatmapRiskLegend: '70–79% At risk',
@@ -265,6 +274,15 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         {key: 'turnover:left', component: 'block_dashboardanalytics'},
         {key: 'turnover:netchange', component: 'block_dashboardanalytics'},
         {key: 'turnover:turnoverrate', component: 'block_dashboardanalytics'},
+        {key: 'turnover:staffmovement', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementempty', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementrecords', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementemployee', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementsite', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementcompany', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementevent', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementdate', component: 'block_dashboardanalytics'},
+        {key: 'turnover:movementtenure', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapallcombined', component: 'block_dashboardanalytics'},
         {key: 'js:heatmapcompliantlegend', component: 'block_dashboardanalytics'},
         {key: 'js:heatmaprisklegend', component: 'block_dashboardanalytics'},
@@ -455,6 +473,15 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         'turnoverLeft',
         'turnoverNetChange',
         'turnoverRate',
+        'turnoverStaffMovement',
+        'turnoverMovementEmpty',
+        'turnoverMovementRecords',
+        'turnoverMovementEmployee',
+        'turnoverMovementSite',
+        'turnoverMovementCompany',
+        'turnoverMovementEvent',
+        'turnoverMovementDate',
+        'turnoverMovementTenure',
         'heatmapAllCombined',
         'heatmapCompliantLegend',
         'heatmapRiskLegend',
@@ -3111,6 +3138,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 if (selectedInterval) {
                     turnoverKpis = selectedInterval.intervalkpis || turnoverKpis;
                 }
+                var selectedMovementRows = selectedInterval ? (selectedInterval.movementrows || []) : [];
                 var turnoverLegend = (((turnoverItems[0] || {}).segments) || []).map(function(segment) {
                     var dotclass = segment.status === 'purple' ? 'purple' : segment.status;
                     return '<span class="da-turnover-legend-item"><span class="da-turnover-legend-mark da-turnover-legend-mark-' + escapeHtml(dotclass) + '"></span>'
@@ -3171,6 +3199,56 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                         + '" title="' + escapeHtml(tooltip) + '">' + escapeHtml(item.label) + '</button>');
                 });
 
+                var turnoverPointMarkers = netPoints.map(function(point) {
+                    var parts = point.split(',');
+                    return '<span class="da-turnover-line-point da-turnover-net-point" style="left:' + escapeHtml(parts[0])
+                        + '%;top:' + escapeHtml(parts[1]) + '%"></span>';
+                }).join('') + ratePoints.map(function(point) {
+                    var parts = point.split(',');
+                    return '<span class="da-turnover-line-point da-turnover-rate-point" style="left:' + escapeHtml(parts[0])
+                        + '%;top:' + escapeHtml(parts[1]) + '%"></span>';
+                }).join('');
+                var turnoverMovementRows = selectedMovementRows.map(function(row) {
+                    var eventkey = row.eventkey || '';
+                    var eventdetail = row.eventdetail
+                        ? '<span class="da-turnover-event-detail">' + escapeHtml(row.eventdetail) + '</span>'
+                        : '';
+                    var employee = row.profileurl
+                        ? '<a class="da-table-link" href="' + escapeHtml(row.profileurl) + '">' + escapeHtml(row.employee || '') + '</a>'
+                        : escapeHtml(row.employee || '');
+                    return '<tr>'
+                        + '<td>' + employee + '</td>'
+                        + '<td>' + escapeHtml(row.site || '') + '</td>'
+                        + '<td>' + escapeHtml(row.company || '') + '</td>'
+                        + '<td><span class="da-turnover-event da-turnover-event-' + escapeHtml(eventkey) + '">'
+                        + escapeHtml(row.event || '') + '</span>' + eventdetail + '</td>'
+                        + '<td>' + escapeHtml(row.date || '') + '</td>'
+                        + '<td class="da-turnover-tenure">' + escapeHtml(String(row.tenure || 0)) + '</td>'
+                        + '</tr>';
+                }).join('');
+                var turnoverMovementTable = selectedInterval
+                    ? '<div class="da-turnover-movement">'
+                        + '<div class="da-turnover-movement-head">'
+                        + '<div><strong>' + escapeHtml(text('turnoverStaffMovement', 'Staff movement')) + '</strong>'
+                        + '<span>' + escapeHtml(selectedInterval.label || '') + '</span></div>'
+                        + '<button type="button" class="da-row-action" data-action="turnover-interval" data-key="'
+                        + escapeHtml(selectedInterval.key || '') + '">' + escapeHtml(text('cancel', 'Close')) + '</button>'
+                        + '<b>' + escapeHtml(formatString(text('turnoverMovementRecords', '{$a} records'), String(selectedMovementRows.length))) + '</b>'
+                        + '</div>'
+                        + '<div class="da-table-wrap da-turnover-movement-wrap"><table class="da-table da-turnover-movement-table">'
+                        + '<thead><tr>'
+                        + '<th scope="col">' + escapeHtml(text('turnoverMovementEmployee', 'Employee')) + '</th>'
+                        + '<th scope="col">' + escapeHtml(text('turnoverMovementSite', 'Site')) + '</th>'
+                        + '<th scope="col">' + escapeHtml(text('turnoverMovementCompany', 'Company')) + '</th>'
+                        + '<th scope="col">' + escapeHtml(text('turnoverMovementEvent', 'Event')) + '</th>'
+                        + '<th scope="col">' + escapeHtml(text('turnoverMovementDate', 'Date')) + '</th>'
+                        + '<th scope="col">' + escapeHtml(text('turnoverMovementTenure', 'Tenure, d')) + '</th>'
+                        + '</tr></thead><tbody>'
+                        + (turnoverMovementRows || '<tr><td colspan="6"><div class="da-empty">' + escapeHtml(text('turnoverMovementEmpty', 'No staff movement in this interval.')) + '</div></td></tr>')
+                        + '</tbody></table></div>'
+                        + '</div>'
+                    : '';
+
                 body = '<div class="da-turnover-prototype" style="--da-turnover-cols:' + turnoverItems.length + '">'
                     + '<div class="da-turnover-tools">'
                     + '<span class="da-turnover-tool-label">' + escapeHtml(text('turnoverPeriod', 'Period')) + '</span>'
@@ -3199,17 +3277,11 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
                     + '<polyline points="' + escapeHtml(netPoints.join(' ')) + '" class="da-turnover-net-line"></polyline>'
                     + '<polyline points="' + escapeHtml(ratePoints.join(' ')) + '" class="da-turnover-rate-line"></polyline>'
-                    + netPoints.map(function(point) {
-                        var parts = point.split(',');
-                        return '<circle cx="' + escapeHtml(parts[0]) + '" cy="' + escapeHtml(parts[1]) + '" r=".9" class="da-turnover-net-point"></circle>';
-                    }).join('')
-                    + ratePoints.map(function(point) {
-                        var parts = point.split(',');
-                        return '<circle cx="' + escapeHtml(parts[0]) + '" cy="' + escapeHtml(parts[1]) + '" r=".9" class="da-turnover-rate-point"></circle>';
-                    }).join('')
                     + '</svg>'
+                    + turnoverPointMarkers
                     + '</div>'
                     + '<div class="da-turnover-axis-labels">' + xButtons.join('') + '</div>'
+                    + turnoverMovementTable
                     + '</div>';
             } else if (panel.type === 'turnoverbars') {
                 body = '<div class="da-turnover-bars-wrap">'
