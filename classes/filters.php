@@ -35,6 +35,8 @@ class filters {
             'compliancecustomend' => self::date_input($decoded['compliancecustomend'] ?? ''),
             'forecastcustomstart' => self::date_input($decoded['forecastcustomstart'] ?? ''),
             'forecastcustomend' => self::date_input($decoded['forecastcustomend'] ?? ''),
+            'turnovercustomstart' => self::date_input($decoded['turnovercustomstart'] ?? ''),
+            'turnovercustomend' => self::date_input($decoded['turnovercustomend'] ?? ''),
             'status' => self::status($decoded['status'] ?? ''),
             'statusmode' => self::status_mode($decoded['statusmode'] ?? ''),
             'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),

@@ -19,7 +19,7 @@ class turnover_repository {
             $records = $this->scoped_user_lifecycle_records($tabfilters, 0, time(), 'turnoverdynamics' . preg_replace('/[^a-z0-9]/i', '', $tab['key']));
 
             foreach ($periods as $period) {
-                $windows = $this->turnover_windows($period['key']);
+                $windows = $this->turnover_windows($period['key'], $filters);
                 $perioditems = $this->build_staff_dynamics_period_items($records, $windows, $period['key'], $tab['key']);
                 $items = array_merge($items, $perioditems);
             }
@@ -203,7 +203,9 @@ class turnover_repository {
                    AND hiredata.userid = u.id
                  WHERE " . implode(' AND ', $where);
 
-        return $DB->get_records_sql($sql, $params);
+        $records = $DB->get_records_sql($sql, $params);
+        $this->append_company_change_exit_records($records, $filters, $end, $prefix);
+        return $records;
     }
 
     private function new_hires_without_documents_summary(
@@ -306,6 +308,7 @@ class turnover_repository {
             ['key' => '6months', 'label' => get_string('forecast:period:6months', 'block_dashboardanalytics')],
             ['key' => '12months', 'label' => get_string('forecast:period:12months', 'block_dashboardanalytics')],
             ['key' => '3years', 'label' => get_string('forecast:period:3years', 'block_dashboardanalytics')],
+            ['key' => 'customrange', 'label' => get_string('forecast:period:customrange', 'block_dashboardanalytics')],
         ];
     }
 
@@ -343,9 +346,13 @@ class turnover_repository {
         return $tabs;
     }
 
-    private function turnover_windows(string $periodkey): array {
+    private function turnover_windows(string $periodkey, array $filters = []): array {
         $timezone = new \DateTimeZone('Asia/Almaty');
         $today = new \DateTimeImmutable('today 23:59:59', $timezone);
+
+        if ($periodkey === 'customrange') {
+            return $this->custom_turnover_windows($filters, $timezone, $today);
+        }
 
         if (in_array($periodkey, ['30days', '60days', '90days'], true)) {
             $days = $periodkey === '30days' ? 30 : ($periodkey === '60days' ? 60 : 90);
@@ -383,6 +390,90 @@ class turnover_repository {
             ];
         }
         return $windows;
+    }
+
+    private function custom_turnover_windows(
+        array $filters,
+        \DateTimeZone $timezone,
+        \DateTimeImmutable $today
+    ): array {
+        $start = $this->custom_turnover_date((string)($filters['turnovercustomstart'] ?? ''), $timezone, true);
+        $end = $this->custom_turnover_date((string)($filters['turnovercustomend'] ?? ''), $timezone, false);
+
+        if (!$start && !$end) {
+            $end = $today;
+            $start = $today->modify('-29 days')->setTime(0, 0, 0);
+        } else if (!$start) {
+            $start = $end->modify('-29 days')->setTime(0, 0, 0);
+        } else if (!$end) {
+            $end = $start->modify('+29 days')->setTime(23, 59, 59);
+        }
+
+        if ($start > $end) {
+            [$start, $end] = [
+                $end->setTime(0, 0, 0),
+                $start->setTime(23, 59, 59),
+            ];
+        }
+
+        $days = max(1, (int)ceil(($end->getTimestamp() - $start->getTimestamp() + 1) / DAYSECS));
+        if ($days <= 90) {
+            return $this->chunk_windows($start, $end, 7);
+        }
+
+        if ($days <= 730) {
+            $windows = [];
+            $cursor = $start->modify('first day of this month')->setTime(0, 0, 0);
+            $limit = 0;
+            while ($cursor <= $end && $limit < 36) {
+                $windowstart = $cursor < $start ? $start : $cursor;
+                $windowend = $cursor->modify('last day of this month')->setTime(23, 59, 59);
+                if ($windowend > $end) {
+                    $windowend = $end;
+                }
+                $windows[] = [
+                    'key' => $windowstart->format('Y-m-d'),
+                    'label' => $this->turnover_interval_label($windowstart, $windowend, count($windows) < 2 || $cursor->format('n') === '1'),
+                    'start' => $windowstart->getTimestamp(),
+                    'end' => $windowend->getTimestamp(),
+                ];
+                $cursor = $cursor->modify('+1 month');
+                $limit++;
+            }
+            return $windows;
+        }
+
+        $windows = [];
+        $cursor = $start->setDate((int)$start->format('Y'), 1, 1)->setTime(0, 0, 0);
+        $limit = 0;
+        while ($cursor <= $end && $limit < 10) {
+            $windowstart = $cursor < $start ? $start : $cursor;
+            $windowend = $cursor->modify('last day of December this year')->setTime(23, 59, 59);
+            if ($windowend > $end) {
+                $windowend = $end;
+            }
+            $windows[] = [
+                'key' => $windowstart->format('Y'),
+                'label' => $this->turnover_interval_label($windowstart, $windowend, true),
+                'start' => $windowstart->getTimestamp(),
+                'end' => $windowend->getTimestamp(),
+            ];
+            $cursor = $cursor->modify('+1 year');
+            $limit++;
+        }
+
+        return $windows;
+    }
+
+    private function custom_turnover_date(string $value, \DateTimeZone $timezone, bool $startofday): ?\DateTimeImmutable {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $time = $startofday ? '00:00:00' : '23:59:59';
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value . ' ' . $time, $timezone);
+        return $date ?: null;
     }
 
     private function chunk_windows(\DateTimeImmutable $start, \DateTimeImmutable $end, int $days): array {
@@ -535,6 +626,10 @@ class turnover_repository {
                     return $timestamp;
                 }
             }
+            $profiledate = $this->parse_profile_date($profilevalue);
+            if ($profiledate > 0) {
+                return $profiledate;
+            }
             $parsed = strtotime($profilevalue);
             if ($parsed !== false) {
                 $timestamp = (int)$parsed;
@@ -545,6 +640,196 @@ class turnover_repository {
         }
 
         return (int)$record->timecreated;
+    }
+
+    private function append_company_change_exit_records(array &$records, array $filters, int $end, string $prefix): void {
+        global $DB;
+
+        $companyids = array_values(array_filter(array_map('intval', $filters['companyids'] ?? [])));
+        if (count($companyids) !== 1 || !$this->table_exists('logstore_standard_log')) {
+            return;
+        }
+
+        $companyid = reset($companyids);
+        if ($companyid <= 0) {
+            return;
+        }
+
+        $employee = new employee_repository();
+        $scopefilters = $filters;
+        unset($scopefilters['companyids'], $scopefilters['companies']);
+        $filter = $employee->scoped_user_filter_sql($scopefilters, 'u', $prefix . 'companyexit', [
+            'requireactive' => false,
+            'requireconfirmed' => true,
+            'includesuspended' => true,
+            'includedeleted' => true,
+        ]);
+
+        $params = $filter['params'];
+        $params[$prefix . 'companyexitfield'] = 'Date';
+        if ($end > 0) {
+            $params[$prefix . 'companyexitend'] = $end;
+        }
+
+        $likes = $this->company_exit_payload_likes($params, $prefix, $companyid);
+        $eventlikes = [
+            $DB->sql_like('l.eventname', ':' . $prefix . 'companyexiteventcompany', false, false),
+            $DB->sql_like('l.eventname', ':' . $prefix . 'companyexiteventassign', false, false),
+            $DB->sql_like('l.eventname', ':' . $prefix . 'companyexiteventremove', false, false),
+            $DB->sql_like('l.eventname', ':' . $prefix . 'companyexiteventupdate', false, false),
+        ];
+        $params[$prefix . 'companyexiteventcompany'] = '%company%';
+        $params[$prefix . 'companyexiteventassign'] = '%assign%';
+        $params[$prefix . 'companyexiteventremove'] = '%remove%';
+        $params[$prefix . 'companyexiteventupdate'] = '%update%';
+
+        $where = [
+            $filter['sql'],
+            'l.timecreated > 0',
+            '(' . implode(' OR ', $likes) . ')',
+            '(' . implode(' OR ', $eventlikes) . ")",
+        ];
+        if ($end > 0) {
+            $where[] = "l.timecreated <= :{$prefix}companyexitend";
+        }
+
+        $sql = "SELECT l.id AS logid,
+                       l.timecreated AS companyexittimestamp,
+                       l.eventname,
+                       l.action,
+                       l.target,
+                       l.other,
+                       u.id,
+                       u.timecreated,
+                       u.timemodified,
+                       u.suspended,
+                       u.deleted,
+                       hiredata.data AS hiredateprofile,
+                       CASE
+                           WHEN hiredata.data REGEXP '^[0-9]+$' AND CAST(hiredata.data AS UNSIGNED) > 0
+                               THEN CAST(hiredata.data AS UNSIGNED)
+                           WHEN hiredata.data IS NOT NULL AND hiredata.data <> '' AND hiredata.data <> '0'
+                               THEN UNIX_TIMESTAMP(hiredata.data)
+                           ELSE u.timecreated
+                       END AS hiretimestamp
+                  FROM {logstore_standard_log} l
+                  JOIN {user} u
+                    ON u.id = CASE
+                                WHEN l.relateduserid > 0 THEN l.relateduserid
+                                WHEN l.objectid > 0 THEN l.objectid
+                                ELSE l.userid
+                              END
+             LEFT JOIN {user_info_field} hirefield
+                    ON hirefield.shortname = :{$prefix}companyexitfield
+             LEFT JOIN {user_info_data} hiredata
+                    ON hiredata.fieldid = hirefield.id
+                   AND hiredata.userid = u.id
+                 WHERE " . implode(' AND ', $where) . "
+              ORDER BY l.timecreated ASC";
+
+        foreach ($DB->get_records_sql($sql, $params) as $record) {
+            if (!$this->log_entry_indicates_company_exit($record, $companyid)) {
+                continue;
+            }
+
+            $userid = (int)$record->id;
+            $exittimestamp = (int)$record->companyexittimestamp;
+            if ($userid <= 0 || $exittimestamp <= 0) {
+                continue;
+            }
+
+            if (isset($records[$userid])) {
+                $currentexit = (int)($records[$userid]->exittimestamp ?? 0);
+                if ($currentexit <= 0 || $exittimestamp < $currentexit) {
+                    $records[$userid]->exittimestamp = $exittimestamp;
+                }
+                continue;
+            }
+
+            $record->exittimestamp = $exittimestamp;
+            $records[$userid] = $record;
+        }
+    }
+
+    private function log_entry_indicates_company_exit(\stdClass $record, int $companyid): bool {
+        $event = strtolower((string)($record->eventname ?? ''));
+        $action = strtolower((string)($record->action ?? ''));
+        $target = strtolower((string)($record->target ?? ''));
+        $payload = $this->decode_log_payload((string)($record->other ?? ''));
+
+        $oldcompany = $this->company_id_from_payload($payload, ['oldcompanyid', 'previouscompanyid', 'fromcompanyid', 'sourcecompanyid']);
+        $newcompany = $this->company_id_from_payload($payload, ['newcompanyid', 'tocompanyid', 'destinationcompanyid']);
+        if ($oldcompany === $companyid && $newcompany !== $companyid) {
+            return true;
+        }
+
+        $eventtext = $event . ' ' . $action . ' ' . $target;
+        $isremoval = preg_match('/unassign|remove|delete|left|leave/', $eventtext) === 1
+            || ($newcompany > 0 && preg_match('/move|transfer|change|update/', $eventtext) === 1);
+        $genericcompany = $this->company_id_from_payload($payload, ['companyid', 'company']);
+
+        return $genericcompany === $companyid && $isremoval && $newcompany !== $companyid;
+    }
+
+    private function company_id_from_payload(array $payload, array $keys): int {
+        foreach ($keys as $key) {
+            if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                return (int)$payload[$key];
+            }
+        }
+        return 0;
+    }
+
+    private function company_exit_payload_likes(array &$params, string $prefix, int $companyid): array {
+        global $DB;
+
+        $keys = ['companyid', 'company', 'oldcompanyid', 'previouscompanyid', 'fromcompanyid', 'sourcecompanyid'];
+        $likes = [];
+        foreach ($keys as $index => $key) {
+            $base = $prefix . 'companyexitpayload' . $index;
+            $value = (string)$companyid;
+            $params[$base . 'jsonnum'] = '%"' . $DB->sql_like_escape($key) . '":' . $value . '%';
+            $params[$base . 'jsonstr'] = '%"' . $DB->sql_like_escape($key) . '":"' . $DB->sql_like_escape($value) . '"%';
+            $params[$base . 'sernum'] = '%s:' . strlen($key) . ':"' . $DB->sql_like_escape($key) . '";i:' . $value . ';%';
+            $params[$base . 'serstr'] = '%s:' . strlen($key) . ':"' . $DB->sql_like_escape($key) . '";s:' . strlen($value) . ':"' . $DB->sql_like_escape($value) . '";%';
+            $likes[] = $DB->sql_like('l.other', ':' . $base . 'jsonnum', false, false);
+            $likes[] = $DB->sql_like('l.other', ':' . $base . 'jsonstr', false, false);
+            $likes[] = $DB->sql_like('l.other', ':' . $base . 'sernum', false, false);
+            $likes[] = $DB->sql_like('l.other', ':' . $base . 'serstr', false, false);
+        }
+        return $likes;
+    }
+
+    private function decode_log_payload(string $payload): array {
+        $payload = trim($payload);
+        if ($payload === '') {
+            return [];
+        }
+
+        $decoded = json_decode($payload, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        $decoded = @unserialize($payload, ['allowed_classes' => false]);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function parse_profile_date(string $value): int {
+        $timezone = new \DateTimeZone('Asia/Almaty');
+        $formats = ['!d.m.Y', '!d/m/Y', '!Y-m-d', '!m/d/Y'];
+        foreach ($formats as $format) {
+            $date = \DateTimeImmutable::createFromFormat($format, $value, $timezone);
+            if ($date instanceof \DateTimeImmutable) {
+                $errors = \DateTimeImmutable::getLastErrors();
+                if ($errors !== false && ((int)$errors['warning_count'] > 0 || (int)$errors['error_count'] > 0)) {
+                    continue;
+                }
+                return $date->setTime(0, 0, 0)->getTimestamp();
+            }
+        }
+
+        return 0;
     }
 
     private function record_exit_timestamp(\stdClass $record): int {
@@ -639,6 +924,12 @@ class turnover_repository {
 
     private function is_deactivated_record(\stdClass $record): bool {
         return !empty($record->suspended) || !empty($record->deleted);
+    }
+
+    private function table_exists(string $tablename): bool {
+        global $DB;
+
+        return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
     }
 
     private function turnover_status(float $percent): string {

@@ -3099,14 +3099,17 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                         return (item.periodkey || '') === turnoverPeriod;
                     });
                 }
-                var turnoverPeriods = [
-                    {key: '30days', label: text('forecastPeriod30days', '30 days')},
-                    {key: '60days', label: text('forecastPeriod60days', '60 days')},
-                    {key: '90days', label: text('forecastPeriod90days', '90 days')},
-                    {key: '6months', label: text('forecastPeriod6months', '6 months')},
-                    {key: '12months', label: text('forecastPeriod12months', '12 months')},
-                    {key: '3years', label: text('forecastPeriod3years', '3 years')}
-                ];
+                var turnoverPeriodMap = {};
+                visibleItems.forEach(function(item) {
+                    if (item.periodkey && !turnoverPeriodMap[item.periodkey]) {
+                        turnoverPeriodMap[item.periodkey] = item.rowlabel || periodLabelForKey(item.periodkey);
+                    }
+                });
+                var turnoverPeriods = forecastPeriodOrder.filter(function(key) {
+                    return !!turnoverPeriodMap[key];
+                }).map(function(key) {
+                    return {key: key, label: turnoverPeriodMap[key]};
+                });
                 var turnoverTabs = panelTabs.length ? panelTabs : [{key: selectedPanelTab || 'all', label: '', active: true}];
                 var turnoverKpis = ((turnoverItems[0] || {}).kpis || []);
                 var selectedIntervalKey = ((((state || {}).currentVisualOverrides) || {}).turnoverinterval_staffdynamics || '');
@@ -3134,6 +3137,18 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 var netPoints = [];
                 var ratePoints = [];
                 var xButtons = [];
+                var turnoverCustomStart = String(((((state || {}).currentVisualOverrides) || {}).turnovercustomstart) || '');
+                var turnoverCustomEnd = String(((((state || {}).currentVisualOverrides) || {}).turnovercustomend) || '');
+                var turnoverCustomControls = turnoverPeriod === 'customrange'
+                    ? '<div class="da-turnover-custom-range da-forecast-custom-range">'
+                        + '<label><span>' + escapeHtml(text('forecastCustomStart', 'Start date')) + '</span>'
+                        + '<input type="date" data-turnover-custom-start value="' + escapeHtml(turnoverCustomStart) + '"></label>'
+                        + '<label><span>' + escapeHtml(text('forecastCustomEnd', 'End date')) + '</span>'
+                        + '<input type="date" data-turnover-custom-end value="' + escapeHtml(turnoverCustomEnd) + '"></label>'
+                        + '<button type="button" class="da-forecast-custom-apply" data-action="turnover-custom-range">'
+                        + escapeHtml(text('forecastApplyRange', 'Apply range')) + '</button>'
+                        + '</div>'
+                    : '';
 
                 turnoverItems.forEach(function(item, index) {
                     var center = (step * index) + (step / 2);
@@ -3170,7 +3185,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     + '<span class="da-turnover-segmented">' + turnoverPeriods.map(function(option) {
                         return '<button type="button" class="da-turnover-period' + (turnoverPeriod === option.key ? ' is-active' : '')
                             + '" data-action="turnover-period" data-period="' + escapeHtml(option.key) + '">' + escapeHtml(option.label) + '</button>';
-                    }).join('') + '</span>'
+                    }).join('') + '</span>' + turnoverCustomControls
                     + (turnoverTabs.length > 1 ? '<span class="da-turnover-tool-label">' + escapeHtml(text('turnoverCompany', 'Company')) + '</span>'
                         + '<span class="da-turnover-segmented">' + turnoverTabs.map(function(tab) {
                             return '<button type="button" class="da-turnover-company' + (tab.key === selectedPanelTab ? ' is-active' : '')
@@ -7220,6 +7235,22 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 rememberCurrentState(root, state);
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     turnoverperiod_staffdynamics: turnoverPeriod.getAttribute('data-period') || '12months',
+                    turnoverinterval_staffdynamics: ''
+                });
+                loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
+                return;
+            }
+
+            var turnoverCustomRange = event.target.closest('[data-action="turnover-custom-range"]');
+            if (turnoverCustomRange && root.contains(turnoverCustomRange)) {
+                rememberCurrentState(root, state);
+                var turnoverCustomPanel = turnoverCustomRange.closest('.da-turnover-prototype') || root;
+                var turnoverStartInput = turnoverCustomPanel.querySelector('[data-turnover-custom-start]');
+                var turnoverEndInput = turnoverCustomPanel.querySelector('[data-turnover-custom-end]');
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    turnoverperiod_staffdynamics: 'customrange',
+                    turnovercustomstart: turnoverStartInput ? turnoverStartInput.value : '',
+                    turnovercustomend: turnoverEndInput ? turnoverEndInput.value : '',
                     turnoverinterval_staffdynamics: ''
                 });
                 loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
