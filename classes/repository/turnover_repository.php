@@ -191,13 +191,6 @@ class turnover_repository {
         $params[$prefix . 'hirefield'] = 'Date';
         $params[$prefix . 'sitefield'] = 'Site';
         $where = [$filter['sql']];
-        if ($companyrepo->has_iomad_tables() && empty($filters['companyids']) && empty($filters['companies'])) {
-            $where[] = "EXISTS (
-                            SELECT 1
-                              FROM {company_users} cturnover
-                             WHERE cturnover.userid = u.id
-                         )";
-        }
 
         if ($start > 0) {
             $params[$prefix . 'createdstart'] = $start;
