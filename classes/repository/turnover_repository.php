@@ -746,7 +746,7 @@ class turnover_repository {
             }
         }
 
-        $showrecordidentity = $showidentity && empty($record->deleted);
+        $showrecordidentity = $showidentity;
         $row = [
             '_sortdate' => $eventdate,
             'employee' => $showrecordidentity ? name_formatter::last_first($record) : get_string('hiddenuser'),
@@ -760,7 +760,7 @@ class turnover_repository {
             'date' => userdate($eventdate, get_string('strftimedate', 'langconfig')),
             'tenure' => $tenure,
         ];
-        if ($showrecordidentity) {
+        if ($showrecordidentity && empty($record->deleted)) {
             $row['profileurl'] = (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false);
         }
 
