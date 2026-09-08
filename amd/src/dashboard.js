@@ -2958,6 +2958,129 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         }).join('') + '</div>';
     };
 
+    var renderTurnoverKpisMarkup = function(kpis) {
+        return (kpis || []).map(function(kpi) {
+            return '<article class="da-turnover-kpi da-turnover-kpi-' + escapeHtml(kpi.status || 'neutral') + '">'
+                + '<span>' + escapeHtml(kpi.label || '') + '</span><strong>' + escapeHtml(kpi.value || '') + '</strong></article>';
+        }).join('');
+    };
+
+    var renderTurnoverMovementTableMarkup = function(selectedInterval) {
+        if (!selectedInterval) {
+            return '';
+        }
+
+        var selectedMovementRows = selectedInterval.movementrows || [];
+        var turnoverMovementRows = selectedMovementRows.map(function(row) {
+            var eventkey = row.eventkey || '';
+            var eventdetail = row.eventdetail
+                ? '<span class="da-turnover-event-detail">' + escapeHtml(row.eventdetail) + '</span>'
+                : '';
+            var employee = row.profileurl
+                ? '<a class="da-table-link" href="' + escapeHtml(row.profileurl) + '">' + escapeHtml(row.employee || '') + '</a>'
+                : escapeHtml(row.employee || '');
+            return '<tr>'
+                + '<td>' + employee + '</td>'
+                + '<td>' + escapeHtml(row.site || '') + '</td>'
+                + '<td>' + escapeHtml(row.company || '') + '</td>'
+                + '<td><span class="da-turnover-event da-turnover-event-' + escapeHtml(eventkey) + '">'
+                + escapeHtml(row.event || '') + '</span>' + eventdetail + '</td>'
+                + '<td>' + escapeHtml(row.date || '') + '</td>'
+                + '<td class="da-turnover-tenure">' + escapeHtml(String(row.tenure || 0)) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        return '<div class="da-turnover-movement">'
+            + '<div class="da-turnover-movement-head">'
+            + '<div><strong>' + escapeHtml(text('turnoverStaffMovement', 'Staff movement')) + '</strong>'
+            + '<span>' + escapeHtml(selectedInterval.label || '') + '</span></div>'
+            + '<button type="button" class="da-row-action" data-action="turnover-interval" data-key="'
+            + escapeHtml(selectedInterval.key || '') + '">' + escapeHtml(text('cancel', 'Close')) + '</button>'
+            + '<b>' + escapeHtml(formatString(text('turnoverMovementRecords', '{$a} records'), String(selectedMovementRows.length))) + '</b>'
+            + '</div>'
+            + '<div class="da-table-wrap da-turnover-movement-wrap"><table class="da-table da-turnover-movement-table">'
+            + '<thead><tr>'
+            + '<th scope="col">' + escapeHtml(text('turnoverMovementEmployee', 'Employee')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('turnoverMovementSite', 'Site')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('turnoverMovementCompany', 'Company')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('turnoverMovementEvent', 'Event')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('turnoverMovementDate', 'Date')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('turnoverMovementTenure', 'Tenure, d')) + '</th>'
+            + '</tr></thead><tbody>'
+            + (turnoverMovementRows || '<tr><td colspan="6"><div class="da-empty">' + escapeHtml(text('turnoverMovementEmpty', 'No staff movement in this interval.')) + '</div></td></tr>')
+            + '</tbody></table></div>'
+            + '</div>';
+    };
+
+    var selectedTurnoverPanelState = function(state) {
+        var response = state.currentVisualResponse || {};
+        var panel = (response.panels || []).filter(function(candidate) {
+            return candidate.key === 'staffdynamics';
+        })[0] || null;
+        if (!panel) {
+            return null;
+        }
+
+        var overrides = (state || {}).currentVisualOverrides || {};
+        var panelTabs = panel.tabs || [];
+        var selectedPanelTab = overrides.paneltab_staffdynamics
+            || ((panelTabs.filter(function(tab) { return !!tab.active; })[0] || {}).key)
+            || ((panelTabs[0] || {}).key)
+            || '';
+        var turnoverPeriod = String(overrides.turnoverperiod_staffdynamics || '12months').toLowerCase();
+        var items = (panel.items || []).filter(function(item) {
+            return (!selectedPanelTab || (item.groupkey || '') === selectedPanelTab)
+                && (item.periodkey || '') === turnoverPeriod;
+        });
+
+        return {
+            panel: panel,
+            items: items,
+            selectedPanelTab: selectedPanelTab,
+            turnoverPeriod: turnoverPeriod
+        };
+    };
+
+    var updateTurnoverIntervalSelection = function(root, state, trigger) {
+        var prototype = trigger.closest('.da-turnover-prototype');
+        var selection = selectedTurnoverPanelState(state);
+        if (!prototype || !selection) {
+            return false;
+        }
+
+        var selectedIntervalKey = ((state.currentVisualOverrides || {}).turnoverinterval_staffdynamics || '');
+        var selectedInterval = (selection.items || []).filter(function(item) {
+            return item.key === selectedIntervalKey;
+        })[0] || null;
+        var kpis = selectedInterval
+            ? (selectedInterval.intervalkpis || [])
+            : (((selection.items || [])[0] || {}).kpis || []);
+
+        Array.prototype.slice.call(prototype.querySelectorAll('[data-action="turnover-interval"]')).forEach(function(node) {
+            node.classList.toggle('is-selected', (node.getAttribute('data-key') || '') === selectedIntervalKey && !!selectedIntervalKey);
+        });
+
+        var kpiNode = prototype.querySelector('.da-turnover-kpis');
+        if (kpiNode) {
+            kpiNode.innerHTML = renderTurnoverKpisMarkup(kpis);
+        }
+
+        Array.prototype.slice.call(prototype.querySelectorAll('.da-turnover-movement')).forEach(function(node) {
+            node.parentNode.removeChild(node);
+        });
+
+        if (selectedInterval) {
+            var axis = prototype.querySelector('.da-turnover-axis-labels');
+            if (axis) {
+                axis.insertAdjacentHTML('afterend', renderTurnoverMovementTableMarkup(selectedInterval));
+            }
+        }
+
+        persistState(root, state);
+        commitBrowserHistoryState(root, state, 'push');
+        return true;
+    };
+
     var renderVisualPanelInnerMarkup = function(panel, body) {
         var panelHelp = panel.formula
             ? '<span class="da-panel-help" title="' + escapeHtml(text('formulaTooltip', 'Formula') + ': ' + panel.formula) + '" aria-label="'
@@ -3138,7 +3261,6 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 if (selectedInterval) {
                     turnoverKpis = selectedInterval.intervalkpis || turnoverKpis;
                 }
-                var selectedMovementRows = selectedInterval ? (selectedInterval.movementrows || []) : [];
                 var turnoverLegend = (((turnoverItems[0] || {}).segments) || []).map(function(segment) {
                     var dotclass = segment.status === 'purple' ? 'purple' : segment.status;
                     return '<span class="da-turnover-legend-item"><span class="da-turnover-legend-mark da-turnover-legend-mark-' + escapeHtml(dotclass) + '"></span>'
@@ -3208,46 +3330,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     return '<span class="da-turnover-line-point da-turnover-rate-point" style="left:' + escapeHtml(parts[0])
                         + '%;top:' + escapeHtml(parts[1]) + '%"></span>';
                 }).join('');
-                var turnoverMovementRows = selectedMovementRows.map(function(row) {
-                    var eventkey = row.eventkey || '';
-                    var eventdetail = row.eventdetail
-                        ? '<span class="da-turnover-event-detail">' + escapeHtml(row.eventdetail) + '</span>'
-                        : '';
-                    var employee = row.profileurl
-                        ? '<a class="da-table-link" href="' + escapeHtml(row.profileurl) + '">' + escapeHtml(row.employee || '') + '</a>'
-                        : escapeHtml(row.employee || '');
-                    return '<tr>'
-                        + '<td>' + employee + '</td>'
-                        + '<td>' + escapeHtml(row.site || '') + '</td>'
-                        + '<td>' + escapeHtml(row.company || '') + '</td>'
-                        + '<td><span class="da-turnover-event da-turnover-event-' + escapeHtml(eventkey) + '">'
-                        + escapeHtml(row.event || '') + '</span>' + eventdetail + '</td>'
-                        + '<td>' + escapeHtml(row.date || '') + '</td>'
-                        + '<td class="da-turnover-tenure">' + escapeHtml(String(row.tenure || 0)) + '</td>'
-                        + '</tr>';
-                }).join('');
-                var turnoverMovementTable = selectedInterval
-                    ? '<div class="da-turnover-movement">'
-                        + '<div class="da-turnover-movement-head">'
-                        + '<div><strong>' + escapeHtml(text('turnoverStaffMovement', 'Staff movement')) + '</strong>'
-                        + '<span>' + escapeHtml(selectedInterval.label || '') + '</span></div>'
-                        + '<button type="button" class="da-row-action" data-action="turnover-interval" data-key="'
-                        + escapeHtml(selectedInterval.key || '') + '">' + escapeHtml(text('cancel', 'Close')) + '</button>'
-                        + '<b>' + escapeHtml(formatString(text('turnoverMovementRecords', '{$a} records'), String(selectedMovementRows.length))) + '</b>'
-                        + '</div>'
-                        + '<div class="da-table-wrap da-turnover-movement-wrap"><table class="da-table da-turnover-movement-table">'
-                        + '<thead><tr>'
-                        + '<th scope="col">' + escapeHtml(text('turnoverMovementEmployee', 'Employee')) + '</th>'
-                        + '<th scope="col">' + escapeHtml(text('turnoverMovementSite', 'Site')) + '</th>'
-                        + '<th scope="col">' + escapeHtml(text('turnoverMovementCompany', 'Company')) + '</th>'
-                        + '<th scope="col">' + escapeHtml(text('turnoverMovementEvent', 'Event')) + '</th>'
-                        + '<th scope="col">' + escapeHtml(text('turnoverMovementDate', 'Date')) + '</th>'
-                        + '<th scope="col">' + escapeHtml(text('turnoverMovementTenure', 'Tenure, d')) + '</th>'
-                        + '</tr></thead><tbody>'
-                        + (turnoverMovementRows || '<tr><td colspan="6"><div class="da-empty">' + escapeHtml(text('turnoverMovementEmpty', 'No staff movement in this interval.')) + '</div></td></tr>')
-                        + '</tbody></table></div>'
-                        + '</div>'
-                    : '';
+                var turnoverMovementTable = renderTurnoverMovementTableMarkup(selectedInterval);
 
                 body = '<div class="da-turnover-prototype" style="--da-turnover-cols:' + turnoverItems.length + '">'
                     + '<div class="da-turnover-tools">'
@@ -3263,10 +3346,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                                 + '" data-tabkey="' + escapeHtml(tab.key) + '">' + escapeHtml(tab.label) + '</button>';
                         }).join('') + '</span>' : '')
                     + '</div>'
-                    + '<div class="da-turnover-kpis">' + turnoverKpis.map(function(kpi) {
-                        return '<article class="da-turnover-kpi da-turnover-kpi-' + escapeHtml(kpi.status || 'neutral') + '">'
-                            + '<span>' + escapeHtml(kpi.label || '') + '</span><strong>' + escapeHtml(kpi.value || '') + '</strong></article>';
-                    }).join('') + '</div>'
+                    + '<div class="da-turnover-kpis">' + renderTurnoverKpisMarkup(turnoverKpis) + '</div>'
                     + '<div class="da-turnover-legend">' + turnoverLegend + '</div>'
                     + '<div class="da-turnover-combo-chart">'
                     + '<div class="da-turnover-grid da-turnover-grid-top"><span>' + escapeHtml(String(maxMovement)) + '</span><b>' + escapeHtml(formatPercent(maxRate) + '%') + '</b></div>'
@@ -5556,6 +5636,68 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         }).catch(Notification.exception);
     };
 
+    var replaceVisualPanelInResponse = function(currentResponse, partialResponse, panelKey) {
+        var panel = ((partialResponse || {}).panels || []).filter(function(candidate) {
+            return candidate.key === panelKey;
+        })[0] || null;
+        if (!panel) {
+            return partialResponse;
+        }
+
+        if (!currentResponse || !Array.isArray(currentResponse.panels)) {
+            return partialResponse;
+        }
+
+        var replaced = false;
+        var panels = currentResponse.panels.map(function(candidate) {
+            if (candidate.key === panelKey) {
+                replaced = true;
+                return panel;
+            }
+            return candidate;
+        });
+        if (!replaced) {
+            panels.unshift(panel);
+        }
+
+        return Object.assign({}, currentResponse, {
+            title: currentResponse.title || partialResponse.title || '',
+            description: currentResponse.description || partialResponse.description || '',
+            panels: panels
+        });
+    };
+
+    var loadStaffDynamicsPanel = function(root, state, overrides, historyMode) {
+        var article = root.querySelector('.da-visual-panel[data-panel-key="staffdynamics"]');
+        if (article) {
+            article.classList.add('is-loading');
+        }
+
+        var visualOverrides = overrides || {};
+        var requestFilters = readFilters(root, state, Object.assign({}, visualOverrides, {
+            turnoverstaffdynamicsonly: 1
+        }));
+
+        return call('block_dashboardanalytics_get_visuals', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            tabkey: 'turnover',
+            filters: JSON.stringify(requestFilters)
+        }).then(function(response) {
+            state.currentTab = 'turnover';
+            state.currentVisualOverrides = visualOverrides;
+            state.currentVisualResponse = replaceVisualPanelInResponse(
+                state.currentVisualResponse,
+                response,
+                'staffdynamics'
+            );
+            setActiveTab(root, 'turnover');
+            renderVisuals(root, state.currentVisualResponse || response, state);
+            persistState(root, state);
+            commitBrowserHistoryState(root, state, historyMode || 'push');
+        }).catch(Notification.exception);
+    };
+
     var refresh = function(root, state, historyMode) {
         var payload = Object.keys(state.filterGroups || {}).length
             ? readFilters(root, state)
@@ -7301,7 +7443,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     turnoverperiod_staffdynamics: turnoverPeriod.getAttribute('data-period') || '12months',
                     turnoverinterval_staffdynamics: ''
                 });
-                loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
+                loadStaffDynamicsPanel(root, state, state.currentVisualOverrides);
                 return;
             }
 
@@ -7317,7 +7459,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     turnovercustomend: turnoverEndInput ? turnoverEndInput.value : '',
                     turnoverinterval_staffdynamics: ''
                 });
-                loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
+                loadStaffDynamicsPanel(root, state, state.currentVisualOverrides);
                 return;
             }
 
@@ -7329,6 +7471,9 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
                     turnoverinterval_staffdynamics: currentInterval === intervalKey ? '' : intervalKey
                 });
+                if (updateTurnoverIntervalSelection(root, state, turnoverInterval)) {
+                    return;
+                }
                 loadVisuals(root, state, state.currentTab || 'turnover', state.currentVisualOverrides);
                 return;
             }
@@ -7342,6 +7487,11 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     var overrideKey = 'paneltab_' + panelKey;
                     state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {});
                     state.currentVisualOverrides[overrideKey] = tabKey;
+                    if (panelKey === 'staffdynamics') {
+                        state.currentVisualOverrides.turnoverinterval_staffdynamics = '';
+                        loadStaffDynamicsPanel(root, state, state.currentVisualOverrides);
+                        return;
+                    }
                     if (renderCachedVisualPanel(root, state, panelKey)) {
                         persistState(root, state);
                         commitBrowserHistoryState(root, state, 'push');

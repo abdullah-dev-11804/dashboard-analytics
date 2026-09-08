@@ -191,6 +191,13 @@ class turnover_repository {
         $params[$prefix . 'hirefield'] = 'Date';
         $params[$prefix . 'sitefield'] = 'Site';
         $where = [$filter['sql']];
+        if ($companyrepo->has_iomad_tables() && empty($filters['companyids']) && empty($filters['companies'])) {
+            $where[] = "EXISTS (
+                            SELECT 1
+                              FROM {company_users} cturnover
+                             WHERE cturnover.userid = u.id
+                         )";
+        }
 
         if ($start > 0) {
             $params[$prefix . 'createdstart'] = $start;
@@ -746,10 +753,10 @@ class turnover_repository {
             }
         }
 
-        return [
+        $showrecordidentity = $showidentity && empty($record->deleted);
+        $row = [
             '_sortdate' => $eventdate,
-            'employee' => $showidentity ? name_formatter::last_first($record) : get_string('hiddenuser'),
-            'profileurl' => $showidentity ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false) : '',
+            'employee' => $showrecordidentity ? name_formatter::last_first($record) : get_string('hiddenuser'),
             'site' => trim((string)($record->site ?? '')) !== '' ? format_string((string)$record->site) : get_string('label:unassigned', 'block_dashboardanalytics'),
             'company' => trim((string)($record->companyname ?? '')) !== '' ? format_string((string)$record->companyname) : get_string('label:unassigned', 'block_dashboardanalytics'),
             'event' => $eventkey === 'joined'
@@ -760,6 +767,11 @@ class turnover_repository {
             'date' => userdate($eventdate, get_string('strftimedate', 'langconfig')),
             'tenure' => $tenure,
         ];
+        if ($showrecordidentity) {
+            $row['profileurl'] = (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false);
+        }
+
+        return $row;
     }
 
     private function record_hire_timestamp(\stdClass $record): int {
@@ -824,6 +836,8 @@ class turnover_repository {
 
         $params = $filter['params'];
         $params[$prefix . 'companyexitfield'] = 'Date';
+        $params[$prefix . 'companyexitsitefield'] = 'Site';
+        $companyname = $this->company_name_for_id($companyid);
         if ($start > 0) {
             $params[$prefix . 'companyexitstart'] = $start;
         }
@@ -867,7 +881,11 @@ class turnover_repository {
                        u.timemodified,
                        u.suspended,
                        u.deleted,
+                       u.firstname,
+                       u.lastname,
+                       u.email,
                        hiredata.data AS hiredateprofile,
+                       COALESCE(NULLIF(sitedata.data, ''), '') AS site,
                        CASE
                            WHEN hiredata.data REGEXP '^[0-9]+$' AND CAST(hiredata.data AS UNSIGNED) > 0
                                THEN CAST(hiredata.data AS UNSIGNED)
@@ -892,6 +910,11 @@ class turnover_repository {
              LEFT JOIN {user_info_data} hiredata
                     ON hiredata.fieldid = hirefield.id
                    AND hiredata.userid = u.id
+             LEFT JOIN {user_info_field} sitefield
+                    ON sitefield.shortname = :{$prefix}companyexitsitefield
+             LEFT JOIN {user_info_data} sitedata
+                    ON sitedata.fieldid = sitefield.id
+                   AND sitedata.userid = u.id
                  WHERE " . implode(' AND ', $where) . "
               ORDER BY l.timecreated ASC";
 
@@ -911,14 +934,28 @@ class turnover_repository {
                 if ($currentexit <= 0 || $exittimestamp < $currentexit) {
                     $records[$userid]->exittimestamp = $exittimestamp;
                     $records[$userid]->exitsource = 'companychange';
+                    if ($companyname !== '') {
+                        $records[$userid]->companyname = $companyname;
+                    }
                 }
                 continue;
             }
 
             $record->exittimestamp = $exittimestamp;
             $record->exitsource = 'companychange';
+            $record->companyname = $companyname;
             $records[$userid] = $record;
         }
+    }
+
+    private function company_name_for_id(int $companyid): string {
+        global $DB;
+
+        if ($companyid <= 0 || !$this->table_exists('company')) {
+            return '';
+        }
+
+        return (string)$DB->get_field('company', 'name', ['id' => $companyid], IGNORE_MISSING);
     }
 
     private function log_entry_indicates_company_exit(\stdClass $record, int $companyid): bool {

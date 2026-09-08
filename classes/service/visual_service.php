@@ -275,6 +275,14 @@ class visual_service {
             ]),
         ];
 
+        if (!empty($filters['turnoverstaffdynamicsonly'])) {
+            return [
+                'title' => get_string('panel:turnover:title', 'block_dashboardanalytics'),
+                'description' => get_string('panel:turnover:description', 'block_dashboardanalytics'),
+                'panels' => $panels,
+            ];
+        }
+
         if (!$iscompanyowner) {
             $panels[] = $this->panel('turnovercompany', get_string('panel:turnovercompany:title', 'block_dashboardanalytics'), 'turnoverbars', get_string('panel:turnovercompany:description', 'block_dashboardanalytics'), $turnover->turnover_rate_by_company_items($filters), [
                 'formula' => get_string('js:turnoverformula', 'block_dashboardanalytics'),

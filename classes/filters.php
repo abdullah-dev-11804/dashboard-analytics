@@ -39,6 +39,7 @@ class filters {
             'turnovercustomend' => self::date_input($decoded['turnovercustomend'] ?? ''),
             'turnoverperiod_staffdynamics' => self::analytics_period($decoded['turnoverperiod_staffdynamics'] ?? '', '12months'),
             'paneltab_staffdynamics' => self::panel_tab_key($decoded['paneltab_staffdynamics'] ?? ''),
+            'turnoverstaffdynamicsonly' => !empty($decoded['turnoverstaffdynamicsonly']),
             'status' => self::status($decoded['status'] ?? ''),
             'statusmode' => self::status_mode($decoded['statusmode'] ?? ''),
             'expirystartts' => self::timestamp($decoded['expirystartts'] ?? 0),
