@@ -2311,7 +2311,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
 
         var buildExpiryWorkflowCasesSectionMarkup = function() {
             return '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Expiry cases') + '</h6><p>'
-                + escapeHtml('Expiring certifications awaiting coordinator action.') + '</p></div>'
+                + escapeHtml('Expiring and expired certifications awaiting coordinator action.') + '</p></div>'
                 + '<div class="da-expiry-workflow-case-toolbar"><input type="search" class="da-course-analytics-search" data-action="expiry-workflow-case-search" value="' + escapeHtml(expiryWorkflowState(state).casesearch || '') + '" placeholder="' + escapeHtml(formatString(text('searchPlaceholder', 'Search {$a}'), 'employee / course')) + '">'
                 + '<select data-action="expiry-workflow-case-status"><option value="">' + escapeHtml(text('filter:statusall', 'All statuses')) + '</option>'
                 + (response.counters || []).map(function(counter) {
@@ -2373,7 +2373,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             + '</section>'
             + '<section class="da-expiry-workflow-card">'
             + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Course toggles') + '</h6><p>'
-            + escapeHtml('Only enabled courses can generate coordinator notifications.') + '</p></div>'
+            + escapeHtml('Manage notification toggles for all visible courses across companies.') + '</p></div>'
             + '<input type="search" class="da-course-analytics-search" data-action="expiry-workflow-course-search" value="' + escapeHtml(expiryWorkflowState(state).coursesearch || '') + '" placeholder="' + escapeHtml(text('courseAnalyticsSearch', 'Search courses')) + '"></div>'
             + '<div class="da-table-wrap"><table class="da-table da-course-analytics-table"><thead><tr><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderCourse', 'Course')) + '</th><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderToggle', 'Toggle')) + '</th></tr></thead><tbody>'
             + (courseRows || '<tr><td colspan="2"><div class="da-empty">' + escapeHtml(text('courseAnalyticsNoResults', 'No matching courses found.')) + '</div></td></tr>')

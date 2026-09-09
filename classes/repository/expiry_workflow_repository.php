@@ -275,11 +275,6 @@ class expiry_workflow_repository {
         $params = ['siteid' => SITEID];
         $where = ['c.id <> :siteid', 'c.visible = 1'];
 
-        if ($companyid > 0) {
-            $where[] = 'cu.companyid = :companyid';
-            $params['companyid'] = $companyid;
-        }
-
         if ($search !== '') {
             $like = '%' . $DB->sql_like_escape($search) . '%';
             $where[] = '(' . $DB->sql_like('c.fullname', ':csearch1', false) . ' OR ' . $DB->sql_like('c.shortname', ':csearch2', false) . ')';
@@ -289,23 +284,12 @@ class expiry_workflow_repository {
 
         $sql = "SELECT c.id, c.fullname, c.shortname
                   FROM {course} c
-             LEFT JOIN {enrol} e ON e.courseid = c.id AND e.status = 0
-             LEFT JOIN {user_enrolments} ue ON ue.enrolid = e.id AND ue.status = 0
-             LEFT JOIN {company_users} cu ON cu.userid = ue.userid
                  WHERE " . implode(' AND ', $where) . "
-              GROUP BY c.id, c.fullname, c.shortname
               ORDER BY c.fullname ASC, c.id ASC";
 
         $countsql = "SELECT COUNT(1)
-                       FROM (
-                             SELECT c.id
-                               FROM {course} c
-                          LEFT JOIN {enrol} e ON e.courseid = c.id AND e.status = 0
-                          LEFT JOIN {user_enrolments} ue ON ue.enrolid = e.id AND ue.status = 0
-                          LEFT JOIN {company_users} cu ON cu.userid = ue.userid
-                              WHERE " . implode(' AND ', $where) . "
-                           GROUP BY c.id
-                            ) x";
+                       FROM {course} c
+                      WHERE " . implode(' AND ', $where);
 
         $rows = [];
         foreach ($DB->get_records_sql($sql, $params, $page * $perpage, $perpage) as $record) {
@@ -526,7 +510,7 @@ class expiry_workflow_repository {
         foreach ($rows as $row) {
             $expiry = (int)($row['expirytime'] ?? 0);
             $companyrowid = (int)($row['companyid'] ?? 0);
-            if (($row['status'] ?? '') !== 'Expiring') {
+            if (!in_array(($row['status'] ?? ''), ['Expiring', 'Expired'], true)) {
                 continue;
             }
 
