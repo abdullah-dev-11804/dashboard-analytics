@@ -19,8 +19,11 @@ class expiry_workflow_repository {
     public const CADENCE_WEEKLY = 'weekly';
 
     public function can_view_panel(int $userid): bool {
-        if (is_siteadmin($userid) || permissions::is_company_owner(\context_system::instance(), $userid)) {
+        if (is_siteadmin($userid)) {
             return true;
+        }
+        if (permissions::is_company_owner(\context_system::instance(), $userid)) {
+            return false;
         }
 
         return !empty($this->recipient_company_ids_for_user($userid));
@@ -34,31 +37,15 @@ class expiry_workflow_repository {
         if (is_siteadmin($userid)) {
             return true;
         }
-
-        $companies = new company_repository();
-        $scope = $companies->scope_details_for_user($userid);
-        if (!empty($scope['companyids']) && in_array($companyid, array_map('intval', $scope['companyids']), true)
-                && permissions::is_company_owner(\context_system::instance(), $userid)) {
-            return true;
+        if (permissions::is_company_owner(\context_system::instance(), $userid)) {
+            return false;
         }
 
         return in_array($companyid, $this->recipient_company_ids_for_user($userid), true);
     }
 
     public function can_manage_settings(int $userid, int $companyid): bool {
-        if ($companyid <= 0) {
-            return is_siteadmin($userid);
-        }
-
-        if (is_siteadmin($userid)) {
-            return true;
-        }
-
-        $companies = new company_repository();
-        $scope = $companies->scope_details_for_user($userid);
-        return !empty($scope['companyids'])
-            && in_array($companyid, array_map('intval', $scope['companyids']), true)
-            && permissions::is_company_owner(\context_system::instance(), $userid);
+        return is_siteadmin($userid);
     }
 
     public function threshold_days(): int {
