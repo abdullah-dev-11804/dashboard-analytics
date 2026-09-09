@@ -275,6 +275,20 @@ class expiry_workflow_repository {
         $params = ['siteid' => SITEID];
         $where = ['c.id <> :siteid', 'c.visible = 1'];
 
+        $companyname = $companyid > 0
+            ? trim((string)$DB->get_field('company', 'name', ['id' => $companyid], IGNORE_MISSING))
+            : '';
+        $showsitewidecourses = $companyname !== '' && strcasecmp($companyname, 'Sental') === 0;
+        if ($companyid > 0 && !$showsitewidecourses) {
+            $where[] = "EXISTS (
+                            SELECT 1
+                              FROM {company_course} cc
+                             WHERE cc.courseid = c.id
+                               AND cc.companyid = :companyid
+                        )";
+            $params['companyid'] = $companyid;
+        }
+
         if ($search !== '') {
             $like = '%' . $DB->sql_like_escape($search) . '%';
             $where[] = '(' . $DB->sql_like('c.fullname', ':csearch1', false) . ' OR ' . $DB->sql_like('c.shortname', ':csearch2', false) . ')';

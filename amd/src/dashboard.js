@@ -2228,6 +2228,14 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         var cases = response.cases || {rows: [], totalcount: 0, page: 0, perpage: 20};
         var cadenceOptions = response.cadenceoptions || [];
         var canManageCases = !!response.canmanagecases;
+        var selectedCompany = (company.companyoptions || []).find(function(option) {
+            return String(option.value) === String(company.companyid || 0);
+        });
+        var showSitewideCourses = selectedCompany
+            && String(selectedCompany.label || '').trim().toLowerCase() === 'sental';
+        var courseScopeDescription = showSitewideCourses
+            ? 'Manage notification toggles for all visible courses across companies.'
+            : 'Manage notification toggles for courses assigned to this company.';
 
         var counterMarkup = (response.counters || []).map(function(counter) {
             var status = counter.key === 'reassigned' ? 'ok' : (counter.key === 'dismissed' ? 'muted' : 'warning');
@@ -2373,7 +2381,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             + '</section>'
             + '<section class="da-expiry-workflow-card">'
             + '<div class="da-expiry-workflow-card-head"><div><h6>' + escapeHtml('Course toggles') + '</h6><p>'
-            + escapeHtml('Manage notification toggles for all visible courses across companies.') + '</p></div>'
+            + escapeHtml(courseScopeDescription) + '</p></div>'
             + '<input type="search" class="da-course-analytics-search" data-action="expiry-workflow-course-search" value="' + escapeHtml(expiryWorkflowState(state).coursesearch || '') + '" placeholder="' + escapeHtml(text('courseAnalyticsSearch', 'Search courses')) + '"></div>'
             + '<div class="da-table-wrap"><table class="da-table da-course-analytics-table"><thead><tr><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderCourse', 'Course')) + '</th><th scope="col">' + escapeHtml(text('courseAnalyticsHeaderToggle', 'Toggle')) + '</th></tr></thead><tbody>'
             + (courseRows || '<tr><td colspan="2"><div class="da-empty">' + escapeHtml(text('courseAnalyticsNoResults', 'No matching courses found.')) + '</div></td></tr>')
