@@ -10,7 +10,6 @@ use block_dashboardanalytics\service\training_quality_service;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
-use block_dashboardanalytics\repository\expiry_workflow_repository;
 use block_dashboardanalytics\repository\overview_repository;
 use block_dashboardanalytics\repository\report_repository;
 use block_dashboardanalytics\repository\proctoring_repository;
@@ -317,9 +316,6 @@ class visual_service {
     }
 
     private function expiry_workflow(array $filters): array {
-        $repository = new expiry_workflow_repository();
-        $repository->sync_cases(!empty($filters['companyids']) ? (int)reset($filters['companyids']) : 0);
-
         return [
             'title' => get_string('panel:expiryworkflow:title', 'block_dashboardanalytics'),
             'description' => get_string('panel:expiryworkflow:description', 'block_dashboardanalytics'),

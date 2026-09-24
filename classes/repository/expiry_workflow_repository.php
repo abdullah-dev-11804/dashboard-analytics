@@ -10,6 +10,8 @@ use block_dashboardanalytics\service\recompletion_bridge;
 defined('MOODLE_INTERNAL') || die();
 
 class expiry_workflow_repository {
+    private const SYNC_LOCK_NAME = 'expiry_workflow_sync_cases';
+
     public const STATUS_AWAITING = 'awaiting';
     public const STATUS_REASSIGNED = 'reassigned';
     public const STATUS_DISMISSED = 'dismissed';
@@ -498,6 +500,25 @@ class expiry_workflow_repository {
     }
 
     public function sync_cases(int $companyid = 0): array {
+        $factory = \core\lock\lock_config::get_lock_factory('block_dashboardanalytics');
+        $lock = $factory->get_lock(self::SYNC_LOCK_NAME, 10);
+        if (!$lock) {
+            return [
+                'created' => 0,
+                'updated' => 0,
+                'deactivated' => 0,
+                'candidatecount' => 0,
+            ];
+        }
+
+        try {
+            return $this->sync_cases_unlocked($companyid);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function sync_cases_unlocked(int $companyid): array {
         global $DB;
 
         $now = time();
@@ -544,6 +565,14 @@ class expiry_workflow_repository {
             $existingbycycle[(string)$record->cyclekey] = $record;
         }
 
+        $missingcyclekeys = array_values(array_diff(array_keys($candidates), array_keys($existingbycycle)));
+        foreach (array_chunk($missingcyclekeys, 500) as $cyclekeychunk) {
+            [$cyclesql, $cycleparams] = $DB->get_in_or_equal($cyclekeychunk, SQL_PARAMS_NAMED, 'expirycycle');
+            foreach ($DB->get_records_select('block_da_expcase', "cyclekey {$cyclesql}", $cycleparams) as $record) {
+                $existingbycycle[(string)$record->cyclekey] = $record;
+            }
+        }
+
         $created = 0;
         $updated = 0;
         $deactivated = 0;
@@ -562,10 +591,26 @@ class expiry_workflow_repository {
                     'timecreated' => $now,
                     'timemodified' => $now,
                 ]);
-                $caseid = $DB->insert_record('block_da_expcase', $record);
-                $this->audit((int)$caseid, 'tracked', 0, ['expirydate' => $candidate['expirydate']]);
-                $created++;
-                continue;
+                try {
+                    $caseid = $DB->insert_record('block_da_expcase', $record);
+                } catch (\dml_write_exception $exception) {
+                    $concurrentrecord = $DB->get_record(
+                        'block_da_expcase',
+                        ['cyclekey' => $cyclekey],
+                        '*',
+                        IGNORE_MISSING
+                    );
+                    if (!$concurrentrecord) {
+                        throw $exception;
+                    }
+                    $existingbycycle[$cyclekey] = $concurrentrecord;
+                    $caseid = 0;
+                }
+                if ($caseid > 0) {
+                    $this->audit((int)$caseid, 'tracked', 0, ['expirydate' => $candidate['expirydate']]);
+                    $created++;
+                    continue;
+                }
             }
 
             $record = $existingbycycle[$cyclekey];
