@@ -447,7 +447,11 @@ class expiry_workflow_repository {
 
         if ($action === 'enroll') {
             $bridge = new recompletion_bridge();
-            $reset = $bridge->reset_for_reassignment((int)$case->userid, (int)$case->courseid);
+            $reset = $bridge->reset_for_reassignment(
+                (int)$case->userid,
+                (int)$case->courseid,
+                (int)$case->companyid
+            );
             if (!$reset['status']) {
                 return [
                     'status' => false,

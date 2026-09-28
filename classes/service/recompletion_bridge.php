@@ -15,9 +15,10 @@ class recompletion_bridge {
      *
      * @param int $userid
      * @param int $courseid
+     * @param int $companyid
      * @return array{status:bool, errors:string[]}
      */
-    public function reset_for_reassignment(int $userid, int $courseid): array {
+    public function reset_for_reassignment(int $userid, int $courseid, int $companyid): array {
         global $CFG;
 
         require_once($CFG->dirroot . '/local/recompletion/locallib.php');
@@ -29,11 +30,45 @@ class recompletion_bridge {
         $errors = $task->reset_user($userid, $course, $config);
 
         $this->ensure_active_enrolment($userid, $courseid);
+        if (empty($errors)) {
+            $this->reset_iomad_tracking($userid, $courseid, $companyid);
+        }
 
         return [
             'status' => empty($errors),
             'errors' => array_values(array_filter(array_map('strval', $errors))),
         ];
+    }
+
+    /**
+     * Synchronise IOMAD's current course state with the Moodle completion reset.
+     *
+     * @param int $userid
+     * @param int $courseid
+     * @param int $companyid
+     * @return void
+     */
+    private function reset_iomad_tracking(int $userid, int $courseid, int $companyid): void {
+        global $DB;
+
+        $records = $DB->get_records('local_iomad_track', [
+            'userid' => $userid,
+            'courseid' => $courseid,
+            'companyid' => $companyid,
+            'coursecleared' => 0,
+        ], 'id DESC', '*', 0, 1);
+
+        if (!$records) {
+            return;
+        }
+
+        $record = reset($records);
+        $record->timestarted = null;
+        $record->timecompleted = null;
+        $record->timeexpires = null;
+        $record->finalscore = 0;
+        $record->modifiedtime = time();
+        $DB->update_record('local_iomad_track', $record);
     }
 
     /**
@@ -48,7 +83,7 @@ class recompletion_bridge {
             'course' => $courseid,
             'recompletiontype' => 'ondemand',
             'archivecompletiondata' => 1,
-            'deletegradedata' => 0,
+            'deletegradedata' => 1,
             'recompletionnotify' => '',
             'recompletionunenrolenable' => 0,
             'recompletionemailbody' => '',
