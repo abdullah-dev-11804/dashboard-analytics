@@ -63,7 +63,6 @@ class recompletion_bridge {
         }
 
         $record = reset($records);
-        $record->timestarted = null;
         $record->timecompleted = null;
         $record->timeexpires = null;
         $record->finalscore = 0;
