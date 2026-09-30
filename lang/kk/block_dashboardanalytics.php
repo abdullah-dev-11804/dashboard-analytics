@@ -249,6 +249,7 @@ $string['statusmode:employee'] = 'Қызметкерлер бойынша';
 $string['label:expiring'] = 'Мерзімі аяқталуға жақын';
 $string['label:expired'] = 'Мерзімі өткен';
 $string['label:nodocument'] = 'Орындалу үстінде';
+$string['label:postponedanalytics'] = 'Құжат жоқ';
 $string['label:inprogress'] = 'Орындалу үстінде';
 $string['label:suspended'] = 'Уақытша тоқтатылған';
 $string['label:green'] = 'Жасыл';

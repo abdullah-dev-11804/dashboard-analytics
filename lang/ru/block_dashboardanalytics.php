@@ -249,6 +249,7 @@ $string['statusmode:employee'] = 'По сотрудникам';
 $string['label:expiring'] = 'Истекает';
 $string['label:expired'] = 'Просрочено';
 $string['label:nodocument'] = 'В процессе';
+$string['label:postponedanalytics'] = 'Нет документа';
 $string['label:inprogress'] = 'В процессе';
 $string['label:suspended'] = 'Приостановлен';
 $string['label:green'] = 'Зеленый';

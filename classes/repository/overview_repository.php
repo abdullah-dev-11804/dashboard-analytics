@@ -24,12 +24,15 @@ class overview_repository {
         $allowedstatuses = array_values(array_unique(array_map('strval', $allowedstatuses)));
 
         $rows = array_values(array_filter($rows, static function(array $row) use ($allowedstatuses): bool {
+            if ($row['status'] === 'Postponed' && in_array('Expired', $allowedstatuses, true)) {
+                return true;
+            }
             return in_array((string)$row['status'], $allowedstatuses, true);
         }));
 
         usort($rows, static function(array $a, array $b): int {
-            $aprimary = $a['status'] === 'Expired' ? 0 : 1;
-            $bprimary = $b['status'] === 'Expired' ? 0 : 1;
+            $aprimary = in_array($a['status'], ['Expired', 'Postponed'], true) ? 0 : 1;
+            $bprimary = in_array($b['status'], ['Expired', 'Postponed'], true) ? 0 : 1;
             if ($aprimary !== $bprimary) {
                 return $aprimary <=> $bprimary;
             }
@@ -45,6 +48,7 @@ class overview_repository {
         foreach ($rows as $row) {
             $expirytime = !empty($row['expirytime']) ? (int)$row['expirytime'] : null;
             $days = $expirytime !== null ? (int)floor(($expirytime - time()) / DAYSECS) : null;
+            $displaystatus = (string)($row['documentstatus'] ?? $row['status']);
             $tablerows[] = [
                 'cells' => [
                     [
@@ -68,7 +72,13 @@ class overview_repository {
                     ],
                     ['key' => 'expiry', 'value' => $expirytime !== null ? userdate($expirytime, get_string('strftimedate')) : '-'],
                     ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
-                    ['key' => 'status', 'value' => (string)$row['status']],
+                    [
+                        'key' => 'status',
+                        'value' => $displaystatus === 'Postponed'
+                            ? get_string('label:postponedanalytics', 'block_dashboardanalytics')
+                            : $displaystatus,
+                        'statuskey' => $displaystatus === 'Postponed' ? 'expired' : '',
+                    ],
                 ],
             ];
         }
@@ -121,7 +131,7 @@ class overview_repository {
                 $counts['active']++;
             } else if (($row['status'] ?? '') === 'Expiring') {
                 $counts['expiring']++;
-            } else if (($row['status'] ?? '') === 'Expired') {
+            } else if (in_array(($row['status'] ?? ''), ['Expired', 'Postponed'], true)) {
                 $counts['expired']++;
             } else if (($row['status'] ?? '') === 'No document') {
                 $counts['nodocument']++;
@@ -249,7 +259,7 @@ class overview_repository {
             if (!isset($companies[$company])) {
                 $companies[$company] = ['expired' => 0, 'expiring' => 0];
             }
-            if ($row['status'] === 'Expired') {
+            if (in_array($row['status'], ['Expired', 'Postponed'], true)) {
                 $companies[$company]['expired']++;
             } else if ($row['status'] === 'Expiring') {
                 $companies[$company]['expiring']++;
@@ -301,7 +311,7 @@ class overview_repository {
                 $courses[$course] = ['total' => 0, 'affected' => 0];
             }
             $courses[$course]['total']++;
-            if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
+            if (in_array($row['status'], ['Expired', 'Postponed', 'No document'], true)) {
                 $courses[$course]['affected']++;
             }
         }
@@ -796,7 +806,8 @@ class overview_repository {
         $analytics = new course_analytics_repository();
         $companyrepo = new company_repository();
         $sources = $documents->sources();
-        if (!$sources) {
+        $haspostponed = $this->table_exists('local_iomadcourseassign');
+        if (!$sources && !$haspostponed) {
             return [];
         }
 
@@ -901,6 +912,72 @@ class overview_repository {
                           ]));
 
         $records = $DB->get_records_sql($enrolmentsql, $params, 0, 5000);
+        $postponedrecords = [];
+        if ($haspostponed) {
+            $postponedwhere = array_merge($basewhere, [
+                'p.status = :postponedstatus',
+                '(p.timecreated = 0 OR p.timecreated <= :postponedreportdate)',
+                "NOT EXISTS (
+                    SELECT 1
+                      FROM {user_enrolments} pue
+                      JOIN {enrol} pe ON pe.id = pue.enrolid
+                     WHERE pue.userid = p.userid
+                       AND pe.courseid = p.courseid
+                       AND pue.status = 0
+                       AND pe.status = 0
+                )",
+            ]);
+            $postponedparams = $params + [
+                'postponedstatus' => 'postponed',
+                'postponedreportdate' => $reportdate,
+            ];
+            if (!empty($filters['companyids'])) {
+                [$companyinsql, $companyparams] = $DB->get_in_or_equal(
+                    $filters['companyids'],
+                    SQL_PARAMS_NAMED,
+                    'postponedcompany'
+                );
+                $postponedwhere[] = "p.companyid {$companyinsql}";
+                $postponedparams += $companyparams;
+            } else if (!empty($filters['companies'])) {
+                [$companyinsql, $companyparams] = $DB->get_in_or_equal(
+                    $filters['companies'],
+                    SQL_PARAMS_NAMED,
+                    'postponedcompanyname'
+                );
+                $postponedwhere[] = "postponedcompany.name {$companyinsql}";
+                $postponedparams += $companyparams;
+            }
+
+            $postponedsql = "SELECT p.id AS rowid,
+                                    u.id AS userid,
+                                    c.id AS courseid,
+                                    c.fullname AS coursename,
+                                    c.shortname AS courseshortname,
+                                    u.firstname,
+                                    u.lastname,
+                                    u.email,
+                                    {$departmentselect},
+                                    {$regionselect},
+                                    {$siteselect},
+                                    {$personnelcategoryselect},
+                                    {$positionselect},
+                                    p.companyid,
+                                    postponedcompany.name AS companyname,
+                                    p.timecreated AS postponedtimecreated
+                               FROM {local_iomadcourseassign} p
+                               JOIN {user} u ON u.id = p.userid
+                               JOIN {course} c ON c.id = p.courseid
+                               LEFT JOIN {company} postponedcompany ON postponedcompany.id = p.companyid
+                                    {$analyticsjoin}
+                                    {$departmentjoin}
+                                    {$regionjoin}
+                                    {$sitejoin}
+                                    {$personnelcategoryjoin}
+                                    {$positionjoin}
+                              WHERE " . implode(' AND ', $postponedwhere);
+            $postponedrecords = $DB->get_records_sql($postponedsql, $postponedparams, 0, 5000);
+        }
         $documentmap = [];
         foreach ($sources as $source) {
             if (($source['kind'] ?? '') === 'ncasign') {
@@ -954,6 +1031,32 @@ class overview_repository {
                 'expirytime' => $expirytime ?? 0,
                 'status' => $status,
                 'sourcekind' => (string)($document['sourcekind'] ?? ''),
+            ];
+        }
+
+        foreach ($postponedrecords as $record) {
+            $rows[] = [
+                'userid' => (int)$record->userid,
+                'courseid' => (int)$record->courseid,
+                'firstname' => (string)$record->firstname,
+                'lastname' => (string)$record->lastname,
+                'email' => (string)$record->email,
+                'courseshortname' => (string)($record->courseshortname ?? ''),
+                'employee' => $this->format_person_name((string)$record->firstname, (string)$record->lastname),
+                'companyid' => (int)$record->companyid,
+                'company' => (string)($record->companyname ?? ''),
+                'department' => (string)$record->departmentname,
+                'location' => (string)$record->regionname,
+                'site' => (string)$record->sitename,
+                'personnelcategory' => (string)$record->personnelcategoryname,
+                'position' => (string)$record->positionname,
+                'course' => format_string((string)$record->coursename),
+                'documentid' => 0,
+                'sourceid' => (int)$record->rowid,
+                'issuedate' => 0,
+                'expirytime' => 0,
+                'status' => 'Postponed',
+                'sourcekind' => 'postponed',
             ];
         }
 
@@ -1494,7 +1597,7 @@ class overview_repository {
         $hasactive = false;
 
         foreach ($statuses as $status) {
-            if ($status === 'Expired') {
+            if ($status === 'Expired' || $status === 'Postponed') {
                 return 'Expired';
             }
             if ($status === 'Expiring') {
@@ -1966,7 +2069,7 @@ class overview_repository {
             }
 
             $courses[$course]['total']++;
-            if ($row['status'] === 'Expired' || $row['status'] === 'No document') {
+            if (in_array($row['status'], ['Expired', 'Postponed', 'No document'], true)) {
                 $courses[$course]['bad']++;
             }
         }

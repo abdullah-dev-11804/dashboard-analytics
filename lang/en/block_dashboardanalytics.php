@@ -249,6 +249,7 @@ $string['statusmode:employee'] = 'By employee';
 $string['label:expiring'] = 'Expiring';
 $string['label:expired'] = 'Expired';
 $string['label:nodocument'] = 'In Progress';
+$string['label:postponedanalytics'] = 'No document';
 $string['label:inprogress'] = 'In Progress';
 $string['label:suspended'] = 'Suspended';
 $string['label:green'] = 'Green';

@@ -139,7 +139,7 @@ class document_repository {
                 ];
             }
 
-            if ($row['status'] === 'Expired') {
+            if (in_array($row['status'], ['Expired', 'Postponed'], true)) {
                 $companies[$companyname]['expired']++;
             } else if ($row['status'] === 'Expiring') {
                 $companies[$companyname]['expiring']++;
@@ -236,7 +236,7 @@ class document_repository {
                 $courses[$courseid]['total']++;
                 if ($row['status'] === 'Active' || $row['status'] === 'Expiring') {
                     $courses[$courseid]['valid']++;
-                } else if ($row['status'] === 'Expired') {
+                } else if (in_array($row['status'], ['Expired', 'Postponed'], true)) {
                     $courses[$courseid]['expired']++;
                 } else {
                     $courses[$courseid]['inprogress']++;
@@ -551,7 +551,7 @@ class document_repository {
                     'expiring' => 0,
                 ];
             }
-            if ($row['status'] === 'Expired') {
+            if (in_array($row['status'], ['Expired', 'Postponed'], true)) {
                 $groups[$label]->expired++;
             } else if ($row['status'] === 'Expiring') {
                 $groups[$label]->expiring++;
@@ -584,7 +584,7 @@ class document_repository {
                 $groups[$label]->active++;
             } else if ($row['status'] === 'Expiring') {
                 $groups[$label]->expiring++;
-            } else if ($row['status'] === 'Expired') {
+            } else if (in_array($row['status'], ['Expired', 'Postponed'], true)) {
                 $groups[$label]->expired++;
             }
         }
@@ -1221,7 +1221,7 @@ class document_repository {
         $records = $this->overview_rows($recordfilters);
         if ($status === 'expired') {
             $records = array_values(array_filter($records, static function(array $row): bool {
-                return $row['status'] === 'Expired';
+                return in_array($row['status'], ['Expired', 'Postponed'], true);
             }));
         } else if ($status === 'expiring') {
             $records = array_values(array_filter($records, static function(array $row): bool {
@@ -1237,7 +1237,7 @@ class document_repository {
             }));
         } else if ($status === 'noncompliant') {
             $records = array_values(array_filter($records, static function(array $row): bool {
-                return $row['status'] === 'Expired' || $row['status'] === 'No document';
+                return in_array($row['status'], ['Expired', 'Postponed', 'No document'], true);
             }));
         } else if ($status === 'nodocument') {
             $records = array_values(array_filter($records, static function(array $row): bool {
@@ -1565,20 +1565,35 @@ class document_repository {
     private function matrix_user_status(array $courses): string {
         $hasactive = false;
         $hasnodocument = false;
+        $haspostponed = false;
+        $hasexpiring = false;
 
         foreach ($courses as $course) {
-            $status = (string)($course['status'] ?? '');
+            $status = (string)($course['documentstatus'] ?? $course['status'] ?? '');
             if ($status === 'Expired') {
                 return 'Expired';
             }
+            if ($status === 'Postponed') {
+                $haspostponed = true;
+                continue;
+            }
             if ($status === 'Expiring') {
-                return 'Expiring';
+                $hasexpiring = true;
+                continue;
             }
             if ($status === 'Active') {
                 $hasactive = true;
                 continue;
             }
             $hasnodocument = true;
+        }
+
+        if ($haspostponed) {
+            return 'Postponed';
+        }
+
+        if ($hasexpiring) {
+            return 'Expiring';
         }
 
         if ($hasnodocument) {
@@ -1606,7 +1621,7 @@ class document_repository {
     }
 
     private static function matrix_status_weight(string $status): int {
-        if ($status === 'Expired') {
+        if ($status === 'Expired' || $status === 'Postponed') {
             return 1;
         }
         if ($status === 'Expiring') {
@@ -1631,6 +1646,9 @@ class document_repository {
         if ($status === 'Expired') {
             return get_string('label:expired', 'block_dashboardanalytics');
         }
+        if ($status === 'Postponed') {
+            return get_string('label:postponedanalytics', 'block_dashboardanalytics');
+        }
         return get_string('label:nodocument', 'block_dashboardanalytics');
     }
 
@@ -1641,7 +1659,7 @@ class document_repository {
         if ($status === 'Expiring') {
             return 'expiring';
         }
-        if ($status === 'Expired') {
+        if ($status === 'Expired' || $status === 'Postponed') {
             return 'expired';
         }
         return 'nodocument';

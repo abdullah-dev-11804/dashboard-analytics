@@ -213,12 +213,13 @@ class report_repository {
         $result = [];
 
         foreach ($rows as $row) {
-            if (empty($row['sourcekind']) || empty($row['documentid'])) {
+            $ispostponed = ($row['sourcekind'] ?? '') === 'postponed';
+            if (!$ispostponed && (empty($row['sourcekind']) || empty($row['documentid']))) {
                 continue;
             }
 
             $completiontime = (int)($row['issuedate'] ?? 0);
-            if ($completiontime <= 0 || !$this->matches_period($completiontime, $period)) {
+            if (!$ispostponed && ($completiontime <= 0 || !$this->matches_period($completiontime, $period))) {
                 continue;
             }
 
@@ -243,8 +244,12 @@ class report_repository {
                 'courseshortname' => (string)($row['courseshortname'] ?? ''),
                 'status' => $this->status_label((string)($row['status'] ?? '')),
                 'statuskey' => $this->status_key((string)($row['status'] ?? '')),
-                'completiondate' => userdate($completiontime, get_string('strftimedate', 'langconfig')),
-                'completiontime' => userdate($completiontime, get_string('strftimetime', 'langconfig')),
+                'completiondate' => $completiontime > 0
+                    ? userdate($completiontime, get_string('strftimedate', 'langconfig'))
+                    : '',
+                'completiontime' => $completiontime > 0
+                    ? userdate($completiontime, get_string('strftimetime', 'langconfig'))
+                    : '',
                 'completiontimestamp' => $completiontime,
                 'email' => (string)($row['email'] ?? ''),
                 'company' => (string)($row['company'] ?? ''),
@@ -390,6 +395,7 @@ class report_repository {
             $row['email'] ?? '',
             $row['course'] ?? '',
             $row['courseshortname'] ?? '',
+            $row['status'] ?? '',
             $row['company'] ?? '',
             $row['department'] ?? '',
             $row['region'] ?? '',
@@ -439,10 +445,17 @@ class report_repository {
         if ($status === 'expired') {
             return 'expired';
         }
+        if ($status === 'postponed') {
+            return 'expired';
+        }
         return 'inprogress';
     }
 
     private function status_label(string $status): string {
+        if (strtolower(trim($status)) === 'postponed') {
+            return get_string('label:postponedanalytics', 'block_dashboardanalytics');
+        }
+
         $key = $this->status_key($status);
         $map = [
             'active' => 'label:active',
@@ -454,6 +467,10 @@ class report_repository {
     }
 
     private function training_type_label(string $sourcekind): string {
+        if ($sourcekind === 'postponed') {
+            return '';
+        }
+
         return $sourcekind === 'legacy_type1'
             ? get_string('reportsbuilder:trainingtype:offline', 'block_dashboardanalytics')
             : get_string('reportsbuilder:trainingtype:online', 'block_dashboardanalytics');
@@ -539,7 +556,7 @@ class report_repository {
         foreach ($rows as $row) {
             if (($row['sourcekind'] ?? '') === 'legacy_type1') {
                 $summary['offline']++;
-            } else {
+            } else if (($row['sourcekind'] ?? '') !== 'postponed') {
                 $summary['online']++;
             }
             $statuskey = (string)($row['statuskey'] ?? '');
