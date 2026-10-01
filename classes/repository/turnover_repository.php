@@ -8,6 +8,10 @@ use block_dashboardanalytics\name_formatter;
 defined('MOODLE_INTERNAL') || die();
 
 class turnover_repository {
+    private const COMPANY_EXIT_BATCH_SIZE = 10;
+
+    /** @var array<string, bool> */
+    private static array $tableexistscache = [];
 
     public function staff_dynamics_items(array $filters): array {
         $periods = $this->turnover_period_options();
@@ -60,11 +64,30 @@ class turnover_repository {
         $windows = $this->rolling_month_windows($months);
         $periodstart = $windows[0]['start'];
         $periodend = $windows[count($windows) - 1]['end'];
+        $companyexitrecords = $this->company_change_exit_records_by_company(
+            $filters,
+            $companies,
+            $periodstart,
+            $periodend,
+            'turnovercompanybatch'
+        );
         $items = [];
 
         foreach ($companies as $company) {
             $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
-            $records = $this->scoped_user_lifecycle_records($companyfilters, 0, $periodend, 'turnovercompany' . $company['id'], $periodstart);
+            $records = $this->scoped_user_lifecycle_records(
+                $companyfilters,
+                0,
+                $periodend,
+                'turnovercompany' . $company['id'],
+                $periodstart,
+                false
+            );
+            $this->merge_company_change_exit_records(
+                $records,
+                $companyexitrecords[(int)$company['id']] ?? [],
+                (string)$company['name']
+            );
             $deactivated = 0;
 
             foreach ($records as $record) {
@@ -117,11 +140,32 @@ class turnover_repository {
         $periodstart = $windows[0]['start'];
         $periodend = $windows[count($windows) - 1]['end'];
         $maturedbefore = time() - (30 * DAYSECS);
+        $companysummaries = $this->new_hires_without_documents_summaries(
+            $filters,
+            $companies,
+            $periodstart,
+            $periodend,
+            $maturedbefore
+        );
         $items = [];
 
         foreach ($companies as $company) {
-            $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
-            $summary = $this->new_hires_without_documents_summary($companyfilters, $periodstart, $periodend, $maturedbefore, 'newhirerisk' . $company['id']);
+            if ($companysummaries !== null) {
+                $summary = $companysummaries[(int)$company['id']] ?? [
+                    'totalnew' => 0,
+                    'riskcount' => 0,
+                    'riskpercent' => 0.0,
+                ];
+            } else {
+                $companyfilters = $this->company_scoped_filters($filters, $company['name'], $company['id']);
+                $summary = $this->new_hires_without_documents_summary(
+                    $companyfilters,
+                    $periodstart,
+                    $periodend,
+                    $maturedbefore,
+                    'newhirerisk' . $company['id']
+                );
+            }
 
             $items[] = [
                 'label' => $company['name'],
@@ -169,7 +213,14 @@ class turnover_repository {
         return $items;
     }
 
-    private function scoped_user_lifecycle_records(array $filters, int $start, int $end, string $prefix, int $exitlogstart = 0): array {
+    private function scoped_user_lifecycle_records(
+        array $filters,
+        int $start,
+        int $end,
+        string $prefix,
+        int $exitlogstart = 0,
+        bool $includecompanychanges = true
+    ): array {
         global $DB;
 
         $employee = new employee_repository();
@@ -245,7 +296,9 @@ class turnover_repository {
                  WHERE " . implode(' AND ', $where);
 
         $records = $DB->get_records_sql($sql, $params);
-        $this->append_company_change_exit_records($records, $filters, $exitlogstart, $end, $prefix);
+        if ($includecompanychanges) {
+            $this->append_company_change_exit_records($records, $filters, $exitlogstart, $end, $prefix);
+        }
         return $records;
     }
 
@@ -312,6 +365,82 @@ class turnover_repository {
             'riskcount' => $riskcount,
             'riskpercent' => round(($riskcount / $totalnew) * 100, 1),
         ];
+    }
+
+    private function new_hires_without_documents_summaries(
+        array $filters,
+        array $companies,
+        int $periodstart,
+        int $periodend,
+        int $maturedbefore
+    ): ?array {
+        global $DB;
+
+        $companyrepo = new company_repository();
+        $companyids = array_values(array_unique(array_filter(array_map(static function(array $company): int {
+            return (int)($company['id'] ?? 0);
+        }, $companies))));
+        if (!$companyids || !$companyrepo->has_iomad_tables()) {
+            return null;
+        }
+
+        $scopefilters = $filters;
+        unset($scopefilters['companyids'], $scopefilters['companies']);
+        $employee = new employee_repository();
+        $filter = $employee->user_filter_sql($scopefilters, 'u', 'newhireriskbatch');
+        [$companyinsql, $companyparams] = $DB->get_in_or_equal(
+            $companyids,
+            SQL_PARAMS_NAMED,
+            'newhireriskbatchcompany'
+        );
+        $params = $filter['params'] + $companyparams + [
+            'newhireriskbatchstart' => $periodstart,
+            'newhireriskbatchend' => $periodend,
+        ];
+
+        $documents = new document_repository();
+        $source = $documents->source();
+        $riskuseridexpr = 'u.id';
+        if ($source !== null) {
+            $params['newhireriskbatchmatured'] = $maturedbefore;
+            $documentexists = $this->document_exists_subquery_sql(
+                $filters,
+                $source,
+                $params,
+                'newhireriskbatchdoc'
+            );
+            $riskuseridexpr = "CASE
+                                   WHEN u.timecreated <= :newhireriskbatchmatured
+                                    AND NOT EXISTS ({$documentexists})
+                                   THEN u.id
+                                   ELSE NULL
+                               END";
+        }
+
+        $sql = "SELECT cu.companyid,
+                       COUNT(DISTINCT u.id) AS totalnew,
+                       COUNT(DISTINCT {$riskuseridexpr}) AS riskcount
+                  FROM {user} u
+                  JOIN {company_users} cu
+                    ON cu.userid = u.id
+                   AND cu.companyid {$companyinsql}
+                 WHERE {$filter['sql']}
+                   AND u.timecreated >= :newhireriskbatchstart
+                   AND u.timecreated <= :newhireriskbatchend
+              GROUP BY cu.companyid";
+
+        $summaries = [];
+        foreach ($DB->get_records_sql($sql, $params) as $record) {
+            $totalnew = (int)$record->totalnew;
+            $riskcount = (int)$record->riskcount;
+            $summaries[(int)$record->companyid] = [
+                'totalnew' => $totalnew,
+                'riskcount' => $riskcount,
+                'riskpercent' => $totalnew > 0 ? round(($riskcount / $totalnew) * 100, 1) : 0.0,
+            ];
+        }
+
+        return $summaries;
     }
 
     private function document_exists_subquery_sql(array $filters, array $source, array &$params, string $prefix): string {
@@ -805,8 +934,6 @@ class turnover_repository {
     }
 
     private function append_company_change_exit_records(array &$records, array $filters, int $start, int $end, string $prefix): void {
-        global $DB;
-
         $companyids = array_values(array_filter(array_map('intval', $filters['companyids'] ?? [])));
         if (count($companyids) !== 1 || !$this->table_exists('logstore_standard_log')) {
             return;
@@ -815,6 +942,78 @@ class turnover_repository {
         $companyid = reset($companyids);
         if ($companyid <= 0) {
             return;
+        }
+
+        $companyname = $this->company_name_for_id($companyid);
+        $exitrecords = $this->company_change_exit_records_by_company(
+            $filters,
+            [[
+                'id' => $companyid,
+                'name' => $companyname,
+            ]],
+            $start,
+            $end,
+            $prefix . 'single'
+        );
+        $this->merge_company_change_exit_records(
+            $records,
+            $exitrecords[$companyid] ?? [],
+            $companyname
+        );
+    }
+
+    private function company_change_exit_records_by_company(
+        array $filters,
+        array $companies,
+        int $start,
+        int $end,
+        string $prefix
+    ): array {
+        global $DB;
+
+        if (!$this->table_exists('logstore_standard_log')) {
+            return [];
+        }
+
+        $companymap = [];
+        foreach ($companies as $company) {
+            $companyid = (int)($company['id'] ?? 0);
+            if ($companyid > 0) {
+                $companymap[$companyid] = (string)($company['name'] ?? '');
+            }
+        }
+        if (!$companymap) {
+            return [];
+        }
+
+        if (count($companymap) > self::COMPANY_EXIT_BATCH_SIZE) {
+            $recordsbycompany = [];
+            $chunks = array_chunk($companymap, self::COMPANY_EXIT_BATCH_SIZE, true);
+            foreach ($chunks as $chunkindex => $chunk) {
+                $chunkcompanies = [];
+                foreach ($chunk as $companyid => $companyname) {
+                    $chunkcompanies[] = [
+                        'id' => $companyid,
+                        'name' => $companyname,
+                    ];
+                }
+
+                $chunkrecords = $this->company_change_exit_records_by_company(
+                    $filters,
+                    $chunkcompanies,
+                    $start,
+                    $end,
+                    $prefix . 'part' . $chunkindex
+                );
+                foreach ($chunkrecords as $companyid => $records) {
+                    $recordsbycompany[$companyid] = array_merge(
+                        $recordsbycompany[$companyid] ?? [],
+                        $records
+                    );
+                }
+            }
+
+            return $recordsbycompany;
         }
 
         $employee = new employee_repository();
@@ -830,7 +1029,6 @@ class turnover_repository {
         $params = $filter['params'];
         $params[$prefix . 'companyexitfield'] = 'Date';
         $params[$prefix . 'companyexitsitefield'] = 'Site';
-        $companyname = $this->company_name_for_id($companyid);
         if ($start > 0) {
             $params[$prefix . 'companyexitstart'] = $start;
         }
@@ -838,7 +1036,13 @@ class turnover_repository {
             $params[$prefix . 'companyexitend'] = $end;
         }
 
-        $likes = $this->company_exit_payload_likes($params, $prefix, $companyid);
+        $likes = [];
+        foreach (array_keys($companymap) as $companyid) {
+            $likes = array_merge(
+                $likes,
+                $this->company_exit_payload_likes($params, $prefix . 'c' . $companyid, $companyid)
+            );
+        }
         $eventlikes = [
             $DB->sql_like('l.eventname', ':' . $prefix . 'companyexiteventcompany', false, false),
             $DB->sql_like('l.eventname', ':' . $prefix . 'companyexiteventassign', false, false),
@@ -911,15 +1115,46 @@ class turnover_repository {
                  WHERE " . implode(' AND ', $where) . "
               ORDER BY l.timecreated ASC";
 
+        $recordsbycompany = [];
         foreach ($DB->get_records_sql($sql, $params) as $record) {
-            if (!$this->log_entry_indicates_company_exit($record, $companyid)) {
-                continue;
-            }
-
             $userid = (int)$record->id;
             $exittimestamp = (int)$record->companyexittimestamp;
             if ($userid <= 0 || $exittimestamp <= 0) {
                 continue;
+            }
+
+            foreach ($companymap as $companyid => $companyname) {
+                if (!$this->log_entry_indicates_company_exit($record, $companyid)) {
+                    continue;
+                }
+
+                $companyrecord = clone $record;
+                $companyrecord->exittimestamp = $exittimestamp;
+                $companyrecord->exitsource = 'companychange';
+                $companyrecord->companyname = $companyname;
+                $recordsbycompany[$companyid][] = $companyrecord;
+            }
+        }
+
+        return $recordsbycompany;
+    }
+
+    private function merge_company_change_exit_records(
+        array &$records,
+        array $exitrecords,
+        string $companyname
+    ): void {
+        foreach ($exitrecords as $record) {
+            $userid = (int)$record->id;
+            $exittimestamp = (int)($record->exittimestamp ?? $record->companyexittimestamp ?? 0);
+            if ($userid <= 0 || $exittimestamp <= 0) {
+                continue;
+            }
+
+            $record->exittimestamp = $exittimestamp;
+            $record->exitsource = 'companychange';
+            if ($companyname !== '') {
+                $record->companyname = $companyname;
             }
 
             if (isset($records[$userid])) {
@@ -934,9 +1169,6 @@ class turnover_repository {
                 continue;
             }
 
-            $record->exittimestamp = $exittimestamp;
-            $record->exitsource = 'companychange';
-            $record->companyname = $companyname;
             $records[$userid] = $record;
         }
     }
@@ -1128,7 +1360,10 @@ class turnover_repository {
     private function table_exists(string $tablename): bool {
         global $DB;
 
-        return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+        if (!array_key_exists($tablename, self::$tableexistscache)) {
+            self::$tableexistscache[$tablename] = $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+        }
+        return self::$tableexistscache[$tablename];
     }
 
     private function turnover_status(float $percent): string {

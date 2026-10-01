@@ -5634,6 +5634,49 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         }
     };
 
+    var visualRequestKey = function(tabkey, requestFilters) {
+        return tabkey + ':' + JSON.stringify(requestFilters || {});
+    };
+
+    var rememberVisualResponse = function(state, tabkey, requestFilters, response) {
+        state.visualResponseCache = state.visualResponseCache || {};
+        state.visualResponseCache[visualRequestKey(tabkey, requestFilters)] = {
+            response: response,
+            time: Date.now()
+        };
+    };
+
+    var requestVisualResponse = function(state, tabkey, requestFilters) {
+        var requestkey = visualRequestKey(tabkey, requestFilters);
+        state.visualResponseCache = state.visualResponseCache || {};
+        state.pendingVisualRequests = state.pendingVisualRequests || {};
+
+        var cached = state.visualResponseCache[requestkey];
+        if (cached && Date.now() - cached.time < 120000) {
+            return Promise.resolve(cached.response);
+        }
+        if (state.pendingVisualRequests[requestkey]) {
+            return state.pendingVisualRequests[requestkey];
+        }
+
+        var request = call('block_dashboardanalytics_get_visuals', {
+            contextid: state.contextid,
+            dashboardkey: state.dashboardkey,
+            tabkey: tabkey,
+            filters: JSON.stringify(requestFilters || {})
+        }).then(function(response) {
+            rememberVisualResponse(state, tabkey, requestFilters, response);
+            delete state.pendingVisualRequests[requestkey];
+            return response;
+        }).catch(function(error) {
+            delete state.pendingVisualRequests[requestkey];
+            throw error;
+        });
+
+        state.pendingVisualRequests[requestkey] = request;
+        return request;
+    };
+
     var loadVisuals = function(root, state, tabkey, overrides, historyMode) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
@@ -5642,12 +5685,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             : (state.currentVisualOverrides || {});
         var requestFilters = readFilters(root, state, visualOverrides);
 
-        return call('block_dashboardanalytics_get_visuals', {
-            contextid: state.contextid,
-            dashboardkey: state.dashboardkey,
-            tabkey: tabkey,
-            filters: JSON.stringify(requestFilters)
-        }).then(function(response) {
+        return requestVisualResponse(state, tabkey, requestFilters).then(function(response) {
             applyVisualResponse(root, state, tabkey, visualOverrides, historyMode, response);
         }).catch(Notification.exception);
     };
@@ -5704,6 +5742,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 applyKpiResponse(root, response);
             }).catch(Notification.exception),
             Promise.all([filterRequest, requests[1]]).then(function(responses) {
+                rememberVisualResponse(state, tabkey, visualFilters, responses[1]);
                 applyVisualResponse(root, state, tabkey, visualOverrides, historyMode, responses[1]);
             }).catch(Notification.exception)
         ]);
@@ -5769,6 +5808,28 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             persistState(root, state);
             commitBrowserHistoryState(root, state, historyMode || 'push');
         }).catch(Notification.exception);
+    };
+
+    var scheduleTurnoverPrefetch = function(root, state) {
+        if (!root.querySelector('[data-tab="turnover"]')) {
+            return;
+        }
+
+        var run = function() {
+            if (state.currentTab === 'turnover') {
+                return;
+            }
+            var requestFilters = readFilters(root, state, state.currentVisualOverrides || {});
+            requestVisualResponse(state, 'turnover', requestFilters).catch(function() {
+                // Background warm-up must not interrupt the active dashboard tab.
+            });
+        };
+
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(run, {timeout: 2000});
+        } else {
+            window.setTimeout(run, 750);
+        }
     };
 
     var refresh = function(root, state, historyMode) {
@@ -7928,6 +7989,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 if (matchesBrowserHistoryState(window.history.state, state)) {
                     restoreBrowserHistoryState(root, state, window.history.state);
                 }
+                scheduleTurnoverPrefetch(root, state);
             });
         }).catch(Notification.exception);
     };
