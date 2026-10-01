@@ -8,6 +8,8 @@ use block_dashboardanalytics\permissions;
 defined('MOODLE_INTERNAL') || die();
 
 class document_repository {
+    /** @var array|null */
+    private static ?array $sourcescache = null;
     /** @var array<string, array> */
     private array $overviewrowscache = [];
     /** @var array<string, array> */
@@ -18,6 +20,10 @@ class document_repository {
     }
 
     public function sources(): array {
+        if (self::$sourcescache !== null) {
+            return self::$sourcescache;
+        }
+
         $sources = [];
         $primary = $this->source();
         if ($primary !== null) {
@@ -31,7 +37,8 @@ class document_repository {
             $sources[] = $legacy;
         }
 
-        return $sources;
+        self::$sourcescache = $sources;
+        return self::$sourcescache;
     }
 
     public function status_counts(array $filters): array {
@@ -59,12 +66,11 @@ class document_repository {
     }
 
     public function compliance_summary(array $filters): array {
-        $employee = new employee_repository();
-        $totalactiveusers = $employee->count_active_users($filters);
         if (!$this->is_configured()) {
+            $employee = new employee_repository();
             return [
                 'configured' => false,
-                'totalactiveusers' => $totalactiveusers,
+                'totalactiveusers' => $employee->count_active_users($filters),
                 'validusers' => 0,
                 'compliance' => 0.0,
                 'status' => 'muted',

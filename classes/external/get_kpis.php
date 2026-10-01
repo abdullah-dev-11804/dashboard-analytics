@@ -35,11 +35,26 @@ class get_kpis extends \external_api {
         $dashboardkey = permissions::require_dashboard_key($context, $params['dashboardkey'], (int)$USER->id);
         $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
 
+        $cache = \cache::make('block_dashboardanalytics', 'kpi_results');
+        $cachekey = 'k_' . sha1(json_encode([
+            'contextid' => (int)$params['contextid'],
+            'dashboardkey' => $dashboardkey,
+            'userid' => (int)$USER->id,
+            'language' => current_language(),
+            'filters' => $scopedfilters,
+        ]));
+        $cached = $cache->get($cachekey);
+        if ($cached !== false) {
+            return $cached;
+        }
+
         $service = new kpi_service();
-        return [
+        $result = [
             'cards' => $service->cards($scopedfilters, $dashboardkey, (int)$USER->id),
             'notice' => '',
         ];
+        $cache->set($cachekey, $result);
+        return $result;
     }
 
     public static function execute_returns(): \external_single_structure {

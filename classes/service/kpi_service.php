@@ -16,29 +16,21 @@ defined('MOODLE_INTERNAL') || die();
 class kpi_service {
 
     public function cards(array $filters, string $dashboardkey, int $userid = 0): array {
-        $employees = new employee_repository();
         $documents = new document_repository();
-        $eds = new eds_repository();
-        $overview = new overview_repository();
-        $server = new server_repository();
-        $iscompanyowner = permissions::is_company_owner(\context_system::instance(), $userid);
-
-        $totalstaff = $employees->count_active_users($filters);
-        $documentcounts = $documents->status_counts($filters);
-        $compliancesummary = $documents->compliance_summary($filters);
-        $edsqueue = $eds->queue_summary($filters);
         $thresholds = filters::compliance_thresholds($filters);
 
-        $compliancevalue = $compliancesummary['compliance'] . '%';
-        $compliancestatus = 'muted';
-        if ($compliancesummary['configured']) {
-            $compliance = $compliancesummary['compliance'];
-            $compliancestatus = $compliance >= $thresholds['compliant']
-                ? 'ok'
-                : ($compliance >= $thresholds['critical'] ? 'warning' : 'danger');
-        }
-
         if ($dashboardkey === permissions::DASHBOARD_EMPLOYEE) {
+            $documentcounts = $documents->status_counts($filters);
+            $compliancesummary = $documents->compliance_summary($filters);
+            $compliancevalue = $compliancesummary['compliance'] . '%';
+            $compliancestatus = 'muted';
+            if ($compliancesummary['configured']) {
+                $compliance = $compliancesummary['compliance'];
+                $compliancestatus = $compliance >= $thresholds['compliant']
+                    ? 'ok'
+                    : ($compliance >= $thresholds['critical'] ? 'warning' : 'danger');
+            }
+
             return [
                 [
                     'key' => 'personalstatus',
@@ -94,10 +86,17 @@ class kpi_service {
             ];
         }
 
+        $employees = new employee_repository();
+        $overview = new overview_repository();
+        $iscompanyowner = permissions::is_company_owner(\context_system::instance(), $userid);
+        $totalstaff = $employees->count_active_users($filters);
+        $edsqueue = ['count' => 0, 'status' => 'muted', 'badge' => ''];
+        if ($dashboardkey !== permissions::DASHBOARD_COMPANY || !$iscompanyowner) {
+            $edsqueue = (new eds_repository())->queue_summary($filters);
+        }
+
         if ($dashboardkey === permissions::DASHBOARD_COMPANY) {
             $currentreport = $overview->overall_employee_compliance_summary($filters);
-            $previousmonth = (new \DateTimeImmutable('last day of previous month 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
-            $previousreport = $overview->overall_employee_compliance_summary($filters, $previousmonth);
             $statuscounts = $overview->status_counts($filters);
             $totalcheckscount = (int)$statuscounts['active'] + (int)$statuscounts['expiring'] + (int)$statuscounts['expired'] + (int)$statuscounts['nodocument'];
             $totalchecks = max(1, $totalcheckscount);
@@ -174,7 +173,7 @@ class kpi_service {
             }
 
             if (is_siteadmin($userid)) {
-                $disk = $server->disk_card();
+                $disk = (new server_repository())->disk_card();
                 $cards[] = [
                     'key' => 'serverdisk',
                     'label' => get_string('kpi:serverdisk', 'block_dashboardanalytics'),
@@ -192,8 +191,6 @@ class kpi_service {
         }
 
         $currentreport = $overview->overall_employee_compliance_summary($filters);
-        $previousmonth = (new \DateTimeImmutable('last day of previous month 23:59:59', new \DateTimeZone('Asia/Almaty')))->getTimestamp();
-        $previousreport = $overview->overall_employee_compliance_summary($filters, $previousmonth);
         $statuscounts = $overview->status_counts($filters);
         $totalcheckscount = (int)$statuscounts['active'] + (int)$statuscounts['expiring'] + (int)$statuscounts['expired'] + (int)$statuscounts['nodocument'];
         $totalchecks = max(1, $totalcheckscount);

@@ -13,6 +13,16 @@ class overview_repository {
     private static array $companysummariescache = [];
     /** @var array<string, array> */
     private static array $monthwindowscache = [];
+    /** @var array<string, array> */
+    private static array $enrolmentrecordscache = [];
+    /** @var array<string, array> */
+    private static array $postponedrecordscache = [];
+    /** @var array<string, array> */
+    private static array $documentcandidatecache = [];
+    /** @var array<string, string> */
+    private static array $profilefieldcache = [];
+    /** @var array<string, bool> */
+    private static array $tableexistscache = [];
 
     public function enrolment_status_snapshot_rows(array $filters, ?int $reportdate = null): array {
         $reportdate = $reportdate ?? $this->current_report_date();
@@ -796,10 +806,11 @@ class overview_repository {
     private function enrolment_status_rows(array $filters, int $reportdate): array {
         global $DB;
 
-        $cachekey = $this->cache_key($filters, $reportdate);
+        $cachekey = $this->status_rows_cache_key($filters, $reportdate);
         if (isset(self::$enrolmentstatusrowscache[$cachekey])) {
             return self::$enrolmentstatusrowscache[$cachekey];
         }
+        $datasetkey = $this->status_data_cache_key($filters);
 
         $employee = new employee_repository();
         $documents = new document_repository();
@@ -911,12 +922,14 @@ class overview_repository {
                               'e.status = 0',
                           ]));
 
-        $records = $DB->get_records_sql($enrolmentsql, $params, 0, 5000);
+        if (!isset(self::$enrolmentrecordscache[$datasetkey])) {
+            self::$enrolmentrecordscache[$datasetkey] = $DB->get_records_sql($enrolmentsql, $params, 0, 5000);
+        }
+        $records = self::$enrolmentrecordscache[$datasetkey];
         $postponedrecords = [];
         if ($haspostponed) {
             $postponedwhere = array_merge($basewhere, [
                 'p.status = :postponedstatus',
-                '(p.timecreated = 0 OR p.timecreated <= :postponedreportdate)',
                 "NOT EXISTS (
                     SELECT 1
                       FROM {user_enrolments} pue
@@ -929,7 +942,6 @@ class overview_repository {
             ]);
             $postponedparams = $params + [
                 'postponedstatus' => 'postponed',
-                'postponedreportdate' => $reportdate,
             ];
             if (!empty($filters['companyids'])) {
                 [$companyinsql, $companyparams] = $DB->get_in_or_equal(
@@ -976,21 +988,46 @@ class overview_repository {
                                     {$personnelcategoryjoin}
                                     {$positionjoin}
                               WHERE " . implode(' AND ', $postponedwhere);
-            $postponedrecords = $DB->get_records_sql($postponedsql, $postponedparams, 0, 5000);
+            if (!isset(self::$postponedrecordscache[$datasetkey])) {
+                self::$postponedrecordscache[$datasetkey] = $DB->get_records_sql(
+                    $postponedsql,
+                    $postponedparams,
+                    0,
+                    5000
+                );
+            }
+            $postponedrecords = self::$postponedrecordscache[$datasetkey];
         }
         $documentmap = [];
         foreach ($sources as $source) {
+            $candidatecachekey = $datasetkey . ':' . sha1(json_encode($source));
             if (($source['kind'] ?? '') === 'ncasign') {
+                if (!isset(self::$documentcandidatecache[$candidatecachekey])) {
+                    self::$documentcandidatecache[$candidatecachekey] = $this->ncasign_document_candidates(
+                        $source,
+                        $basewhere,
+                        $params,
+                        $analyticsjoin
+                    );
+                }
                 $this->merge_document_candidates(
                     $documentmap,
-                    $this->ncasign_document_candidates($source, $basewhere, $params, $analyticsjoin),
+                    self::$documentcandidatecache[$candidatecachekey],
                     $reportdate,
                     false
                 );
             } else if (($source['kind'] ?? '') === 'legacy_type1') {
+                if (!isset(self::$documentcandidatecache[$candidatecachekey])) {
+                    self::$documentcandidatecache[$candidatecachekey] = $this->legacy_document_candidates(
+                        $source,
+                        $basewhere,
+                        $params,
+                        $analyticsjoin
+                    );
+                }
                 $this->merge_document_candidates(
                     $documentmap,
-                    $this->legacy_document_candidates($source, $basewhere, $params, $analyticsjoin),
+                    self::$documentcandidatecache[$candidatecachekey],
                     $reportdate,
                     true
                 );
@@ -1035,6 +1072,10 @@ class overview_repository {
         }
 
         foreach ($postponedrecords as $record) {
+            $postponedtimecreated = (int)($record->postponedtimecreated ?? 0);
+            if ($postponedtimecreated > 0 && $postponedtimecreated > $reportdate) {
+                continue;
+            }
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
@@ -1091,6 +1132,13 @@ class overview_repository {
                             WHEN cc.timecompleted IS NULL OR cc.timecompleted <= 0 THEN NULL
                             ELSE cc.timecompleted + ({$validitysql} * 86400)
                          END AS expirytime";
+        $latestdocumentssql = "SELECT d2.{$source['userid']} AS userid,
+                                      d2.{$source['courseid']} AS courseid,
+                                      MAX(d2.id) AS documentid
+                                 FROM {{$source['table']}} d2
+                                WHERE (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)
+                                  AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')
+                             GROUP BY d2.{$source['userid']}, d2.{$source['courseid']}";
 
         $sql = "SELECT d.id AS documentid,
                        d.id AS sourceid,
@@ -1099,6 +1147,8 @@ class overview_repository {
                        cc.timecompleted AS issuedate,
                        {$expiryselect}
                   FROM {{$source['table']}} d
+                  JOIN ({$latestdocumentssql}) latestdocument
+                    ON latestdocument.documentid = d.id
                   JOIN {user} u ON u.id = d.{$source['userid']}
                   JOIN {course} c ON c.id = d.{$source['courseid']}
              LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
@@ -1106,14 +1156,6 @@ class overview_repository {
              LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
                        {$analyticsjoin}
                  WHERE " . implode(' AND ', array_merge($basewhere, [
-                     "d.id = (
-                         SELECT MAX(d2.id)
-                           FROM {{$source['table']}} d2
-                          WHERE d2.{$source['userid']} = d.{$source['userid']}
-                            AND d2.{$source['courseid']} = d.{$source['courseid']}
-                            AND (d2.{$source['origin']} <> 'demo_job' OR d2.{$source['origin']} IS NULL)
-                            AND d2.{$source['status']} IN ('completed_manual', 'completed_auto')
-                     )",
                      "(d.{$source['origin']} <> 'demo_job' OR d.{$source['origin']} IS NULL)",
                      "d.{$source['status']} IN ('completed_manual', 'completed_auto')",
                  ]));
@@ -1527,6 +1569,39 @@ class overview_repository {
         ];
 
         return md5(json_encode($payload));
+    }
+
+    private function status_rows_cache_key(array $filters, int $reportdate): string {
+        $datafilters = $this->status_data_filters($filters);
+        $datafilters['statusmode'] = ($filters['statusmode'] ?? 'course') === 'employee' ? 'employee' : 'course';
+        return $this->cache_key($datafilters, $reportdate);
+    }
+
+    private function status_data_cache_key(array $filters): string {
+        return $this->cache_key($this->status_data_filters($filters));
+    }
+
+    private function status_data_filters(array $filters): array {
+        $keys = [
+            'companyids',
+            'companies',
+            'userids',
+            'courseids',
+            'departments',
+            'locations',
+            'positions',
+            'personnelcategories',
+            'sites',
+            'educations',
+            'search',
+        ];
+        $datafilters = [];
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $filters)) {
+                $datafilters[$key] = $filters[$key];
+            }
+        }
+        return $datafilters;
     }
 
     private function normalize_cache_value($value) {
@@ -2142,14 +2217,21 @@ class overview_repository {
     private function existing_user_profile_field_shortname(array $candidates): string {
         global $DB;
 
+        $cachekey = md5(json_encode(array_values($candidates)));
+        if (array_key_exists($cachekey, self::$profilefieldcache)) {
+            return self::$profilefieldcache[$cachekey];
+        }
+
         foreach ($candidates as $candidate) {
             $candidate = trim((string)$candidate);
             if ($candidate !== '' && $DB->record_exists('user_info_field', ['shortname' => $candidate])) {
-                return $candidate;
+                self::$profilefieldcache[$cachekey] = $candidate;
+                return self::$profilefieldcache[$cachekey];
             }
         }
 
-        return '';
+        self::$profilefieldcache[$cachekey] = '';
+        return self::$profilefieldcache[$cachekey];
     }
 
     private function format_person_name(string $firstname, string $lastname): string {
@@ -2175,7 +2257,12 @@ class overview_repository {
     private function table_exists(string $tablename): bool {
         global $CFG, $DB;
 
+        if (array_key_exists($tablename, self::$tableexistscache)) {
+            return self::$tableexistscache[$tablename];
+        }
+
         require_once($CFG->libdir . '/xmldb/xmldb_table.php');
-        return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+        self::$tableexistscache[$tablename] = $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+        return self::$tableexistscache[$tablename];
     }
 }

@@ -5524,6 +5524,10 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         return previous !== parts.hidden.value;
     };
 
+    var applyKpiResponse = function(root, response) {
+        renderKpis(root, response.cards || []);
+    };
+
     var loadKpis = function(root, state) {
         var container = root.querySelector('[data-region="kpi-strip"]');
         setLoading(container);
@@ -5533,7 +5537,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             dashboardkey: state.dashboardkey,
             filters: JSON.stringify(readFilters(root, state))
         }).then(function(response) {
-            renderKpis(root, response.cards || []);
+            applyKpiResponse(root, response);
         }).catch(Notification.exception);
     };
 
@@ -5607,6 +5611,29 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         }).catch(Notification.exception);
     };
 
+    var applyVisualResponse = function(root, state, tabkey, visualOverrides, historyMode, response) {
+        state.currentTab = tabkey;
+        state.currentVisualOverrides = visualOverrides || {};
+        state.currentVisualResponse = response;
+        setActiveTab(root, tabkey);
+        renderVisuals(root, response, state);
+        persistState(root, state);
+        commitBrowserHistoryState(root, state, historyMode || 'push');
+        if (tabkey === 'compliance' && state.currentComplianceDrilldown) {
+            loadComplianceInlineDrilldown(
+                root,
+                state,
+                state.currentComplianceDrilldown,
+                state.currentComplianceDrilldownOverrides,
+                state.currentComplianceDrilldownPage,
+                state.currentComplianceDrilldownPerPage,
+                'skip',
+                undefined,
+                false
+            );
+        }
+    };
+
     var loadVisuals = function(root, state, tabkey, overrides, historyMode) {
         var container = root.querySelector('[data-region="drilldown"]');
         setLoading(container);
@@ -5621,27 +5648,65 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             tabkey: tabkey,
             filters: JSON.stringify(requestFilters)
         }).then(function(response) {
-            state.currentTab = tabkey;
-            state.currentVisualOverrides = visualOverrides || {};
-            state.currentVisualResponse = response;
-            setActiveTab(root, tabkey);
-            renderVisuals(root, response, state);
-            persistState(root, state);
-            commitBrowserHistoryState(root, state, historyMode || 'push');
-            if (tabkey === 'compliance' && state.currentComplianceDrilldown) {
-                loadComplianceInlineDrilldown(
-                    root,
-                    state,
-                    state.currentComplianceDrilldown,
-                    state.currentComplianceDrilldownOverrides,
-                    state.currentComplianceDrilldownPage,
-                    state.currentComplianceDrilldownPerPage,
-                    'skip',
-                    undefined,
-                    false
-                );
-            }
+            applyVisualResponse(root, state, tabkey, visualOverrides, historyMode, response);
         }).catch(Notification.exception);
+    };
+
+    var loadFiltersKpisAndVisuals = function(root, state, tabkey, overrides, historyMode, requestFilters) {
+        var filterContainer = root.querySelector('[data-region="filter-bar"]');
+        var kpiContainer = root.querySelector('[data-region="kpi-strip"]');
+        var visualContainer = root.querySelector('[data-region="drilldown"]');
+        var visualOverrides = typeof overrides !== 'undefined'
+            ? overrides
+            : (state.currentVisualOverrides || {});
+        var visualFilters = Object.assign({}, requestFilters || {});
+        Object.keys(visualOverrides).forEach(function(key) {
+            if (key !== 'compliancenorm' && key !== 'compliancecritical') {
+                visualFilters[key] = visualOverrides[key];
+            }
+        });
+        state.persistedFilters = Object.assign({}, requestFilters || {});
+        setLoading(filterContainer);
+        setLoading(kpiContainer);
+        setLoading(visualContainer);
+
+        var filterRequest = call('block_dashboardanalytics_get_filter_options', {
+            contextid: state.contextid,
+            filters: JSON.stringify(requestFilters || {})
+        }).then(function(response) {
+            renderFilters(root, state, response.groups || []);
+            persistState(root, state);
+        }).catch(Notification.exception);
+
+        var requests = Ajax.call([
+            {
+                methodname: 'block_dashboardanalytics_get_kpis',
+                args: {
+                    contextid: state.contextid,
+                    dashboardkey: state.dashboardkey,
+                    filters: JSON.stringify(requestFilters || {})
+                }
+            },
+            {
+                methodname: 'block_dashboardanalytics_get_visuals',
+                args: {
+                    contextid: state.contextid,
+                    dashboardkey: state.dashboardkey,
+                    tabkey: tabkey,
+                    filters: JSON.stringify(visualFilters)
+                }
+            }
+        ]);
+
+        return Promise.all([
+            filterRequest,
+            requests[0].then(function(response) {
+                applyKpiResponse(root, response);
+            }).catch(Notification.exception),
+            Promise.all([filterRequest, requests[1]]).then(function(responses) {
+                applyVisualResponse(root, state, tabkey, visualOverrides, historyMode, responses[1]);
+            }).catch(Notification.exception)
+        ]);
     };
 
     var replaceVisualPanelInResponse = function(currentResponse, partialResponse, panelKey) {
@@ -5711,18 +5776,32 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             ? readFilters(root, state)
             : Object.assign({}, state.persistedFilters || {});
 
+        if (state.currentTab !== 'kpis' && !state.currentDrilldown) {
+            return loadFiltersKpisAndVisuals(
+                root,
+                state,
+                state.currentTab || 'overview',
+                undefined,
+                historyMode || 'push',
+                payload
+            );
+        }
+
         return loadFilters(root, state, payload).then(function() {
             persistState(root, state);
-            loadKpis(root, state);
             if (state.currentTab === 'kpis') {
-                loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state), undefined, undefined, undefined, historyMode || 'push');
-                return;
+                return Promise.all([
+                    loadKpis(root, state),
+                    loadDrilldown(root, state, state.currentDrilldown || defaultDrilldownKey(state), undefined, undefined, undefined, historyMode || 'push')
+                ]);
             }
             if (state.currentDrilldown) {
-                loadDrilldown(root, state, state.currentDrilldown, undefined, undefined, undefined, historyMode || 'push');
-                return;
+                return Promise.all([
+                    loadKpis(root, state),
+                    loadDrilldown(root, state, state.currentDrilldown, undefined, undefined, undefined, historyMode || 'push')
+                ]);
             }
-            loadVisuals(root, state, state.currentTab || 'overview', undefined, historyMode || 'push');
+            return Promise.resolve();
         });
     };
 

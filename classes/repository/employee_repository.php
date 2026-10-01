@@ -12,6 +12,8 @@ class employee_repository {
     private const SENTAL_COMPANY_ID = 1;
     /** @var string */
     private const SENTAL_ALLOWED_ROLE = 'student';
+    /** @var array<string, bool> */
+    private static array $profilefieldexistscache = [];
 
     public function count_active_users(array $filters): int {
         global $DB;
@@ -374,7 +376,13 @@ class employee_repository {
     private function profile_field_exists(string $shortname): bool {
         global $DB;
 
-        return $DB->record_exists('user_info_field', ['shortname' => $shortname]);
+        if (!array_key_exists($shortname, self::$profilefieldexistscache)) {
+            self::$profilefieldexistscache[$shortname] = $DB->record_exists(
+                'user_info_field',
+                ['shortname' => $shortname]
+            );
+        }
+        return self::$profilefieldexistscache[$shortname];
     }
 
     private function append_profile_field_filter(

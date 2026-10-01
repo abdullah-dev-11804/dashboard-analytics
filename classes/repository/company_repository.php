@@ -8,6 +8,9 @@ use block_dashboardanalytics\permissions;
 defined('MOODLE_INTERNAL') || die();
 
 class company_repository {
+    /** @var array<string, bool> */
+    private static array $tableexistscache = [];
+    private static ?string $companyprofileshortnamecache = null;
 
     public function has_iomad_tables(): bool {
         return $this->table_exists('company') && $this->table_exists('company_users');
@@ -309,14 +312,25 @@ class company_repository {
     private function table_exists(string $tablename): bool {
         global $CFG, $DB;
 
+        if (array_key_exists($tablename, self::$tableexistscache)) {
+            return self::$tableexistscache[$tablename];
+        }
+
         require_once($CFG->libdir . '/xmldb/xmldb_table.php');
-        return $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+        self::$tableexistscache[$tablename] = $DB->get_manager()->table_exists(new \xmldb_table($tablename));
+        return self::$tableexistscache[$tablename];
     }
 
     private function company_profile_shortname(): string {
         global $DB;
 
-        return $DB->record_exists('user_info_field', ['shortname' => 'Company']) ? 'Company' : '';
+        if (self::$companyprofileshortnamecache === null) {
+            self::$companyprofileshortnamecache = $DB->record_exists(
+                'user_info_field',
+                ['shortname' => 'Company']
+            ) ? 'Company' : '';
+        }
+        return self::$companyprofileshortnamecache;
     }
 
     private function profile_company_for_user(int $userid): string {

@@ -9,6 +9,8 @@ use block_dashboardanalytics\permissions;
 defined('MOODLE_INTERNAL') || die();
 
 class dimension_repository {
+    /** @var array<string, bool> */
+    private static array $profilefieldexistscache = [];
 
     public function get_filter_groups(array $scopefilters = []): array {
         global $USER;
@@ -267,6 +269,12 @@ class dimension_repository {
     private function profile_field_exists(string $shortname): bool {
         global $DB;
 
-        return $DB->record_exists('user_info_field', ['shortname' => $shortname]);
+        if (!array_key_exists($shortname, self::$profilefieldexistscache)) {
+            self::$profilefieldexistscache[$shortname] = $DB->record_exists(
+                'user_info_field',
+                ['shortname' => $shortname]
+            );
+        }
+        return self::$profilefieldexistscache[$shortname];
     }
 }

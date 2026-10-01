@@ -42,12 +42,28 @@ class get_visuals extends \external_api {
         $scopedfilters = filters::apply_dashboard_scope(filters::from_json($params['filters']), $dashboardkey, (int)$USER->id);
         $scopedfilters['showemployeeidentity'] = permissions::can_view_employee_identity($context, (int)$USER->id);
 
+        $cache = \cache::make('block_dashboardanalytics', 'kpi_results');
+        $cachekey = 'v_' . sha1(json_encode([
+            'contextid' => (int)$params['contextid'],
+            'dashboardkey' => $dashboardkey,
+            'tabkey' => $params['tabkey'],
+            'userid' => (int)$USER->id,
+            'language' => current_language(),
+            'filters' => $scopedfilters,
+        ]));
+        $cached = $cache->get($cachekey);
+        if ($cached !== false) {
+            return $cached;
+        }
+
         $service = new visual_service();
-        return $service->panels(
+        $result = $service->panels(
             $dashboardkey,
             $params['tabkey'],
             $scopedfilters
         );
+        $cache->set($cachekey, $result);
+        return $result;
     }
 
     public static function execute_returns(): \external_single_structure {

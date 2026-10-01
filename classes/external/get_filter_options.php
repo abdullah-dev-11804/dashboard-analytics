@@ -41,7 +41,22 @@ class get_filter_options extends \external_api {
             $dashboardkey,
             (int)$USER->id
         );
-        return ['groups' => $repository->get_filter_groups($scopefilters)];
+        $cache = \cache::make('block_dashboardanalytics', 'filter_options');
+        $cachekey = sha1(json_encode([
+            'contextid' => (int)$params['contextid'],
+            'dashboardkey' => $dashboardkey,
+            'userid' => (int)$USER->id,
+            'language' => current_language(),
+            'filters' => $scopefilters,
+        ]));
+        $cached = $cache->get($cachekey);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        $result = ['groups' => $repository->get_filter_groups($scopefilters)];
+        $cache->set($cachekey, $result);
+        return $result;
     }
 
     public static function execute_returns(): \external_single_structure {
