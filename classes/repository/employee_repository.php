@@ -227,6 +227,7 @@ class employee_repository {
             'requireconfirmed' => true,
             'includesuspended' => false,
             'includedeleted' => false,
+            'includedeactivated' => false,
         ], $options);
 
         $params = [];
@@ -319,6 +320,16 @@ class employee_repository {
             );
             $where[] = $DB->sql_like($searchfields, ":{$searchkey}", false, false);
             $params[$searchkey] = '%' . $DB->sql_like_escape($filters['search']) . '%';
+        }
+
+        if (empty($options['includedeactivated'])) {
+            $employmentfilter = (new employee_status_repository())->active_user_filter_sql(
+                $filters,
+                $alias,
+                $prefix . 'employment'
+            );
+            $where[] = $employmentfilter['sql'];
+            $params += $employmentfilter['params'];
         }
 
         $this->append_sental_student_only_filter($where, $params, $alias, $prefix);

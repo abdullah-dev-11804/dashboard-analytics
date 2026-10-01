@@ -669,6 +669,13 @@ class report_repository {
             'endtime' => $end,
             'siteid' => SITEID,
         ];
+        $employmentfilter = (new employee_status_repository())->active_user_filter_sql(
+            ['companyids' => [$companyid]],
+            'u',
+            'reportsactemployment'
+        );
+        $where[] = $employmentfilter['sql'];
+        $params += $employmentfilter['params'];
         $employee->append_sental_student_only_filter($where, $params, 'u', 'reportsact');
 
         $sql = "SELECT c.id AS courseid,

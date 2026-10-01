@@ -2962,6 +2962,25 @@
     font-size: 14px;
 }
 
+.block-dashboardanalytics .da-user-management-filters {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .6rem;
+    flex: 1 1 34rem;
+    flex-wrap: wrap;
+}
+
+.block-dashboardanalytics .da-user-management-filters .da-course-analytics-search {
+    flex: 1 1 18rem;
+}
+
+.block-dashboardanalytics .da-user-management-table td:last-child,
+.block-dashboardanalytics .da-user-management-table th:last-child {
+    text-align: right;
+    white-space: nowrap;
+}
+
 .block-dashboardanalytics .da-course-analytics-shortname {
     color: #7a8ba8;
     font-size: 12px;

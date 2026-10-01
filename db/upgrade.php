@@ -163,5 +163,50 @@ function xmldb_block_dashboardanalytics_upgrade(int $oldversion): bool {
         upgrade_block_savepoint(true, 2026082700, 'dashboardanalytics');
     }
 
+    if ($oldversion < 2026100200) {
+        $table = new xmldb_table('block_da_empstatus');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('companyid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('deactivated', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('deactivatedat', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('deactivatedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('modifiedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('user_company_uix', XMLDB_INDEX_UNIQUE, ['userid', 'companyid']);
+        $table->add_index('company_deactivated_ix', XMLDB_INDEX_NOTUNIQUE, ['companyid', 'deactivated']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        $table = new xmldb_table('block_da_empaudit');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('companyid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('companyname', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('action', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('actorid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('sourcekey', XMLDB_TYPE_CHAR, '40', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('detail', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('sourcekey_uix', XMLDB_INDEX_UNIQUE, ['sourcekey']);
+        $table->add_index('company_action_time_ix', XMLDB_INDEX_NOTUNIQUE, ['companyid', 'action', 'timecreated']);
+        $table->add_index('user_company_time_ix', XMLDB_INDEX_NOTUNIQUE, ['userid', 'companyid', 'timecreated']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_block_savepoint(true, 2026100200, 'dashboardanalytics');
+    }
+
     return true;
 }

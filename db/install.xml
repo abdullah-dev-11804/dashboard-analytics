@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="blocks/dashboardanalytics/db" VERSION="2026080400" COMMENT="XMLDB file for block_dashboardanalytics"
+<XMLDB PATH="blocks/dashboardanalytics/db" VERSION="2026100200" COMMENT="XMLDB file for block_dashboardanalytics"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -116,6 +116,47 @@
             </KEYS>
             <INDEXES>
                 <INDEX NAME="userid_name_ix" UNIQUE="false" FIELDS="userid, name"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="block_da_empstatus" COMMENT="Company-specific employee deactivation state">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="companyid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="deactivated" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="deactivatedat" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="deactivatedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="modifiedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="user_company_uix" UNIQUE="true" FIELDS="userid, companyid"/>
+                <INDEX NAME="company_deactivated_ix" UNIQUE="false" FIELDS="companyid, deactivated"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="block_da_empaudit" COMMENT="Immutable company-employment state and departure event history">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="companyid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="companyname" TYPE="char" LENGTH="255" NOTNULL="true" DEFAULT="" SEQUENCE="false"/>
+                <FIELD NAME="action" TYPE="char" LENGTH="32" NOTNULL="true" DEFAULT="" SEQUENCE="false"/>
+                <FIELD NAME="actorid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="sourcekey" TYPE="char" LENGTH="40" NOTNULL="true" DEFAULT="" SEQUENCE="false"/>
+                <FIELD NAME="detail" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="sourcekey_uix" UNIQUE="true" FIELDS="sourcekey"/>
+                <INDEX NAME="company_action_time_ix" UNIQUE="false" FIELDS="companyid, action, timecreated"/>
+                <INDEX NAME="user_company_time_ix" UNIQUE="false" FIELDS="userid, companyid, timecreated"/>
             </INDEXES>
         </TABLE>
     </TABLES>

@@ -118,6 +118,22 @@ $functions = [
         'ajax' => true,
     ],
 
+    'block_dashboardanalytics_get_employee_management' => [
+        'classname' => 'block_dashboardanalytics\external\get_employee_management',
+        'methodname' => 'execute',
+        'description' => 'Return the site administrator employee/company management list.',
+        'type' => 'read',
+        'ajax' => true,
+    ],
+
+    'block_dashboardanalytics_set_employee_deactivation' => [
+        'classname' => 'block_dashboardanalytics\external\set_employee_deactivation',
+        'methodname' => 'execute',
+        'description' => 'Activate or deactivate one employee within one company.',
+        'type' => 'write',
+        'ajax' => true,
+    ],
+
     'block_dashboardanalytics_get_expiry_workflow_data' => [
         'classname' => 'block_dashboardanalytics\external\get_expiry_workflow_data',
         'methodname' => 'execute',

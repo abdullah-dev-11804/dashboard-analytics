@@ -229,6 +229,7 @@ class turnover_repository {
             'requireconfirmed' => true,
             'includesuspended' => true,
             'includedeleted' => true,
+            'includedeactivated' => true,
         ]);
         $params = $filter['params'];
         $companyrepo = new company_repository();
@@ -241,6 +242,21 @@ class turnover_repository {
 
         $params[$prefix . 'hirefield'] = 'Date';
         $params[$prefix . 'sitefield'] = 'Site';
+        $employmentjoin = '';
+        $employmentexit = '0';
+        $companyids = array_values(array_unique(array_filter(array_map('intval', $filters['companyids'] ?? []))));
+        if (count($companyids) === 1 && $this->table_exists('block_da_empstatus')) {
+            $employmentalias = 'turnoveremployment' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $params[$prefix . 'employmentcompanyid'] = (int)$companyids[0];
+            $employmentjoin = "LEFT JOIN {block_da_empstatus} {$employmentalias}
+                                     ON {$employmentalias}.userid = u.id
+                                    AND {$employmentalias}.companyid = :{$prefix}employmentcompanyid";
+            $employmentexit = "CASE
+                                   WHEN {$employmentalias}.deactivated = 1
+                                   THEN {$employmentalias}.deactivatedat
+                                   ELSE 0
+                               END";
+        }
         $where = [$filter['sql']];
 
         if ($start > 0) {
@@ -275,11 +291,13 @@ class turnover_repository {
                        END AS hiretimestamp,
                        CASE
                            WHEN u.suspended = 1 OR u.deleted = 1 THEN u.timemodified
+                           WHEN {$employmentexit} > 0 THEN {$employmentexit}
                            ELSE 0
                        END AS exittimestamp,
                        CASE
                            WHEN u.deleted = 1 THEN 'deleted'
                            WHEN u.suspended = 1 THEN 'deactivated'
+                           WHEN {$employmentexit} > 0 THEN 'deactivated'
                            ELSE ''
                        END AS exitsource
                   FROM {user} u
@@ -293,12 +311,14 @@ class turnover_repository {
              LEFT JOIN {user_info_data} sitedata
                     ON sitedata.fieldid = sitefield.id
                    AND sitedata.userid = u.id
+                       {$employmentjoin}
                  WHERE " . implode(' AND ', $where);
 
         $records = $DB->get_records_sql($sql, $params);
         if ($includecompanychanges) {
             $this->append_company_change_exit_records($records, $filters, $exitlogstart, $end, $prefix);
         }
+        $this->append_employment_departure_records($records, $filters, $exitlogstart, $end);
         return $records;
     }
 
@@ -743,7 +763,8 @@ class turnover_repository {
                 $hiredate = $this->record_hire_timestamp($record);
                 $exitdate = $this->record_exit_timestamp($record);
 
-                if ($hiredate >= $window['start'] && $hiredate <= $window['end']) {
+                if (empty($record->departureonly)
+                        && $hiredate >= $window['start'] && $hiredate <= $window['end']) {
                     $joined++;
                 }
 
@@ -751,7 +772,10 @@ class turnover_repository {
                     $left++;
                 }
 
-                if ($hiredate > 0 && $hiredate <= $window['end'] && ($exitdate <= 0 || $exitdate > $window['end'])) {
+                if (empty($record->departureonly)
+                        && $hiredate > 0
+                        && $hiredate <= $window['end']
+                        && ($exitdate <= 0 || $exitdate > $window['end'])) {
                     $headcount++;
                 }
             }
@@ -836,7 +860,8 @@ class turnover_repository {
             $hiredate = $this->record_hire_timestamp($record);
             $exitdate = $this->record_exit_timestamp($record);
 
-            if ($hiredate >= $window['start'] && $hiredate <= $window['end']) {
+            if (empty($record->departureonly)
+                    && $hiredate >= $window['start'] && $hiredate <= $window['end']) {
                 $rows[] = $this->staff_movement_row($record, 'joined', $hiredate, $hiredate, $showidentity);
             }
 
@@ -1024,6 +1049,7 @@ class turnover_repository {
             'requireconfirmed' => true,
             'includesuspended' => true,
             'includedeleted' => true,
+            'includedeactivated' => true,
         ]);
 
         $params = $filter['params'];
@@ -1151,6 +1177,10 @@ class turnover_repository {
                 continue;
             }
 
+            if ($this->has_matching_departure($records, $userid, $exittimestamp, 'companychange')) {
+                continue;
+            }
+
             $record->exittimestamp = $exittimestamp;
             $record->exitsource = 'companychange';
             if ($companyname !== '') {
@@ -1171,6 +1201,98 @@ class turnover_repository {
 
             $records[$userid] = $record;
         }
+    }
+
+    private function append_employment_departure_records(
+        array &$records,
+        array $filters,
+        int $start,
+        int $end
+    ): void {
+        $companyids = array_values(array_unique(array_filter(array_map('intval', $filters['companyids'] ?? []))));
+        if (!$companyids) {
+            $companyids = array_values(array_filter(array_map(static function(array $company): int {
+                return (int)($company['id'] ?? 0);
+            }, $this->company_scope_options($filters))));
+        }
+        if (!$companyids) {
+            return;
+        }
+
+        $events = (new employee_status_repository())->departure_events($companyids, $start, $end);
+        $matchedderivedrecords = [];
+        foreach ($events as $event) {
+            $userid = (int)$event->userid;
+            $exittimestamp = (int)$event->exittimestamp;
+            $source = (string)$event->action;
+            if ($source === 'deactivate' || $source === 'suspended') {
+                $source = 'deactivated';
+            }
+            if ($userid <= 0 || $exittimestamp <= 0) {
+                continue;
+            }
+
+            $matchingrecordkey = $this->matching_unconsumed_departure(
+                $records,
+                $userid,
+                $exittimestamp,
+                $source,
+                $matchedderivedrecords
+            );
+            if ($matchingrecordkey !== null) {
+                $matchedderivedrecords[$matchingrecordkey] = true;
+                continue;
+            }
+
+            $event->id = $userid;
+            $event->departureonly = 1;
+            $event->exitsource = $source;
+            $event->deleted = $source === 'deleted' ? 1 : (int)($event->deleted ?? 0);
+            $records['audit' . (int)$event->auditid] = $event;
+        }
+    }
+
+    private function matching_unconsumed_departure(
+        array $records,
+        int $userid,
+        int $exittimestamp,
+        string $source,
+        array $consumed
+    ): ?string {
+        foreach ($records as $key => $record) {
+            $key = (string)$key;
+            if (isset($consumed[$key]) || !empty($record->departureonly) || (int)($record->id ?? 0) !== $userid) {
+                continue;
+            }
+            $recordtimestamp = $this->record_exit_timestamp($record);
+            if ($recordtimestamp > 0
+                    && abs($recordtimestamp - $exittimestamp) <= 2
+                    && (string)($record->exitsource ?? '') === $source) {
+                return $key;
+            }
+        }
+        return null;
+    }
+
+    private function has_matching_departure(
+        array $records,
+        int $userid,
+        int $exittimestamp,
+        string $source
+    ): bool {
+        foreach ($records as $record) {
+            if ((int)($record->id ?? 0) !== $userid) {
+                continue;
+            }
+            $recordtimestamp = $this->record_exit_timestamp($record);
+            if ($recordtimestamp <= 0 || abs($recordtimestamp - $exittimestamp) > 2) {
+                continue;
+            }
+            if ((string)($record->exitsource ?? '') === $source) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function company_name_for_id(int $companyid): string {
@@ -1309,6 +1431,9 @@ class turnover_repository {
         foreach ($windows as $window) {
             $active = 0;
             foreach ($records as $record) {
+                if (!empty($record->departureonly)) {
+                    continue;
+                }
                 $created = $this->record_hire_timestamp($record);
                 $exitdate = $this->record_exit_timestamp($record);
 

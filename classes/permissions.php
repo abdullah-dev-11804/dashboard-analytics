@@ -127,6 +127,7 @@ class permissions {
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'server', 'label' => get_string('tab:server', 'block_dashboardanalytics')];
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'reports', 'label' => get_string('tab:reports', 'block_dashboardanalytics')];
             $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'analyticscourses', 'label' => get_string('tab:analyticscourses', 'block_dashboardanalytics')];
+            $tabs[self::DASHBOARD_COMPANY][] = ['key' => 'usermanagement', 'label' => get_string('tab:usermanagement', 'block_dashboardanalytics')];
         }
 
         if ($dashboardkey === self::DASHBOARD_COMPANY

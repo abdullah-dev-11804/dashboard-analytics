@@ -69,6 +69,10 @@ class visual_service {
             return $this->analytics_courses($filters);
         }
 
+        if ($tabkey === 'usermanagement') {
+            return $this->user_management();
+        }
+
         if ($tabkey === 'expiryworkflow') {
             return $this->expiry_workflow($filters);
         }
@@ -309,6 +313,22 @@ class visual_service {
                     get_string('panel:analyticscourses:paneltitle', 'block_dashboardanalytics'),
                     'analyticscourses',
                     get_string('panel:analyticscourses:paneldescription', 'block_dashboardanalytics'),
+                    []
+                ),
+            ],
+        ];
+    }
+
+    private function user_management(): array {
+        return [
+            'title' => get_string('panel:usermanagement:title', 'block_dashboardanalytics'),
+            'description' => get_string('panel:usermanagement:description', 'block_dashboardanalytics'),
+            'panels' => [
+                $this->panel(
+                    'usermanagement',
+                    get_string('panel:usermanagement:paneltitle', 'block_dashboardanalytics'),
+                    'usermanagement',
+                    get_string('panel:usermanagement:paneldescription', 'block_dashboardanalytics'),
                     []
                 ),
             ],

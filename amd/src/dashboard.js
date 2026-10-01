@@ -138,6 +138,29 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         courseAnalyticsHeaderVisibility: 'Visibility',
         courseAnalyticsHeaderAnalytics: 'Analytics',
         courseAnalyticsHeaderToggle: 'Toggle',
+        userManagementSearch: 'Search employees, email, or company',
+        userManagementHelp: 'Deactivate an employee for one company without suspending their Moodle account or changing enrolments.',
+        userManagementStatusActive: 'Active',
+        userManagementStatusDeactivated: 'Deactivated',
+        userManagementStatusAll: 'All statuses',
+        userManagementNoResults: 'No matching employee-company memberships found.',
+        userManagementSaved: 'Employee company status updated.',
+        userManagementLoadError: 'Unable to load employee management.',
+        userManagementSaveError: 'Unable to update the employee company status.',
+        userManagementHeaderEmployee: 'Employee',
+        userManagementHeaderEmail: 'Email',
+        userManagementHeaderCompany: 'Company',
+        userManagementHeaderStatus: 'Employment status',
+        userManagementHeaderAccount: 'Moodle account',
+        userManagementHeaderAction: 'Action',
+        userManagementAccountActive: 'Active',
+        userManagementAccountSuspended: 'Suspended',
+        userManagementDeactivate: 'Deactivate',
+        userManagementActivate: 'Activate',
+        userManagementDeactivateTitle: 'Deactivate employee',
+        userManagementActivateTitle: 'Activate employee',
+        userManagementDeactivateConfirm: 'Deactivate {$a}? Their account, company membership, enrolments, documents, and history will remain unchanged.',
+        userManagementActivateConfirm: 'Activate {$a}? They will become eligible for Analytics visibility and calculations again.',
         formulaTooltip: 'Formula',
         exportLabel: 'Export',
         exportAllLabel: 'Export all',
@@ -359,6 +382,29 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         {key: 'js:courseanalyticsheadervisibility', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheaderanalytics', component: 'block_dashboardanalytics'},
         {key: 'js:courseanalyticsheadertoggle', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementsearch', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementhelp', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementstatusactive', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementstatusdeactivated', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementstatusall', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementnoresults', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementsaved', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementloaderror', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementsaveerror', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementheaderemployee', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementheaderemail', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementheadercompany', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementheaderstatus', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementheaderaccount', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementheaderaction', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementaccountactive', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementaccountsuspended', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementdeactivate', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementactivate', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementdeactivatetitle', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementactivatetitle', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementdeactivateconfirm', component: 'block_dashboardanalytics'},
+        {key: 'js:usermanagementactivateconfirm', component: 'block_dashboardanalytics'},
         {key: 'js:formulatooltip', component: 'block_dashboardanalytics'},
         {key: 'js:export', component: 'block_dashboardanalytics'},
         {key: 'js:exportall', component: 'block_dashboardanalytics'},
@@ -558,6 +604,29 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         'courseAnalyticsHeaderVisibility',
         'courseAnalyticsHeaderAnalytics',
         'courseAnalyticsHeaderToggle',
+        'userManagementSearch',
+        'userManagementHelp',
+        'userManagementStatusActive',
+        'userManagementStatusDeactivated',
+        'userManagementStatusAll',
+        'userManagementNoResults',
+        'userManagementSaved',
+        'userManagementLoadError',
+        'userManagementSaveError',
+        'userManagementHeaderEmployee',
+        'userManagementHeaderEmail',
+        'userManagementHeaderCompany',
+        'userManagementHeaderStatus',
+        'userManagementHeaderAccount',
+        'userManagementHeaderAction',
+        'userManagementAccountActive',
+        'userManagementAccountSuspended',
+        'userManagementDeactivate',
+        'userManagementActivate',
+        'userManagementDeactivateTitle',
+        'userManagementActivateTitle',
+        'userManagementDeactivateConfirm',
+        'userManagementActivateConfirm',
         'formulaTooltip',
         'exportLabel',
         'exportAllLabel',
@@ -2091,6 +2160,147 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         });
     };
 
+    var renderEmployeeManagementPanel = function() {
+        return '<div class="da-course-analytics-panel da-user-management-panel" data-region="user-management-panel">'
+            + '<div class="da-course-analytics-toolbar">'
+            + '<div class="da-course-analytics-toolbar-copy">' + escapeHtml(text('userManagementHelp',
+                'Deactivate an employee for one company without suspending their Moodle account or changing enrolments.')) + '</div>'
+            + '<div class="da-user-management-filters">'
+            + '<input type="search" class="da-course-analytics-search" data-action="user-management-search" placeholder="'
+            + escapeHtml(text('userManagementSearch', 'Search employees, email, or company')) + '">'
+            + '<select class="da-table-perpage" data-action="user-management-company" aria-label="'
+            + escapeHtml(text('userManagementHeaderCompany', 'Company')) + '"></select>'
+            + '<select class="da-table-perpage" data-action="user-management-status" aria-label="'
+            + escapeHtml(text('userManagementHeaderStatus', 'Employment status')) + '">'
+            + '<option value="active">' + escapeHtml(text('userManagementStatusActive', 'Active')) + '</option>'
+            + '<option value="deactivated">' + escapeHtml(text('userManagementStatusDeactivated', 'Deactivated')) + '</option>'
+            + '<option value="all">' + escapeHtml(text('userManagementStatusAll', 'All statuses')) + '</option>'
+            + '</select></div></div>'
+            + '<div class="da-course-analytics-results" data-region="user-management-results"></div>'
+            + '</div>';
+    };
+
+    var renderEmployeeManagementResults = function(root, data, state) {
+        var panel = root.querySelector('[data-region="user-management-panel"]');
+        var results = panel ? panel.querySelector('[data-region="user-management-results"]') : null;
+        if (!panel || !results) {
+            return;
+        }
+
+        var overrides = ((state || {}).currentVisualOverrides) || {};
+        var searchInput = panel.querySelector('[data-action="user-management-search"]');
+        var companySelect = panel.querySelector('[data-action="user-management-company"]');
+        var statusSelect = panel.querySelector('[data-action="user-management-status"]');
+        if (searchInput) {
+            searchInput.value = overrides.usermanagement_search || '';
+        }
+        if (companySelect) {
+            var selectedCompany = String(Number(overrides.usermanagement_companyid) || Number(data.companyid) || 0);
+            companySelect.innerHTML = '<option value="0">' + escapeHtml(text('allcompanieslabel', 'All companies')) + '</option>'
+                + (data.companies || []).map(function(company) {
+                    return '<option value="' + escapeHtml(String(company.value)) + '"'
+                        + (String(company.value) === selectedCompany ? ' selected' : '') + '>'
+                        + escapeHtml(company.label) + '</option>';
+                }).join('');
+        }
+        if (statusSelect) {
+            statusSelect.value = overrides.usermanagement_status || data.status || 'active';
+        }
+
+        var totalcount = Math.max(0, Number(data.totalcount) || 0);
+        var currentPage = Math.max(0, Number(data.page) || 0);
+        var perpage = Math.max(10, Number(data.perpage) || 20);
+        var totalpages = Math.max(1, Math.ceil(totalcount / perpage));
+        var rows = data.rows || [];
+        if (!rows.length) {
+            results.innerHTML = '<div class="da-empty">' + escapeHtml(text('userManagementNoResults',
+                'No matching employee-company memberships found.')) + '</div>';
+            return;
+        }
+
+        var body = rows.map(function(row) {
+            var deactivated = !!row.deactivated;
+            var accountLabel = row.accountsuspended
+                ? text('userManagementAccountSuspended', 'Suspended')
+                : text('userManagementAccountActive', 'Active');
+            var employmentLabel = deactivated
+                ? text('userManagementStatusDeactivated', 'Deactivated')
+                : text('userManagementStatusActive', 'Active');
+            var actionLabel = deactivated
+                ? text('userManagementActivate', 'Activate')
+                : text('userManagementDeactivate', 'Deactivate');
+
+            return '<tr>'
+                + '<td><a class="da-table-link" href="' + escapeHtml(M.cfg.wwwroot)
+                + '/user/profile.php?id=' + escapeHtml(String(row.userid)) + '">'
+                + escapeHtml(row.fullname) + '</a></td>'
+                + '<td>' + escapeHtml(row.email || '') + '</td>'
+                + '<td>' + escapeHtml(row.companyname || '') + '</td>'
+                + '<td><span class="da-badge da-badge-' + (deactivated ? 'danger' : 'ok') + '">'
+                + escapeHtml(employmentLabel) + '</span></td>'
+                + '<td><span class="da-badge da-badge-' + (row.accountsuspended ? 'warning' : 'ok') + '">'
+                + escapeHtml(accountLabel) + '</span></td>'
+                + '<td><button type="button" class="da-row-action' + (deactivated ? ' da-row-action-primary' : '')
+                + '" data-action="user-management-state" data-userid="' + escapeHtml(String(row.userid))
+                + '" data-companyid="' + escapeHtml(String(row.companyid)) + '" data-deactivated="'
+                + (deactivated ? '1' : '0') + '" data-employee="' + escapeHtml(row.fullname)
+                + '" data-company="' + escapeHtml(row.companyname) + '">' + escapeHtml(actionLabel) + '</button></td>'
+                + '</tr>';
+        }).join('');
+
+        var pagination = '<div class="da-table-pagination">'
+            + '<div class="da-table-pagination-status">' + escapeHtml(formatString(text('page', 'Page {$a}'),
+                String((currentPage + 1) + ' / ' + totalpages))) + '</div>'
+            + '<div class="da-table-pagination-controls">'
+            + '<label class="da-table-perpage-label"><span>' + escapeHtml(text('perPage', 'Rows per page')) + '</span>'
+            + '<select class="da-table-perpage" data-action="user-management-perpage">'
+            + [20, 50, 100].map(function(size) {
+                return '<option value="' + size + '"' + (size === perpage ? ' selected' : '') + '>' + size + '</option>';
+            }).join('') + '</select></label>'
+            + '<button type="button" class="da-pagination-button" data-action="user-management-page" data-page="'
+            + Math.max(0, currentPage - 1) + '"' + (currentPage <= 0 ? ' disabled' : '') + '>'
+            + escapeHtml(text('previous', 'Previous')) + '</button>'
+            + '<button type="button" class="da-pagination-button" data-action="user-management-page" data-page="'
+            + Math.min(totalpages - 1, currentPage + 1) + '"' + (currentPage >= totalpages - 1 ? ' disabled' : '') + '>'
+            + escapeHtml(text('next', 'Next')) + '</button></div></div>';
+
+        results.innerHTML = '<div class="da-table-wrap"><table class="da-table da-user-management-table">'
+            + '<thead><tr><th scope="col">' + escapeHtml(text('userManagementHeaderEmployee', 'Employee')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('userManagementHeaderEmail', 'Email')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('userManagementHeaderCompany', 'Company')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('userManagementHeaderStatus', 'Employment status')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('userManagementHeaderAccount', 'Moodle account')) + '</th>'
+            + '<th scope="col">' + escapeHtml(text('userManagementHeaderAction', 'Action')) + '</th></tr></thead>'
+            + '<tbody>' + body + '</tbody></table></div>' + pagination;
+    };
+
+    var loadEmployeeManagement = function(root, state, overrides) {
+        var panel = root.querySelector('[data-region="user-management-panel"]');
+        var results = panel ? panel.querySelector('[data-region="user-management-results"]') : null;
+        if (!panel || !results) {
+            return Promise.resolve();
+        }
+
+        setLoading(results);
+        state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, overrides || {});
+        return call('block_dashboardanalytics_get_employee_management', {
+            contextid: state.contextid,
+            search: state.currentVisualOverrides.usermanagement_search || '',
+            companyid: Math.max(0, Number(state.currentVisualOverrides.usermanagement_companyid) || 0),
+            status: state.currentVisualOverrides.usermanagement_status || 'active',
+            page: Math.max(0, Number(state.currentVisualOverrides.usermanagement_page) || 0),
+            perpage: Math.max(10, Number(state.currentVisualOverrides.usermanagement_perpage) || 20)
+        }).then(function(response) {
+            renderEmployeeManagementResults(root, response, state);
+            persistState(root, state);
+            commitBrowserHistoryState(root, state, 'push');
+        }).catch(function(error) {
+            Notification.exception(error);
+            results.innerHTML = '<div class="da-empty">' + escapeHtml(text('userManagementLoadError',
+                'Unable to load employee management.')) + '</div>';
+        });
+    };
+
     var expiryWorkflowRoot = function(root) {
         return root.querySelector('[data-region="expiry-workflow-panel"]');
     };
@@ -3147,7 +3357,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             return ['servergauges', 'serverforecast', 'servererrors', 'serversettings'].indexOf(panel.type) !== -1;
         });
         var isFullRowVisualPanel = function(panel) {
-            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportbuilder', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow', 'turnovercombo'].indexOf(panel.type) !== -1
+            return ['table', 'servererrors', 'serversettings', 'overviewsummary', 'companyhealth', 'alerts', 'qualityratingtable', 'heatmap', 'reportbuilder', 'reportsact', 'compliancetrendline', 'forecastworkload', 'expiryworkflow', 'turnovercombo', 'usermanagement'].indexOf(panel.type) !== -1
                 || ['coursecompliance', 'newhirerisk'].indexOf(panel.key) !== -1
                 || panel.type === 'analyticscourses';
         };
@@ -3192,6 +3402,8 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 body = renderReportsActPanel();
             } else if (panel.type === 'analyticscourses') {
                 body = renderCourseAnalyticsPanel();
+            } else if (panel.type === 'usermanagement') {
+                body = renderEmployeeManagementPanel();
             } else if (panel.type === 'expiryworkflow') {
                 body = renderExpiryWorkflowPanel();
             } else if (panel.type === 'forecastworkload') {
@@ -4664,6 +4876,9 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         if (panels.some(function(panel) { return panel.type === 'analyticscourses'; })) {
             loadCourseAnalyticsControl(root, state);
         }
+        if (panels.some(function(panel) { return panel.type === 'usermanagement'; })) {
+            loadEmployeeManagement(root, state);
+        }
         if (panels.some(function(panel) { return panel.type === 'expiryworkflow'; })) {
             loadExpiryWorkflowControl(root, state);
         }
@@ -6135,6 +6350,22 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 return;
             }
 
+            if (event.target.matches('[data-action="user-management-company"], [data-action="user-management-status"], [data-action="user-management-perpage"]')) {
+                rememberCurrentState(root, state);
+                var managementPanel = event.target.closest('[data-region="user-management-panel"]') || root;
+                var managementCompany = managementPanel.querySelector('[data-action="user-management-company"]');
+                var managementStatus = managementPanel.querySelector('[data-action="user-management-status"]');
+                var managementPerPage = managementPanel.querySelector('[data-action="user-management-perpage"]');
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    usermanagement_companyid: managementCompany ? Number(managementCompany.value) || 0 : 0,
+                    usermanagement_status: managementStatus ? managementStatus.value || 'active' : 'active',
+                    usermanagement_perpage: managementPerPage ? Number(managementPerPage.value) || 20 : 20,
+                    usermanagement_page: 0
+                });
+                loadEmployeeManagement(root, state);
+                return;
+            }
+
             if (event.target.matches('[data-action="report-builder-perpage"]')) {
                 rememberCurrentState(root, state);
                 setReportBuilderState(state, Object.assign({}, reportBuilderState(state), {
@@ -6304,6 +6535,17 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                         courseanalytics_page: 0
                     });
                     loadCourseAnalyticsControl(root, state);
+                }, 250);
+                return;
+            }
+            if (event.target.matches('[data-action="user-management-search"]')) {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(function() {
+                    state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                        usermanagement_search: event.target.value || '',
+                        usermanagement_page: 0
+                    });
+                    loadEmployeeManagement(root, state);
                 }, 250);
                 return;
             }
@@ -7285,6 +7527,67 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                     courseanalytics_page: Number(courseAnalyticsPage.getAttribute('data-page')) || 0
                 });
                 loadCourseAnalyticsControl(root, state);
+                return;
+            }
+
+            var employeeStateAction = event.target.closest('[data-action="user-management-state"]');
+            if (employeeStateAction && root.contains(employeeStateAction) && !employeeStateAction.disabled) {
+                var currentlyDeactivated = employeeStateAction.getAttribute('data-deactivated') === '1';
+                var nextDeactivated = !currentlyDeactivated;
+                var employeeCompanyLabel = (employeeStateAction.getAttribute('data-employee') || '') + ' — '
+                    + (employeeStateAction.getAttribute('data-company') || '');
+                var actionTitle = nextDeactivated
+                    ? text('userManagementDeactivateTitle', 'Deactivate employee')
+                    : text('userManagementActivateTitle', 'Activate employee');
+                var actionMessage = formatString(
+                    nextDeactivated
+                        ? text('userManagementDeactivateConfirm',
+                            'Deactivate {$a}? Their account, company membership, enrolments, documents, and history will remain unchanged.')
+                        : text('userManagementActivateConfirm',
+                            'Activate {$a}? They will become eligible for Analytics visibility and calculations again.'),
+                    employeeCompanyLabel
+                );
+                var actionLabel = nextDeactivated
+                    ? text('userManagementDeactivate', 'Deactivate')
+                    : text('userManagementActivate', 'Activate');
+
+                openConfirmModal(actionTitle, actionMessage, actionLabel, text('cancel', 'Cancel')).then(function(confirmed) {
+                    if (!confirmed) {
+                        return;
+                    }
+                    employeeStateAction.disabled = true;
+                    call('block_dashboardanalytics_set_employee_deactivation', {
+                        contextid: state.contextid,
+                        userid: Number(employeeStateAction.getAttribute('data-userid')) || 0,
+                        companyid: Number(employeeStateAction.getAttribute('data-companyid')) || 0,
+                        deactivated: nextDeactivated
+                    }).then(function() {
+                        state.visualResponseCache = {};
+                        state.pendingVisualRequests = {};
+                        state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                            usermanagement_page: 0
+                        });
+                        Notification.addNotification({
+                            message: text('userManagementSaved', 'Employee company status updated.'),
+                            type: 'success'
+                        });
+                        return loadEmployeeManagement(root, state);
+                    }).catch(function(error) {
+                        Notification.exception(error);
+                    }).finally(function() {
+                        employeeStateAction.disabled = false;
+                    });
+                });
+                return;
+            }
+
+            var employeeManagementPage = event.target.closest('[data-action="user-management-page"]');
+            if (employeeManagementPage && root.contains(employeeManagementPage) && !employeeManagementPage.disabled) {
+                rememberCurrentState(root, state);
+                state.currentVisualOverrides = Object.assign({}, state.currentVisualOverrides || {}, {
+                    usermanagement_page: Number(employeeManagementPage.getAttribute('data-page')) || 0
+                });
+                loadEmployeeManagement(root, state);
                 return;
             }
 

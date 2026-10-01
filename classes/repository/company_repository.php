@@ -141,10 +141,16 @@ class company_repository {
         if ($this->has_iomad_tables()) {
             $companyuseralias = 'cu' . preg_replace('/[^a-z0-9]/i', '', $prefix);
             $companyalias = 'co' . preg_replace('/[^a-z0-9]/i', '', $prefix);
+            $activemembership = (new employee_status_repository())->active_membership_join_sql(
+                $companyuseralias,
+                $prefix
+            );
             $expr = "NULLIF({$companyalias}.name, '')";
             $idexpr = "{$companyalias}.id";
             return [
-                'join' => "LEFT JOIN {company_users} {$companyuseralias} ON {$companyuseralias}.userid = {$useralias}.id
+                'join' => "LEFT JOIN {company_users} {$companyuseralias}
+                                  ON {$companyuseralias}.userid = {$useralias}.id
+                                     {$activemembership}
                            LEFT JOIN {company} {$companyalias} ON {$companyalias}.id = {$companyuseralias}.companyid",
                 'expr' => $expr,
                 'idexpr' => $idexpr,

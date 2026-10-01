@@ -237,12 +237,18 @@ class expiry_workflow_repository {
             return [];
         }
 
+        $activeemployment = (new employee_status_repository())->active_company_filter_sql(
+            'u.id',
+            'cu.companyid',
+            'expiryrecipientoption'
+        );
         $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.email
                   FROM {company_users} cu
                   JOIN {user} u ON u.id = cu.userid
                  WHERE cu.companyid = :companyid
                    AND u.deleted = 0
                    AND u.suspended = 0
+                   AND {$activeemployment}
               ORDER BY u.lastname ASC, u.firstname ASC";
 
         $options = [];
@@ -346,6 +352,11 @@ class expiry_workflow_repository {
         $perpage = max(10, min(100, $perpage));
         $params = ['activewindow' => 1];
         $where = ['ec.activewindow = :activewindow'];
+        $where[] = (new employee_status_repository())->active_company_filter_sql(
+            'ec.userid',
+            'ec.companyid',
+            'expirycaselist'
+        );
 
         if ($companyid > 0) {
             $where[] = 'ec.companyid = :companyid';
@@ -653,6 +664,11 @@ class expiry_workflow_repository {
         $sent = 0;
         $recipientcount = 0;
 
+        $activeemployment = (new employee_status_repository())->active_company_filter_sql(
+            'ec.userid',
+            'ec.companyid',
+            'expirydue'
+        );
         $sql = "SELECT ec.*, u.firstname, u.lastname, c.fullname AS coursename, co.name AS companyname
                   FROM {block_da_expcase} ec
                   JOIN {user} u ON u.id = ec.userid
@@ -662,6 +678,7 @@ class expiry_workflow_repository {
                    AND ec.workflowstatus = :workflowstatus
                    AND ec.nextnotifyat > 0
                    AND ec.nextnotifyat <= :nextnotifyat
+                   AND {$activeemployment}
               ORDER BY ec.companyid ASC, ec.expirydate ASC";
 
         $cases = $DB->get_records_sql($sql, [
@@ -726,6 +743,11 @@ class expiry_workflow_repository {
             throw new \moodle_exception('error:noaccess', 'block_dashboardanalytics');
         }
 
+        $activeemployment = (new employee_status_repository())->active_company_filter_sql(
+            'ec.userid',
+            'ec.companyid',
+            'expirycompanydigest'
+        );
         $sql = "SELECT ec.*, u.firstname, u.lastname, c.fullname AS coursename, co.name AS companyname
                   FROM {block_da_expcase} ec
                   JOIN {user} u ON u.id = ec.userid
@@ -734,6 +756,7 @@ class expiry_workflow_repository {
                  WHERE ec.activewindow = 1
                    AND ec.workflowstatus = :workflowstatus
                    AND ec.companyid = :companyid
+                   AND {$activeemployment}
               ORDER BY ec.expirydate ASC, u.lastname ASC, u.firstname ASC";
 
         $cases = $DB->get_records_sql($sql, [
@@ -827,11 +850,18 @@ class expiry_workflow_repository {
 
         if ($recipientids) {
             [$insql, $params] = $DB->get_in_or_equal($recipientids, SQL_PARAMS_NAMED, 'exprecipient');
+            $activeemployment = (new employee_status_repository())->active_company_filter_sql(
+                'id',
+                ':exprecipientcompanyid',
+                'expiryconfiguredrecipient'
+            );
+            $params['exprecipientcompanyid'] = $companyid;
             $sql = "SELECT id, firstname, lastname, email
                       FROM {user}
                      WHERE id {$insql}
                        AND deleted = 0
-                       AND suspended = 0";
+                       AND suspended = 0
+                       AND {$activeemployment}";
             foreach ($DB->get_records_sql($sql, $params) as $record) {
                 $recipients['user:' . (int)$record->id] = [
                     'type' => 'user',
