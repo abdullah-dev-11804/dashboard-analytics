@@ -49,6 +49,8 @@ class get_visuals extends \external_api {
             'tabkey' => $params['tabkey'],
             'userid' => (int)$USER->id,
             'language' => current_language(),
+            'expirythresholddays' => (int)get_config('block_dashboardanalytics', 'expiryworkflowthresholddays'),
+            'trainingoverrunthresholddays' => (int)get_config('block_dashboardanalytics', 'trainingoverrunthresholddays'),
             'filters' => $scopedfilters,
         ]));
         $cached = $cache->get($cachekey);
@@ -101,6 +103,7 @@ class get_visuals extends \external_api {
                     'value' => new \external_value(PARAM_TEXT, 'Item value'),
                     'percent' => new \external_value(PARAM_FLOAT, 'Percent or bar width'),
                     'status' => new \external_value(PARAM_ALPHANUMEXT, 'Status'),
+                    'filterstatus' => new \external_value(PARAM_ALPHANUMEXT, 'Optional status drilldown filter', VALUE_OPTIONAL),
                     'meta' => new \external_value(PARAM_TEXT, 'Meta text'),
                     'groupkey' => new \external_value(PARAM_TEXT, 'Optional group key', VALUE_OPTIONAL),
                     'periodkey' => new \external_value(PARAM_TEXT, 'Optional forecast period key', VALUE_OPTIONAL),
@@ -164,6 +167,7 @@ class get_visuals extends \external_api {
                         'value' => new \external_value(PARAM_TEXT, 'Segment value'),
                         'percent' => new \external_value(PARAM_FLOAT, 'Segment percent'),
                         'status' => new \external_value(PARAM_ALPHANUMEXT, 'Segment status'),
+                        'filterstatus' => new \external_value(PARAM_ALPHANUMEXT, 'Optional segment drilldown filter', VALUE_OPTIONAL),
                         'drilldownkey' => new \external_value(PARAM_ALPHANUMEXT, 'Optional drilldown key', VALUE_OPTIONAL),
                         'companyid' => new \external_value(PARAM_INT, 'Optional company id', VALUE_OPTIONAL),
                         'companyname' => new \external_value(PARAM_TEXT, 'Optional company name', VALUE_OPTIONAL),

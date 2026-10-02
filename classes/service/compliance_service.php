@@ -4,7 +4,6 @@
 namespace block_dashboardanalytics\service;
 
 use block_dashboardanalytics\permissions;
-use block_dashboardanalytics\repository\company_repository;
 use block_dashboardanalytics\repository\document_repository;
 use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
@@ -32,8 +31,11 @@ class compliance_service {
         }
 
         if ($drilldownkey === 'company_total_active_users') {
-            $companies = new company_repository();
-            return $this->result(get_string('drilldown:title:totalactiveusers', 'block_dashboardanalytics'), $companies->active_user_aggregate($filters));
+            $employees = new employee_repository();
+            return $this->result(
+                get_string('drilldown:title:totalactiveusers', 'block_dashboardanalytics'),
+                $employees->get_staff_rows($filters, $page, $perpage, $showidentity)
+            );
         }
 
         if ($drilldownkey === 'company_eds_queue' || $drilldownkey === 'client_eds_queue') {
@@ -50,6 +52,14 @@ class compliance_service {
             $employees = new employee_repository();
             $result = $employees->get_staff_rows($filters, $page, $perpage, $showidentity);
             return $this->result(get_string('drilldown:title:totalstaff', 'block_dashboardanalytics'), $result);
+        }
+
+        if ($drilldownkey === 'company_no_courses' || $drilldownkey === 'client_no_courses') {
+            $employees = new employee_repository();
+            return $this->result(
+                get_string('drilldown:title:nocourses', 'block_dashboardanalytics'),
+                $employees->get_no_course_rows($filters, $page, $perpage, $showidentity)
+            );
         }
 
         if ($drilldownkey === 'company_course_noncompliance') {
@@ -108,6 +118,7 @@ class compliance_service {
                 'company_server_disk',
                 'company_course_noncompliance',
                 'company_forecast_documents',
+                'company_no_courses',
             ],
             permissions::DASHBOARD_CLIENT => [
                 'client_total_staff',
@@ -116,6 +127,7 @@ class compliance_service {
                 'client_expired_documents',
                 'client_eds_queue',
                 'client_forecast_documents',
+                'client_no_courses',
             ],
             permissions::DASHBOARD_EMPLOYEE => [
                 'employee_documents',

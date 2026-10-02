@@ -6,10 +6,8 @@ namespace block_dashboardanalytics\service;
 use block_dashboardanalytics\filters;
 use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\document_repository;
-use block_dashboardanalytics\repository\eds_repository;
 use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\overview_repository;
-use block_dashboardanalytics\repository\server_repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -64,13 +62,13 @@ class kpi_service {
                 ],
                 [
                     'key' => 'inprogress',
-                    'label' => get_string('kpi:inprogress', 'block_dashboardanalytics'),
-                    'value' => $documentcounts['configured'] ? (string)$documentcounts['nodocument'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
+                    'label' => get_string('kpi:intraining', 'block_dashboardanalytics'),
+                    'value' => $documentcounts['configured'] ? (string)$documentcounts['intraining'] : get_string('kpi:value:pending', 'block_dashboardanalytics'),
                     'unit' => '',
                     'status' => 'muted',
-                    'trend' => $documentcounts['configured'] ? get_string('label:inprogress', 'block_dashboardanalytics') : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
+                    'trend' => $documentcounts['configured'] ? get_string('label:intraining', 'block_dashboardanalytics') : get_string('kpi:help:datapending', 'block_dashboardanalytics'),
                     'drilldownkey' => 'employee_documents',
-                    'filterstatus' => 'nodocument',
+                    'filterstatus' => 'intraining',
                     'help' => get_string('kpi:help:inprogress', 'block_dashboardanalytics'),
                 ],
                 [
@@ -88,17 +86,13 @@ class kpi_service {
 
         $employees = new employee_repository();
         $overview = new overview_repository();
-        $iscompanyowner = permissions::is_company_owner(\context_system::instance(), $userid);
         $totalstaff = $employees->count_active_users($filters);
-        $edsqueue = ['count' => 0, 'status' => 'muted', 'badge' => ''];
-        if ($dashboardkey !== permissions::DASHBOARD_COMPANY || !$iscompanyowner) {
-            $edsqueue = (new eds_repository())->queue_summary($filters);
-        }
+        $nocourses = $employees->count_no_course_users($filters);
 
         if ($dashboardkey === permissions::DASHBOARD_COMPANY) {
             $currentreport = $overview->overall_employee_compliance_summary($filters);
             $statuscounts = $overview->status_counts($filters);
-            $totalcheckscount = (int)$statuscounts['active'] + (int)$statuscounts['expiring'] + (int)$statuscounts['expired'] + (int)$statuscounts['nodocument'];
+            $totalcheckscount = $this->primary_status_total($statuscounts);
             $totalchecks = max(1, $totalcheckscount);
             $cards = [
                 [
@@ -115,7 +109,7 @@ class kpi_service {
             ];
 
             $compliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics');
-            $compliancetrend = (int)$statuscounts['active'] . ' / ' . $totalcheckscount;
+            $compliancetrend = $this->compliant_status_total($statuscounts) . ' / ' . $totalcheckscount;
 
             $cards[] = [
                 'key' => 'overallcompliance',
@@ -127,7 +121,7 @@ class kpi_service {
                 'trend' => $compliancetrend,
                 'trendstyle' => 'plain',
                 'drilldownkey' => 'company_compliance',
-                'filterstatus' => 'active',
+                'filterstatus' => 'valid',
                 'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < $thresholds['compliant']
                     ? get_string('kpi:belowthreshold', 'block_dashboardanalytics')
                     : '',
@@ -135,7 +129,7 @@ class kpi_service {
             ];
             $cards[] = [
                 'key' => 'expiring30',
-                'label' => get_string('kpi:expiring30long', 'block_dashboardanalytics'),
+                'label' => get_string('kpi:expiring', 'block_dashboardanalytics'),
                 'value' => (string)$statuscounts['expiring'],
                 'unit' => '',
                 'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
@@ -148,54 +142,27 @@ class kpi_service {
             $cards[] = [
                 'key' => 'expired',
                 'label' => get_string('kpi:expirednow', 'block_dashboardanalytics'),
-                'value' => (string)$statuscounts['expired'],
+                'value' => (string)$this->expired_status_total($statuscounts),
                 'unit' => '',
-                'status' => $statuscounts['expired'] > 0 ? 'danger' : 'ok',
-                'railpercent' => round(((int)$statuscounts['expired'] / $totalchecks) * 100, 1),
-                'trend' => round(((int)$statuscounts['expired'] / $totalchecks) * 100, 1) . '%',
+                'status' => $this->expired_status_total($statuscounts) > 0 ? 'danger' : 'ok',
+                'railpercent' => round(($this->expired_status_total($statuscounts) / $totalchecks) * 100, 1),
+                'trend' => round(($this->expired_status_total($statuscounts) / $totalchecks) * 100, 1) . '%',
                 'trendstyle' => 'plain',
                 'drilldownkey' => 'company_expired_documents',
                 'help' => '',
             ];
-            $cards[] = $this->in_progress_card($statuscounts, $totalchecks, 'company_compliance');
-            if (!$iscompanyowner) {
-                $cards[] = [
-                    'key' => 'edsqueue',
-                    'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
-                    'value' => (string)$edsqueue['count'],
-                    'unit' => '',
-                    'status' => $edsqueue['status'],
-                    'railpercent' => $edsqueue['count'] > 0 ? 100 : 0,
-                    'trend' => $edsqueue['count'] > 0 ? $edsqueue['badge'] : '',
-                    'drilldownkey' => 'company_eds_queue',
-                    'help' => '',
-                ];
-            }
-
-            if (is_siteadmin($userid)) {
-                $disk = (new server_repository())->disk_card();
-                $cards[] = [
-                    'key' => 'serverdisk',
-                    'label' => get_string('kpi:serverdisk', 'block_dashboardanalytics'),
-                    'value' => (string)$disk['value'],
-                    'unit' => '',
-                    'status' => (string)$disk['status'],
-                    'railpercent' => is_numeric(rtrim((string)$disk['value'], '%')) ? (float)rtrim((string)$disk['value'], '%') : 0,
-                    'trend' => (string)$disk['trend'],
-                    'drilldownkey' => 'company_server_disk',
-                    'help' => get_string('kpi:help:serverdisk', 'block_dashboardanalytics'),
-                ];
-            }
+            $cards[] = $this->in_training_card($statuscounts, $totalchecks, 'company_compliance');
+            $cards[] = $this->no_courses_card($nocourses, $totalstaff, 'company_no_courses');
 
             return $cards;
         }
 
         $currentreport = $overview->overall_employee_compliance_summary($filters);
         $statuscounts = $overview->status_counts($filters);
-        $totalcheckscount = (int)$statuscounts['active'] + (int)$statuscounts['expiring'] + (int)$statuscounts['expired'] + (int)$statuscounts['nodocument'];
+        $totalcheckscount = $this->primary_status_total($statuscounts);
         $totalchecks = max(1, $totalcheckscount);
         $clientcompliancevalue = $currentreport['total'] > 0 ? $currentreport['percent'] . '%' : get_string('kpi:value:nostaff', 'block_dashboardanalytics');
-        $clientcompliancetrend = (int)$statuscounts['active'] . ' / ' . $totalcheckscount;
+        $clientcompliancetrend = $this->compliant_status_total($statuscounts) . ' / ' . $totalcheckscount;
 
         return [
             [
@@ -219,7 +186,7 @@ class kpi_service {
                 'trend' => $clientcompliancetrend,
                 'trendstyle' => 'plain',
                 'drilldownkey' => 'client_compliance',
-                'filterstatus' => 'active',
+                'filterstatus' => 'valid',
                 'note' => $currentreport['total'] > 0 && (float)$currentreport['percent'] < $thresholds['compliant']
                     ? get_string('kpi:belowthreshold', 'block_dashboardanalytics')
                     : '',
@@ -227,7 +194,7 @@ class kpi_service {
             ],
             [
                 'key' => 'expiring30',
-                'label' => get_string('kpi:expiring30long', 'block_dashboardanalytics'),
+                'label' => get_string('kpi:expiring', 'block_dashboardanalytics'),
                 'value' => (string)$statuscounts['expiring'],
                 'unit' => '',
                 'status' => $statuscounts['expiring'] > 0 ? 'warning' : 'ok',
@@ -240,27 +207,17 @@ class kpi_service {
             [
                 'key' => 'expired',
                 'label' => get_string('kpi:expirednow', 'block_dashboardanalytics'),
-                'value' => (string)$statuscounts['expired'],
+                'value' => (string)$this->expired_status_total($statuscounts),
                 'unit' => '',
-                'status' => $statuscounts['expired'] > 0 ? 'danger' : 'ok',
-                'railpercent' => round(((int)$statuscounts['expired'] / $totalchecks) * 100, 1),
-                'trend' => round(((int)$statuscounts['expired'] / $totalchecks) * 100, 1) . '%',
+                'status' => $this->expired_status_total($statuscounts) > 0 ? 'danger' : 'ok',
+                'railpercent' => round(($this->expired_status_total($statuscounts) / $totalchecks) * 100, 1),
+                'trend' => round(($this->expired_status_total($statuscounts) / $totalchecks) * 100, 1) . '%',
                 'trendstyle' => 'plain',
                 'drilldownkey' => 'client_expired_documents',
                 'help' => '',
             ],
-            $this->in_progress_card($statuscounts, $totalchecks, 'client_compliance'),
-            [
-                'key' => 'edsqueue',
-                'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
-                'value' => (string)$edsqueue['count'],
-                'unit' => '',
-                'status' => $edsqueue['status'],
-                'railpercent' => $edsqueue['count'] > 0 ? 100 : 0,
-                'trend' => $edsqueue['count'] > 0 ? $edsqueue['badge'] : '',
-                'drilldownkey' => 'client_eds_queue',
-                'help' => '',
-            ],
+            $this->in_training_card($statuscounts, $totalchecks, 'client_compliance'),
+            $this->no_courses_card($nocourses, $totalstaff, 'client_no_courses'),
         ];
     }
 
@@ -277,13 +234,13 @@ class kpi_service {
         return get_string('kpi:trend:down', 'block_dashboardanalytics', (object)['delta' => abs($delta), 'suffix' => $suffix]);
     }
 
-    private function in_progress_card(array $statuscounts, int $totalchecks, string $drilldownkey): array {
-        $count = (int)($statuscounts['nodocument'] ?? 0);
+    private function in_training_card(array $statuscounts, int $totalchecks, string $drilldownkey): array {
+        $count = (int)($statuscounts['intraining'] ?? 0);
         $percent = round(($count / max(1, $totalchecks)) * 100, 1);
 
         return [
-            'key' => 'inprogress',
-            'label' => get_string('kpi:inprogress', 'block_dashboardanalytics'),
+            'key' => 'intraining',
+            'label' => get_string('kpi:intraining', 'block_dashboardanalytics'),
             'value' => (string)$count,
             'unit' => '',
             'status' => 'muted',
@@ -291,8 +248,46 @@ class kpi_service {
             'trend' => $percent . '%',
             'trendstyle' => 'plain',
             'drilldownkey' => $drilldownkey,
-            'filterstatus' => 'nodocument',
+            'filterstatus' => 'intraining',
             'help' => '',
         ];
+    }
+
+    private function no_courses_card(int $count, int $totalstaff, string $drilldownkey): array {
+        $percent = round(($count / max(1, $totalstaff)) * 100, 1);
+        return [
+            'key' => 'nocourses',
+            'label' => get_string('kpi:nocourses', 'block_dashboardanalytics'),
+            'value' => (string)$count,
+            'unit' => '',
+            'status' => 'muted',
+            'railpercent' => $percent,
+            'trend' => $percent . '%',
+            'trendstyle' => 'plain',
+            'drilldownkey' => $drilldownkey,
+            'help' => '',
+        ];
+    }
+
+    private function primary_status_total(array $counts): int {
+        return (int)($counts['active'] ?? 0)
+            + (int)($counts['expiring'] ?? 0)
+            + (int)($counts['expired'] ?? 0)
+            + (int)($counts['nodocument'] ?? 0)
+            + (int)($counts['completednodocument'] ?? 0)
+            + (int)($counts['trainingoverrun'] ?? 0)
+            + (int)($counts['intrainingprimary'] ?? 0);
+    }
+
+    private function compliant_status_total(array $counts): int {
+        return (int)($counts['active'] ?? 0)
+            + (int)($counts['expiring'] ?? 0)
+            + (int)($counts['completednodocument'] ?? 0);
+    }
+
+    private function expired_status_total(array $counts): int {
+        return (int)($counts['expired'] ?? 0)
+            + (int)($counts['trainingoverrun'] ?? 0)
+            + (int)($counts['nodocument'] ?? 0);
     }
 }

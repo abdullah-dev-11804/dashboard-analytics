@@ -98,8 +98,8 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
         complianceLabel: 'Compliance',
         compliantLabel: 'Compliant',
         complianceLine: 'Compliance line',
-        activeStatusExplanation: 'more than 30 days before expiry',
-        expiringStatusExplanation: 'less than 30 days before expiry',
+        activeStatusExplanation: 'more than the configured N days before expiry',
+        expiringStatusExplanation: 'within the configured N-day threshold',
         compliantThresholdTitle: 'Compliant threshold',
         criticalThresholdTitle: 'Critical threshold',
         pointsVsLastMonth: '{$a} pts vs last month',
@@ -1550,9 +1550,11 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
             'company_expired_documents',
             'company_forecast_documents',
             'company_course_noncompliance',
+            'company_no_courses',
             'client_compliance',
             'client_expiring_documents',
             'client_expired_documents',
+            'client_no_courses',
             'client_forecast_documents',
             'employee_documents'
         ];
@@ -3146,7 +3148,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                 + segments.map(function(segment) {
                     var count = Number(segment.value) || 0;
                     var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
-                    var statusFilter = segmentStatusFilter(segment.status || '');
+                    var statusFilter = segment.filterstatus || segmentStatusFilter(segment.status || '');
                     var tooltip = (segment.label || '') + ': ' + count + ' / ' + total + ' (' + formatPercent(width) + '%)';
                     if (count <= 0 || width <= 0 || !statusFilter) {
                         return '<span class="da-risk-course-segment da-risk-course-segment-empty da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
@@ -4649,8 +4651,10 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                         + '</div>'
                         + '</div>'
                         + '<div class="da-donut-card-list">' + visibleItems.map(function(item) {
-                            var statusFilter = donutStatusFilter(item.status);
-                            var explanation = donutStatusExplanation(item.status);
+                            var statusFilter = item.filterstatus || donutStatusFilter(item.status);
+                            var explanation = (statusFilter === 'active' || statusFilter === 'expiring')
+                                ? donutStatusExplanation(item.status)
+                                : '';
                             var isClickable = !!(donutDrilldown && statusFilter);
                             var rowTag = isClickable ? 'button' : 'div';
                             var rowAttrs = isClickable
@@ -4784,7 +4788,7 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
                             + segments.map(function(segment) {
                                 var count = Number(segment.value) || 0;
                                 var width = Math.max(0, Math.min(100, Number(segment.percent) || 0));
-                                var statusFilter = segmentStatusFilter(segment.status || '');
+                                var statusFilter = segment.filterstatus || segmentStatusFilter(segment.status || '');
                                 var tooltip = (segment.label || '') + ': ' + count + ' / ' + total + ' (' + formatPercent(width) + '%)';
                                 if (count <= 0 || width <= 0 || !statusFilter) {
                                     return '<span class="da-risk-course-segment da-risk-course-segment-empty da-risk-course-segment-' + escapeHtml(segment.status || 'muted') + ' da-bar-fill-' + escapeHtml(segment.status || 'muted') + '"'
@@ -4932,10 +4936,10 @@ define(['core/ajax', 'core/notification', 'core/str', 'block_dashboardanalytics/
 
     var donutStatusExplanation = function(statusKey) {
         if (statusKey === 'ok') {
-            return text('activeStatusExplanation', 'more than 30 days before expiry');
+            return text('activeStatusExplanation', 'more than the configured N days before expiry');
         }
         if (statusKey === 'warning') {
-            return text('expiringStatusExplanation', 'less than 30 days before expiry');
+            return text('expiringStatusExplanation', 'within the configured N-day threshold');
         }
         return '';
     };

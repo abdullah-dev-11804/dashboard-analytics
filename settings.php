@@ -128,6 +128,14 @@ if ($ADMIN->fulltree) {
     ));
 
     $settings->add(new admin_setting_configtext(
+        'block_dashboardanalytics/trainingoverrunthresholddays',
+        get_string('settings:trainingoverrunthresholddays', 'block_dashboardanalytics'),
+        get_string('settings:trainingoverrunthresholddays_desc', 'block_dashboardanalytics'),
+        '30',
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
         'block_dashboardanalytics/expiryworkflowdefaultrecipient',
         get_string('settings:expiryworkflowdefaultrecipient', 'block_dashboardanalytics'),
         get_string('settings:expiryworkflowdefaultrecipient_desc', 'block_dashboardanalytics'),

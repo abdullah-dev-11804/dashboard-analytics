@@ -19,6 +19,8 @@ class overview_repository {
     private static array $postponedrecordscache = [];
     /** @var array<string, array> */
     private static array $documentcandidatecache = [];
+    /** @var array<string, array> */
+    private static array $completiontimelinescache = [];
     /** @var array<string, string> */
     private static array $profilefieldcache = [];
     /** @var array<string, bool> */
@@ -34,15 +36,12 @@ class overview_repository {
         $allowedstatuses = array_values(array_unique(array_map('strval', $allowedstatuses)));
 
         $rows = array_values(array_filter($rows, static function(array $row) use ($allowedstatuses): bool {
-            if ($row['status'] === 'Postponed' && in_array('Expired', $allowedstatuses, true)) {
-                return true;
-            }
             return in_array((string)$row['status'], $allowedstatuses, true);
         }));
 
         usort($rows, static function(array $a, array $b): int {
-            $aprimary = in_array($a['status'], ['Expired', 'Postponed'], true) ? 0 : 1;
-            $bprimary = in_array($b['status'], ['Expired', 'Postponed'], true) ? 0 : 1;
+            $aprimary = in_array($a['status'], ['Expired', 'Training overrun', 'No document'], true) ? 0 : 1;
+            $bprimary = in_array($b['status'], ['Expired', 'Training overrun', 'No document'], true) ? 0 : 1;
             if ($aprimary !== $bprimary) {
                 return $aprimary <=> $bprimary;
             }
@@ -84,10 +83,8 @@ class overview_repository {
                     ['key' => 'days', 'value' => $days !== null ? (string)$days : '-'],
                     [
                         'key' => 'status',
-                        'value' => $displaystatus === 'Postponed'
-                            ? get_string('label:postponedanalytics', 'block_dashboardanalytics')
-                            : $displaystatus,
-                        'statuskey' => $displaystatus === 'Postponed' ? 'expired' : '',
+                        'value' => $this->status_display($displaystatus),
+                        'statuskey' => $this->status_badge_key($displaystatus),
                     ],
                 ],
             ];
@@ -125,26 +122,43 @@ class overview_repository {
             'expiring' => 0,
             'expired' => 0,
             'nodocument' => 0,
+            'completednodocument' => 0,
+            'trainingoverrun' => 0,
+            'intraining' => 0,
+            'intrainingprimary' => 0,
         ];
 
         $seenusers = [];
+        $seenintrainingusers = [];
         foreach ($rows as $row) {
             if (($filters['statusmode'] ?? 'course') === 'employee') {
                 $userid = (int)($row['userid'] ?? 0);
+                if ($userid > 0 && !empty($row['intraining']) && !isset($seenintrainingusers[$userid])) {
+                    $counts['intraining']++;
+                    $seenintrainingusers[$userid] = true;
+                }
                 if ($userid <= 0 || isset($seenusers[$userid])) {
                     continue;
                 }
                 $seenusers[$userid] = true;
+            } else if (!empty($row['intraining'])) {
+                $counts['intraining']++;
             }
 
             if (($row['status'] ?? '') === 'Active') {
                 $counts['active']++;
             } else if (($row['status'] ?? '') === 'Expiring') {
                 $counts['expiring']++;
-            } else if (in_array(($row['status'] ?? ''), ['Expired', 'Postponed'], true)) {
+            } else if (($row['status'] ?? '') === 'Expired') {
                 $counts['expired']++;
             } else if (($row['status'] ?? '') === 'No document') {
                 $counts['nodocument']++;
+            } else if (($row['status'] ?? '') === 'Completed (no document)') {
+                $counts['completednodocument']++;
+            } else if (($row['status'] ?? '') === 'Training overrun') {
+                $counts['trainingoverrun']++;
+            } else if (($row['status'] ?? '') === 'In training') {
+                $counts['intrainingprimary']++;
             }
         }
 
@@ -242,12 +256,23 @@ class overview_repository {
     public function status_distribution_items(array $filters): array {
         $counts = $this->status_counts($filters, $this->current_report_date());
         $metakey = ($filters['statusmode'] ?? 'course') === 'employee' ? 'meta:percentofusers' : 'meta:percentofchecks';
-        $total = max(1, array_sum($counts));
+        $total = max(1,
+            (int)$counts['active']
+            + (int)$counts['expiring']
+            + (int)$counts['expired']
+            + (int)$counts['trainingoverrun']
+            + (int)$counts['nodocument']
+            + (int)$counts['completednodocument']
+            + (int)$counts['intrainingprimary']
+        );
         return [
-            $this->status_item(get_string('label:active', 'block_dashboardanalytics'), $counts['active'], $total, 'ok', $metakey),
-            $this->status_item(get_string('label:expiring', 'block_dashboardanalytics'), $counts['expiring'], $total, 'warning', $metakey),
-            $this->status_item(get_string('label:expired', 'block_dashboardanalytics'), $counts['expired'], $total, 'danger', $metakey),
-            $this->status_item(get_string('label:inprogress', 'block_dashboardanalytics'), $counts['nodocument'], $total, 'muted', $metakey),
+            $this->status_item(get_string('label:active', 'block_dashboardanalytics'), $counts['active'], $total, 'ok', $metakey, 'active'),
+            $this->status_item(get_string('label:expiring', 'block_dashboardanalytics'), $counts['expiring'], $total, 'warning', $metakey, 'expiring'),
+            $this->status_item(get_string('label:expired', 'block_dashboardanalytics'), $counts['expired'], $total, 'danger', $metakey, 'expired'),
+            $this->status_item(get_string('label:trainingoverrun', 'block_dashboardanalytics'), $counts['trainingoverrun'], $total, 'danger', $metakey, 'trainingoverrun'),
+            $this->status_item(get_string('label:nodocument', 'block_dashboardanalytics'), $counts['nodocument'], $total, 'danger', $metakey, 'nodocument'),
+            $this->status_item(get_string('label:completednodocument', 'block_dashboardanalytics'), $counts['completednodocument'], $total, 'ok', $metakey, 'completednodocument'),
+            $this->status_item(get_string('label:intraining', 'block_dashboardanalytics'), $counts['intraining'], $total, 'muted', $metakey, 'intraining'),
         ];
     }
 
@@ -269,7 +294,7 @@ class overview_repository {
             if (!isset($companies[$company])) {
                 $companies[$company] = ['expired' => 0, 'expiring' => 0];
             }
-            if (in_array($row['status'], ['Expired', 'Postponed'], true)) {
+            if (in_array($row['status'], ['Expired', 'Training overrun', 'No document'], true)) {
                 $companies[$company]['expired']++;
             } else if ($row['status'] === 'Expiring') {
                 $companies[$company]['expiring']++;
@@ -302,8 +327,8 @@ class overview_repository {
                 'status' => $item['expired'] > 0 ? 'danger' : 'warning',
                 'meta' => $item['expired'] . ' expired, ' . $item['expiring'] . ' expiring',
                 'segments' => [
-                    ['label' => 'Expired now', 'value' => (string)$item['expired'], 'percent' => round(($item['expired'] / $max) * 100, 1), 'status' => 'danger'],
-                    ['label' => 'Expiring within 30 days', 'value' => (string)$item['expiring'], 'percent' => round(($item['expiring'] / $max) * 100, 1), 'status' => 'warning'],
+                    ['label' => get_string('label:expired', 'block_dashboardanalytics'), 'value' => (string)$item['expired'], 'percent' => round(($item['expired'] / $max) * 100, 1), 'status' => 'danger'],
+                    ['label' => get_string('label:expiring', 'block_dashboardanalytics'), 'value' => (string)$item['expiring'], 'percent' => round(($item['expiring'] / $max) * 100, 1), 'status' => 'warning'],
                 ],
             ];
         }
@@ -321,7 +346,7 @@ class overview_repository {
                 $courses[$course] = ['total' => 0, 'affected' => 0];
             }
             $courses[$course]['total']++;
-            if (in_array($row['status'], ['Expired', 'Postponed', 'No document'], true)) {
+            if (in_array($row['status'], ['Expired', 'Training overrun', 'No document', 'In training'], true)) {
                 $courses[$course]['affected']++;
             }
         }
@@ -599,7 +624,7 @@ class overview_repository {
         $statuscounts = $this->status_counts($companyfilters);
         $turnoverpercent = $this->recent_staff_change_percent($companyfilters, 90, $activeusers);
         $trustscore = $this->company_trust_score($companyfilters, $companyname);
-        $edspending = (new eds_repository())->count_pending_manual($companyfilters);
+        $nocourses = $employees->count_no_course_users($companyfilters);
         $statuskey = $this->company_health_status_key($activeusers, (float)$compliancesummary['percent'], $filters);
         $subtitle = $this->company_health_modal_subtitle($companyfilters);
 
@@ -626,7 +651,11 @@ class overview_repository {
                 ],
                 [
                     'label' => get_string('kpi:expirednow', 'block_dashboardanalytics'),
-                    'value' => (string)$statuscounts['expired'],
+                    'value' => (string)(
+                        (int)$statuscounts['expired']
+                        + (int)$statuscounts['trainingoverrun']
+                        + (int)$statuscounts['nodocument']
+                    ),
                     'status' => 'danger',
                 ],
             ],
@@ -643,9 +672,9 @@ class overview_repository {
                     'status' => $trustscore !== null ? $this->status_for_percent((float)$trustscore, $filters) : 'muted',
                 ],
                 [
-                    'label' => get_string('panel:edsqueue:title', 'block_dashboardanalytics'),
-                    'value' => (string)$edspending,
-                    'status' => $edspending > 0 ? 'warning' : 'info',
+                    'label' => get_string('kpi:nocourses', 'block_dashboardanalytics'),
+                    'value' => (string)$nocourses,
+                    'status' => 'muted',
                 ],
             ],
             'courseheading' => get_string('modal:companycourses', 'block_dashboardanalytics'),
@@ -773,7 +802,7 @@ class overview_repository {
             }
 
             $users[$userid]['totalcourses']++;
-            if ($row['status'] === 'Active' || $row['status'] === 'Expiring') {
+            if (in_array($row['status'], ['Active', 'Expiring', 'Completed (no document)'], true)) {
                 $users[$userid]['validcourses']++;
             }
         }
@@ -818,9 +847,6 @@ class overview_repository {
         $companyrepo = new company_repository();
         $sources = $documents->sources();
         $haspostponed = $this->table_exists('local_iomadcourseassign');
-        if (!$sources && !$haspostponed) {
-            return [];
-        }
 
         $userfilter = $employee->user_filter_sql($filters, 'u', 'overview');
         $companysql = $companyrepo->company_name_sql('u', 'overview');
@@ -904,12 +930,22 @@ class overview_repository {
                                 {$siteselect},
                                 {$personnelcategoryselect},
                                 {$positionselect},
+                                activeenrolment.enrolmentstart,
+                                cc.timecompleted AS currentcompletion,
                                 COALESCE({$companysql['idexpr']}, 0) AS companyid,
                                 {$companysql['select']}
                            FROM {user} u
-                           JOIN {user_enrolments} ue ON ue.userid = u.id AND ue.status = 0
-                           JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
-                           JOIN {course} c ON c.id = e.courseid
+                           JOIN (
+                                  SELECT ue.userid,
+                                         e.courseid,
+                                         MIN(CASE WHEN ue.timestart > 0 THEN ue.timestart ELSE ue.timecreated END) AS enrolmentstart
+                                    FROM {user_enrolments} ue
+                                    JOIN {enrol} e ON e.id = ue.enrolid AND e.status = 0
+                                   WHERE ue.status = 0
+                                GROUP BY ue.userid, e.courseid
+                                ) activeenrolment ON activeenrolment.userid = u.id
+                           JOIN {course} c ON c.id = activeenrolment.courseid
+                      LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
                                 {$analyticsjoin}
                                 {$companysql['join']}
                                 {$departmentjoin}
@@ -917,10 +953,7 @@ class overview_repository {
                                 {$sitejoin}
                                 {$personnelcategoryjoin}
                                 {$positionjoin}
-                          WHERE " . implode(' AND ', array_merge($basewhere, [
-                              'ue.status = 0',
-                              'e.status = 0',
-                          ]));
+                          WHERE " . implode(' AND ', $basewhere);
 
         if (!isset(self::$enrolmentrecordscache[$datasetkey])) {
             self::$enrolmentrecordscache[$datasetkey] = $DB->get_records_sql($enrolmentsql, $params, 0, 5000);
@@ -998,6 +1031,9 @@ class overview_repository {
             }
             $postponedrecords = self::$postponedrecordscache[$datasetkey];
         }
+        $completiontimelines = $sources
+            ? $this->completion_timelines($basewhere, $params, $analyticsjoin, $datasetkey)
+            : [];
         $documentmap = [];
         foreach ($sources as $source) {
             $candidatecachekey = $datasetkey . ':' . sha1(json_encode($source));
@@ -1014,7 +1050,8 @@ class overview_repository {
                     $documentmap,
                     self::$documentcandidatecache[$candidatecachekey],
                     $reportdate,
-                    false
+                    false,
+                    $completiontimelines
                 );
             } else if (($source['kind'] ?? '') === 'legacy_type1') {
                 if (!isset(self::$documentcandidatecache[$candidatecachekey])) {
@@ -1029,7 +1066,8 @@ class overview_repository {
                     $documentmap,
                     self::$documentcandidatecache[$candidatecachekey],
                     $reportdate,
-                    true
+                    true,
+                    $completiontimelines
                 );
             }
         }
@@ -1040,12 +1078,35 @@ class overview_repository {
             $document = $documentmap[$mapkey] ?? null;
             $expirytime = $document['expirytime'] ?? null;
             $documentid = (int)($document['documentid'] ?? 0);
-            $status = $this->status_for_row(
-                $documentid,
-                $expirytime,
-                $reportdate,
-                (bool)($document['null_expiry_means_active'] ?? false)
-            );
+            $currentcompletion = (int)($record->currentcompletion ?? 0);
+            $enrolmentstart = (int)($record->enrolmentstart ?? 0);
+            $documentcyclecompletion = (int)($document['cyclecompletiontime'] ?? 0);
+            $documentbelongstocurrentcycle = $currentcompletion > 0
+                && $documentcyclecompletion > 0
+                && $documentcyclecompletion === $currentcompletion;
+            $hasdocument = $documentid > 0;
+            $incompletetraining = $currentcompletion <= 0;
+            $trainingoverrun = $incompletetraining
+                && !$hasdocument
+                && $enrolmentstart > 0
+                && $reportdate > $enrolmentstart + ($this->training_overrun_threshold_days() * DAYSECS);
+
+            if ($currentcompletion > 0 && !$documentbelongstocurrentcycle) {
+                $status = 'Completed (no document)';
+            } else if ($hasdocument) {
+                $status = $this->status_for_row(
+                    $documentid,
+                    $expirytime,
+                    $reportdate,
+                    (bool)($document['null_expiry_means_active'] ?? false)
+                );
+            } else if ($trainingoverrun) {
+                $status = 'Training overrun';
+            } else {
+                $status = 'In training';
+            }
+
+            $intraining = $incompletetraining && ($hasdocument || !$trainingoverrun);
             $rows[] = [
                 'userid' => (int)$record->userid,
                 'courseid' => (int)$record->courseid,
@@ -1068,6 +1129,11 @@ class overview_repository {
                 'expirytime' => $expirytime ?? 0,
                 'status' => $status,
                 'sourcekind' => (string)($document['sourcekind'] ?? ''),
+                'enrolmentstart' => $enrolmentstart,
+                'completiontime' => $currentcompletion,
+                'documenttime' => (int)($document['documenttime'] ?? 0),
+                'cyclecompletiontime' => $documentcyclecompletion,
+                'intraining' => $intraining,
             ];
         }
 
@@ -1096,8 +1162,13 @@ class overview_repository {
                 'sourceid' => (int)$record->rowid,
                 'issuedate' => 0,
                 'expirytime' => 0,
-                'status' => 'Postponed',
+                'status' => 'No document',
                 'sourcekind' => 'postponed',
+                'enrolmentstart' => 0,
+                'completiontime' => 0,
+                'documenttime' => 0,
+                'cyclecompletiontime' => 0,
+                'intraining' => false,
             ];
         }
 
@@ -1118,7 +1189,7 @@ class overview_repository {
             return 'Expired';
         }
 
-        if ($expirytime <= $reportdate + (30 * DAYSECS)) {
+        if ($expirytime <= $reportdate + ($this->expiry_threshold_days() * DAYSECS)) {
             return 'Expiring';
         }
         return 'Active';
@@ -1128,10 +1199,7 @@ class overview_repository {
         global $DB;
 
         $validitysql = $this->validity_days_sql('cfd');
-        $expiryselect = "CASE
-                            WHEN cc.timecompleted IS NULL OR cc.timecompleted <= 0 THEN NULL
-                            ELSE cc.timecompleted + ({$validitysql} * 86400)
-                         END AS expirytime";
+        $documenttimeexpr = !empty($source['timecreated']) ? "d.{$source['timecreated']}" : '0';
         $latestdocumentssql = "SELECT d2.{$source['userid']} AS userid,
                                       d2.{$source['courseid']} AS courseid,
                                       MAX(d2.id) AS documentid
@@ -1144,14 +1212,13 @@ class overview_repository {
                        d.id AS sourceid,
                        u.id AS userid,
                        c.id AS courseid,
-                       cc.timecompleted AS issuedate,
-                       {$expiryselect}
+                       {$documenttimeexpr} AS documenttime,
+                       {$validitysql} AS validitydays
                   FROM {{$source['table']}} d
                   JOIN ({$latestdocumentssql}) latestdocument
                     ON latestdocument.documentid = d.id
                   JOIN {user} u ON u.id = d.{$source['userid']}
                   JOIN {course} c ON c.id = d.{$source['courseid']}
-             LEFT JOIN {course_completions} cc ON cc.userid = u.id AND cc.course = c.id
              LEFT JOIN {customfield_field} cff ON cff.shortname = 'validity_period'
              LEFT JOIN {customfield_data} cfd ON cfd.fieldid = cff.id AND cfd.instanceid = c.id
                        {$analyticsjoin}
@@ -1169,12 +1236,16 @@ class overview_repository {
         $versionjoin = '';
         $expiryexpr = "d.expirydate";
         $sourceidexpr = "d.{$source['documentid']}";
+        $issuedateexpr = 'd.issuedate';
+        $documenttimeexpr = 'd.timecreated';
         if (!empty($source['versiontable'])) {
             $versionjoin = "LEFT JOIN {{$source['versiontable']}} v
                                    ON v.documentid = d.{$source['documentid']}
                                   AND v.versionno = d.{$source['currentversion']}";
             $expiryexpr = "COALESCE(v.expirydate, d.expirydate)";
             $sourceidexpr = "COALESCE(v.id, d.{$source['documentid']})";
+            $issuedateexpr = 'COALESCE(v.issuedate, d.issuedate)';
+            $documenttimeexpr = 'COALESCE(v.timecreated, d.timecreated)';
         }
 
         $rowkeyexpr = $DB->sql_concat("d.{$source['documentid']}", "':'", "du.{$source['userid']}");
@@ -1184,7 +1255,8 @@ class overview_repository {
                        {$sourceidexpr} AS sourceid,
                        du.{$source['userid']} AS userid,
                        c.id AS courseid,
-                       COALESCE(v.issuedate, d.issuedate) AS issuedate,
+                       {$issuedateexpr} AS issuedate,
+                       {$documenttimeexpr} AS documenttime,
                        CASE
                            WHEN {$expiryexpr} IS NULL THEN NULL
                            WHEN {$expiryexpr} = 0 THEN NULL
@@ -1204,15 +1276,44 @@ class overview_repository {
         return array_values($DB->get_records_sql($sql, $params, 0, 5000));
     }
 
-    private function merge_document_candidates(array &$documentmap, array $records, int $reportdate, bool $nullExpiryMeansActive): void {
+    private function merge_document_candidates(
+        array &$documentmap,
+        array $records,
+        int $reportdate,
+        bool $nullExpiryMeansActive,
+        array $completiontimelines
+    ): void {
         foreach ($records as $record) {
+            $userid = (int)$record->userid;
+            $courseid = (int)$record->courseid;
+            $documenttime = (int)($record->documenttime ?? 0);
+            $cyclecompletiontime = $this->completion_for_document(
+                $completiontimelines[$this->document_map_key($userid, $courseid)] ?? [],
+                $documenttime
+            );
+            if (!$nullExpiryMeansActive && $cyclecompletiontime <= 0 && $documenttime > 0) {
+                // NCAsign creates the job directly from course_completed, so its creation time is
+                // the best available completion-time proxy when no archived completion survived.
+                $cyclecompletiontime = $documenttime;
+            }
+            $expirytime = $record->expirytime ?? null;
+            if (!$nullExpiryMeansActive) {
+                $validitydays = max(1, (int)($record->validitydays ?? 1));
+                $expirytime = $cyclecompletiontime > 0
+                    ? $cyclecompletiontime + ($validitydays * DAYSECS)
+                    : null;
+            }
             $candidate = [
                 'documentid' => (int)$record->documentid,
                 'sourceid' => (int)($record->sourceid ?? $record->documentid),
-                'issuedate' => !empty($record->issuedate) ? (int)$record->issuedate : 0,
-                'expirytime' => $record->expirytime !== null ? (int)$record->expirytime : null,
+                'issuedate' => $nullExpiryMeansActive
+                    ? (!empty($record->issuedate) ? (int)$record->issuedate : 0)
+                    : $cyclecompletiontime,
+                'expirytime' => $expirytime !== null ? (int)$expirytime : null,
                 'null_expiry_means_active' => $nullExpiryMeansActive,
                 'sourcekind' => $nullExpiryMeansActive ? 'legacy_type1' : 'ncasign',
+                'documenttime' => $documenttime,
+                'cyclecompletiontime' => $cyclecompletiontime,
             ];
             $candidate['status'] = $this->status_for_row(
                 $candidate['documentid'],
@@ -1221,7 +1322,7 @@ class overview_repository {
                 $nullExpiryMeansActive
             );
 
-            $key = $this->document_map_key((int)$record->userid, (int)$record->courseid);
+            $key = $this->document_map_key($userid, $courseid);
             if (!isset($documentmap[$key]) || $this->document_candidate_is_better($candidate, $documentmap[$key])) {
                 $documentmap[$key] = $candidate;
             }
@@ -1233,6 +1334,12 @@ class overview_repository {
     }
 
     private function document_candidate_is_better(array $candidate, array $current): bool {
+        $candidatecycle = (int)($candidate['cyclecompletiontime'] ?? 0);
+        $currentcycle = (int)($current['cyclecompletiontime'] ?? 0);
+        if ($candidatecycle !== $currentcycle) {
+            return $candidatecycle > $currentcycle;
+        }
+
         $candidaterank = $this->status_rank((string)$candidate['status']);
         $currentrank = $this->status_rank((string)$current['status']);
         if ($candidaterank !== $currentrank) {
@@ -1246,6 +1353,93 @@ class overview_repository {
         }
 
         return (int)$candidate['documentid'] > (int)$current['documentid'];
+    }
+
+    private function completion_timelines(
+        array $basewhere,
+        array $params,
+        string $analyticsjoin,
+        string $datasetkey
+    ): array {
+        global $DB;
+
+        if (isset(self::$completiontimelinescache[$datasetkey])) {
+            return self::$completiontimelinescache[$datasetkey];
+        }
+
+        $records = $DB->get_records_sql(
+            "SELECT cc.id AS rowid,
+                    cc.userid,
+                    cc.course AS courseid,
+                    cc.timecompleted
+               FROM {course_completions} cc
+               JOIN {user} u ON u.id = cc.userid
+               JOIN {course} c ON c.id = cc.course
+                    {$analyticsjoin}
+              WHERE " . implode(' AND ', array_merge($basewhere, [
+                  'cc.timecompleted IS NOT NULL',
+                  'cc.timecompleted > 0',
+            ])),
+            $params
+        );
+
+        if ($this->table_exists('local_recompletion_cc')) {
+            $archived = $DB->get_records_sql(
+                "SELECT archivedcc.id AS rowid,
+                        archivedcc.userid,
+                        archivedcc.course AS courseid,
+                        archivedcc.timecompleted
+                   FROM {local_recompletion_cc} archivedcc
+                   JOIN {user} u ON u.id = archivedcc.userid
+                   JOIN {course} c ON c.id = archivedcc.course
+                        {$analyticsjoin}
+                  WHERE " . implode(' AND ', array_merge($basewhere, [
+                      'archivedcc.timecompleted IS NOT NULL',
+                      'archivedcc.timecompleted > 0',
+                ])),
+                $params
+            );
+            $records = array_merge(array_values($records), array_values($archived));
+        }
+
+        $timelines = [];
+        foreach ($records as $record) {
+            $key = $this->document_map_key((int)$record->userid, (int)$record->courseid);
+            $timelines[$key][(int)$record->timecompleted] = (int)$record->timecompleted;
+        }
+        foreach ($timelines as $key => $timestamps) {
+            sort($timestamps, SORT_NUMERIC);
+            $timelines[$key] = array_values($timestamps);
+        }
+
+        self::$completiontimelinescache[$datasetkey] = $timelines;
+        return self::$completiontimelinescache[$datasetkey];
+    }
+
+    private function completion_for_document(array $completiontimes, int $documenttime): int {
+        if ($documenttime <= 0) {
+            return 0;
+        }
+
+        $matched = 0;
+        foreach ($completiontimes as $completiontime) {
+            $completiontime = (int)$completiontime;
+            if ($completiontime > $documenttime) {
+                break;
+            }
+            $matched = $completiontime;
+        }
+        return $matched;
+    }
+
+    private function expiry_threshold_days(): int {
+        $days = (int)get_config('block_dashboardanalytics', 'expiryworkflowthresholddays');
+        return $days > 0 ? $days : 30;
+    }
+
+    private function training_overrun_threshold_days(): int {
+        $days = (int)get_config('block_dashboardanalytics', 'trainingoverrunthresholddays');
+        return $days > 0 ? $days : 30;
     }
 
     private function status_rank(string $status): int {
@@ -1669,17 +1863,34 @@ class overview_repository {
 
     private function employee_status_from_statuses(array $statuses): string {
         $hasnodocument = false;
+        $hastrainingoverrun = false;
+        $hasintraining = false;
+        $hascompletednodocument = false;
+        $hasexpiring = false;
         $hasactive = false;
 
         foreach ($statuses as $status) {
-            if ($status === 'Expired' || $status === 'Postponed') {
+            if ($status === 'Expired') {
                 return 'Expired';
             }
-            if ($status === 'Expiring') {
-                return 'Expiring';
+            if ($status === 'Training overrun') {
+                $hastrainingoverrun = true;
+                continue;
             }
             if ($status === 'No document') {
                 $hasnodocument = true;
+                continue;
+            }
+            if ($status === 'Expiring') {
+                $hasexpiring = true;
+                continue;
+            }
+            if ($status === 'In training') {
+                $hasintraining = true;
+                continue;
+            }
+            if ($status === 'Completed (no document)') {
+                $hascompletednodocument = true;
                 continue;
             }
             if ($status === 'Active') {
@@ -1687,18 +1898,67 @@ class overview_repository {
             }
         }
 
+        if ($hastrainingoverrun) {
+            return 'Training overrun';
+        }
+
         if ($hasnodocument) {
             return 'No document';
+        }
+
+        if ($hasexpiring) {
+            return 'Expiring';
+        }
+
+        if ($hasintraining) {
+            return 'In training';
         }
 
         if ($hasactive) {
             return 'Active';
         }
 
+        if ($hascompletednodocument) {
+            return 'Completed (no document)';
+        }
+
         return 'No document';
     }
 
-    private function status_item(string $label, int $count, int $total, string $status, string $metakey = 'meta:percentofchecks'): array {
+    private function status_display(string $status): string {
+        $map = [
+            'Active' => 'label:active',
+            'Expiring' => 'label:expiring',
+            'Expired' => 'label:expired',
+            'In training' => 'label:intraining',
+            'Training overrun' => 'label:trainingoverrun',
+            'No document' => 'label:nodocument',
+            'Completed (no document)' => 'label:completednodocument',
+        ];
+        return isset($map[$status]) ? get_string($map[$status], 'block_dashboardanalytics') : $status;
+    }
+
+    private function status_badge_key(string $status): string {
+        if ($status === 'Active' || $status === 'Completed (no document)') {
+            return 'active';
+        }
+        if ($status === 'Expiring') {
+            return 'expiring';
+        }
+        if (in_array($status, ['Expired', 'Training overrun', 'No document', 'In training'], true)) {
+            return 'expired';
+        }
+        return '';
+    }
+
+    private function status_item(
+        string $label,
+        int $count,
+        int $total,
+        string $status,
+        string $metakey = 'meta:percentofchecks',
+        string $filterstatus = ''
+    ): array {
         $percent = round(($count / max(1, $total)) * 100, 1);
         return [
             'label' => $label,
@@ -1706,6 +1966,7 @@ class overview_repository {
             'percent' => $percent,
             'status' => $status,
             'meta' => get_string($metakey, 'block_dashboardanalytics', $percent),
+            'filterstatus' => $filterstatus,
         ];
     }
 
@@ -2144,7 +2405,7 @@ class overview_repository {
             }
 
             $courses[$course]['total']++;
-            if (in_array($row['status'], ['Expired', 'Postponed', 'No document'], true)) {
+            if (in_array($row['status'], ['Expired', 'Training overrun', 'No document', 'In training'], true)) {
                 $courses[$course]['bad']++;
             }
         }

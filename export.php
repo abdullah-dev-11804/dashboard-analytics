@@ -7,6 +7,7 @@ use block_dashboardanalytics\context_resolver;
 use block_dashboardanalytics\filters;
 use block_dashboardanalytics\permissions;
 use block_dashboardanalytics\repository\document_repository;
+use block_dashboardanalytics\repository\employee_repository;
 use block_dashboardanalytics\repository\report_repository;
 use block_dashboardanalytics\service\report_service;
 
@@ -469,12 +470,14 @@ $allowed = [
         'company_expired_documents',
         'company_course_noncompliance',
         'company_forecast_documents',
+        'company_no_courses',
     ],
     permissions::DASHBOARD_CLIENT => [
         'client_compliance',
         'client_expiring_documents',
         'client_expired_documents',
         'client_forecast_documents',
+        'client_no_courses',
     ],
     permissions::DASHBOARD_EMPLOYEE => [
         'employee_documents',
@@ -485,13 +488,22 @@ if (!in_array($drilldownkey, $allowed[$resolveddashboard] ?? [], true)) {
     throw new moodle_exception('error:noaccess', 'block_dashboardanalytics');
 }
 
-$documents = new document_repository();
-$export = $scope === 'all'
-    ? $documents->document_table_export_rows($scopedfilters, $status, $showidentity)
-    : $documents->document_table_export_rows($scopedfilters, $status, $showidentity, $page, $perpage);
+$isnocourses = $drilldownkey === 'company_no_courses' || $drilldownkey === 'client_no_courses';
+if ($isnocourses) {
+    $employees = new employee_repository();
+    $export = $scope === 'all'
+        ? $employees->no_course_export_rows($scopedfilters, $showidentity)
+        : $employees->no_course_export_rows($scopedfilters, $showidentity, $page, $perpage);
+} else {
+    $documents = new document_repository();
+    $export = $scope === 'all'
+        ? $documents->document_table_export_rows($scopedfilters, $status, $showidentity)
+        : $documents->document_table_export_rows($scopedfilters, $status, $showidentity, $page, $perpage);
+}
 $columns = $export['columns'] ?? [];
 $rows = $export['rows'] ?? [];
-$filename = clean_filename('learning-matrix-' . ($scope === 'all' ? 'all' : 'page-' . ($page + 1)) . '-' . userdate(time(), '%Y%m%d-%H%M') . '.csv');
+$filenameprefix = $isnocourses ? 'no-courses' : 'learning-matrix';
+$filename = clean_filename($filenameprefix . '-' . ($scope === 'all' ? 'all' : 'page-' . ($page + 1)) . '-' . userdate(time(), '%Y%m%d-%H%M') . '.csv');
 
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');

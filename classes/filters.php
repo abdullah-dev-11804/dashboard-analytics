@@ -183,7 +183,18 @@ class filters {
 
     private static function status($value): string {
         $value = clean_param((string)$value, PARAM_ALPHANUMEXT);
-        return in_array($value, ['expired', 'expiring', 'active', 'valid', 'nodocument'], true) ? $value : '';
+        $allowed = [
+            'expired',
+            'expiring',
+            'active',
+            'valid',
+            'nodocument',
+            'completednodocument',
+            'trainingoverrun',
+            'intraining',
+            'noncompliant',
+        ];
+        return in_array($value, $allowed, true) ? $value : '';
     }
 
     private static function status_mode($value): string {

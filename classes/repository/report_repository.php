@@ -213,13 +213,11 @@ class report_repository {
         $result = [];
 
         foreach ($rows as $row) {
-            $ispostponed = ($row['sourcekind'] ?? '') === 'postponed';
-            if (!$ispostponed && (empty($row['sourcekind']) || empty($row['documentid']))) {
-                continue;
-            }
-
             $completiontime = (int)($row['issuedate'] ?? 0);
-            if (!$ispostponed && ($completiontime <= 0 || !$this->matches_period($completiontime, $period))) {
+            if ($completiontime <= 0) {
+                $completiontime = (int)($row['completiontime'] ?? 0);
+            }
+            if ($completiontime > 0 && !$this->matches_period($completiontime, $period)) {
                 continue;
             }
 
@@ -430,7 +428,15 @@ class report_repository {
     }
 
     private function status_sort_rank(string $statuskey): int {
-        $map = ['active' => 1, 'expiring' => 2, 'expired' => 3];
+        $map = [
+            'active' => 1,
+            'completednodocument' => 2,
+            'expiring' => 3,
+            'intraining' => 4,
+            'nodocument' => 5,
+            'trainingoverrun' => 6,
+            'expired' => 7,
+        ];
         return $map[$statuskey] ?? 99;
     }
 
@@ -445,29 +451,34 @@ class report_repository {
         if ($status === 'expired') {
             return 'expired';
         }
-        if ($status === 'postponed') {
-            return 'expired';
+        if ($status === 'training overrun') {
+            return 'trainingoverrun';
         }
-        return 'inprogress';
+        if ($status === 'in training') {
+            return 'intraining';
+        }
+        if ($status === 'completed (no document)') {
+            return 'completednodocument';
+        }
+        return 'nodocument';
     }
 
     private function status_label(string $status): string {
-        if (strtolower(trim($status)) === 'postponed') {
-            return get_string('label:postponedanalytics', 'block_dashboardanalytics');
-        }
-
         $key = $this->status_key($status);
         $map = [
             'active' => 'label:active',
             'expiring' => 'label:expiring',
             'expired' => 'label:expired',
-            'inprogress' => 'label:nodocument',
+            'intraining' => 'label:intraining',
+            'trainingoverrun' => 'label:trainingoverrun',
+            'nodocument' => 'label:nodocument',
+            'completednodocument' => 'label:completednodocument',
         ];
         return get_string($map[$key], 'block_dashboardanalytics');
     }
 
     private function training_type_label(string $sourcekind): string {
-        if ($sourcekind === 'postponed') {
+        if ($sourcekind === '' || $sourcekind === 'postponed') {
             return '';
         }
 
@@ -551,6 +562,10 @@ class report_repository {
             'active' => 0,
             'expiring' => 0,
             'expired' => 0,
+            'intraining' => 0,
+            'trainingoverrun' => 0,
+            'nodocument' => 0,
+            'completednodocument' => 0,
         ];
 
         foreach ($rows as $row) {

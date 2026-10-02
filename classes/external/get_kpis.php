@@ -41,6 +41,8 @@ class get_kpis extends \external_api {
             'dashboardkey' => $dashboardkey,
             'userid' => (int)$USER->id,
             'language' => current_language(),
+            'expirythresholddays' => (int)get_config('block_dashboardanalytics', 'expiryworkflowthresholddays'),
+            'trainingoverrunthresholddays' => (int)get_config('block_dashboardanalytics', 'trainingoverrunthresholddays'),
             'filters' => $scopedfilters,
         ]));
         $cached = $cache->get($cachekey);

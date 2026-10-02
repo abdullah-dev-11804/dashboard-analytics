@@ -70,6 +70,102 @@ class employee_repository {
         ];
     }
 
+    public function count_no_course_users(array $filters): int {
+        global $DB;
+
+        $filter = $this->no_course_user_filter_sql($filters, 'u', 'nocoursescount');
+        return (int)$DB->count_records_sql(
+            "SELECT COUNT(1)
+               FROM {user} u
+              WHERE {$filter['sql']}",
+            $filter['params']
+        );
+    }
+
+    public function get_no_course_rows(
+        array $filters,
+        int $page,
+        int $perpage,
+        bool $showidentity
+    ): array {
+        global $DB;
+
+        $filter = $this->no_course_user_filter_sql($filters, 'u', 'nocoursesrows');
+        $departmentexpr = $this->dimension_expr('departments', 'u', 'nocoursesrowsdept');
+        $locationexpr = $this->dimension_expr('locations', 'u', 'nocoursesrowsloc');
+        $sql = "SELECT u.id, u.firstname, u.lastname, u.email,
+                       {$departmentexpr} AS departmentname,
+                       {$locationexpr} AS locationname,
+                       u.timecreated
+                  FROM {user} u
+                 WHERE {$filter['sql']}
+              ORDER BY u.lastname ASC, u.firstname ASC";
+
+        $records = $DB->get_records_sql($sql, $filter['params'], $page * $perpage, $perpage);
+        $rows = [];
+        foreach ($records as $record) {
+            $rows[] = [
+                'cells' => [
+                    [
+                        'key' => 'employee',
+                        'value' => $showidentity ? name_formatter::last_first($record) : get_string('hiddenuser'),
+                        'profileurl' => $showidentity
+                            ? (new \moodle_url('/user/profile.php', ['id' => (int)$record->id]))->out(false)
+                            : '',
+                    ],
+                    ['key' => 'department', 'value' => (string)$record->departmentname],
+                    ['key' => 'location', 'value' => (string)$record->locationname],
+                    ['key' => 'status', 'value' => get_string('label:nocourses', 'block_dashboardanalytics')],
+                    ['key' => 'created', 'value' => userdate((int)$record->timecreated, get_string('strftimedate'))],
+                ],
+            ];
+        }
+
+        return [
+            'columns' => [
+                ['key' => 'employee', 'label' => get_string('label:employee', 'block_dashboardanalytics')],
+                ['key' => 'department', 'label' => get_string('label:department', 'block_dashboardanalytics')],
+                ['key' => 'location', 'label' => get_string('label:location', 'block_dashboardanalytics')],
+                ['key' => 'status', 'label' => get_string('label:status', 'block_dashboardanalytics')],
+                ['key' => 'created', 'label' => get_string('label:created', 'block_dashboardanalytics')],
+            ],
+            'rows' => $rows,
+            'totalcount' => $this->count_no_course_users($filters),
+        ];
+    }
+
+    public function no_course_export_rows(
+        array $filters,
+        bool $showidentity,
+        ?int $page = null,
+        ?int $perpage = null
+    ): array {
+        $result = $this->get_no_course_rows(
+            $filters,
+            $page ?? 0,
+            $perpage ?? 0,
+            $showidentity
+        );
+        $columns = [];
+        foreach ($result['columns'] as $column) {
+            $columns[(string)$column['key']] = (string)$column['label'];
+        }
+
+        $rows = [];
+        foreach ($result['rows'] as $row) {
+            $values = [];
+            foreach ($row['cells'] as $cell) {
+                $values[(string)$cell['key']] = (string)$cell['value'];
+            }
+            $rows[] = $values;
+        }
+
+        return [
+            'columns' => $columns,
+            'rows' => $rows,
+        ];
+    }
+
     public function new_staff_risk_items(array $filters, int $days = 90, int $limit = 12): array {
         global $DB;
 
@@ -382,6 +478,68 @@ class employee_repository {
         $params[$sentalcompanykey] = self::SENTAL_COMPANY_ID;
         $params[$sentalcompanykeyallow] = self::SENTAL_COMPANY_ID;
         $params[$sentalrolekey] = self::SENTAL_ALLOWED_ROLE;
+    }
+
+    private function no_course_user_filter_sql(array $filters, string $alias, string $prefix): array {
+        global $CFG, $DB;
+
+        $filter = $this->user_filter_sql($filters, $alias, $prefix);
+        $where = [$filter['sql']];
+        $params = $filter['params'] + [$prefix . 'siteid' => SITEID];
+        $where[] = "NOT EXISTS (
+                        SELECT 1
+                          FROM {user_enrolments} {$prefix}ue
+                          JOIN {enrol} {$prefix}e ON {$prefix}e.id = {$prefix}ue.enrolid
+                          JOIN {course} {$prefix}c ON {$prefix}c.id = {$prefix}e.courseid
+                         WHERE {$prefix}ue.userid = {$alias}.id
+                           AND {$prefix}ue.status = 0
+                           AND {$prefix}e.status = 0
+                           AND {$prefix}c.id <> :{$prefix}siteid
+                    )";
+
+        require_once($CFG->libdir . '/xmldb/xmldb_table.php');
+        $manager = $DB->get_manager();
+        if ($manager->table_exists(new \xmldb_table('local_iomadcourseassign'))) {
+            $postponedwhere = [
+                "{$prefix}p.userid = {$alias}.id",
+                "{$prefix}p.status = :{$prefix}postponed",
+            ];
+            $params[$prefix . 'postponed'] = 'postponed';
+            $companyjoin = '';
+
+            if (!empty($filters['companyids'])) {
+                [$insql, $inparams] = $DB->get_in_or_equal(
+                    $filters['companyids'],
+                    SQL_PARAMS_NAMED,
+                    $prefix . 'postponedcompany'
+                );
+                $postponedwhere[] = "{$prefix}p.companyid {$insql}";
+                $params += $inparams;
+            } else if (!empty($filters['companies'])
+                    && $manager->table_exists(new \xmldb_table('company'))) {
+                [$insql, $inparams] = $DB->get_in_or_equal(
+                    $filters['companies'],
+                    SQL_PARAMS_NAMED,
+                    $prefix . 'postponedcompanyname'
+                );
+                $companyjoin = "JOIN {company} {$prefix}company
+                                  ON {$prefix}company.id = {$prefix}p.companyid";
+                $postponedwhere[] = "{$prefix}company.name {$insql}";
+                $params += $inparams;
+            }
+
+            $where[] = "NOT EXISTS (
+                            SELECT 1
+                              FROM {local_iomadcourseassign} {$prefix}p
+                                   {$companyjoin}
+                             WHERE " . implode(' AND ', $postponedwhere) . "
+                        )";
+        }
+
+        return [
+            'sql' => implode(' AND ', $where),
+            'params' => $params,
+        ];
     }
 
     private function profile_field_exists(string $shortname): bool {
